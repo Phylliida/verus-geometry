@@ -1,0 +1,15 @@
+[package]
+name = "verus-geometry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vstd = { path = "../verus/source/vstd" }
+verus-algebra = { path = "../verus-algebra" }
+verus-linalg = { path = "../verus-linalg" }
+
+[package.metadata.verus]
+verify = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(verus_keep_ghost)'] }
