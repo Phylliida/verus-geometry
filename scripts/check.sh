@@ -4,7 +4,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERUS_ROOT="${VERUS_ROOT:-$ROOT_DIR/../verus}"
 VERUS_SOURCE="$VERUS_ROOT/source"
-TOOLCHAIN="${VERUS_TOOLCHAIN:-1.93.0-x86_64-unknown-linux-gnu}"
+CI_TOOLCHAIN="1.93.0-x86_64-unknown-linux-gnu"
+if [[ -z "${VERUS_TOOLCHAIN:-}" ]]; then
+  case "$(uname -s)-$(uname -m)" in
+    Darwin-arm64)  TOOLCHAIN="1.93.0-aarch64-apple-darwin" ;;
+    Darwin-x86_64) TOOLCHAIN="1.93.0-x86_64-apple-darwin" ;;
+    *)             TOOLCHAIN="$CI_TOOLCHAIN" ;;
+  esac
+else
+  TOOLCHAIN="$VERUS_TOOLCHAIN"
+fi
 CHECKOUT_ACTION_REF="${CHECKOUT_ACTION_REF:-actions/checkout@v4.2.2}"
 
 usage() {
@@ -93,37 +102,37 @@ normalize_inline_command() {
 
 extract_ci_check_command_from_workflow() {
   local workflow_file="$1"
-  rg -No '\./scripts/check\.sh[^\n]*' "$workflow_file" \
-    | rg -- '--require-verus' \
-    | rg -- '--min-verified' \
+  grep -oE '\./scripts/check\.sh.*' "$workflow_file" \
+    | grep -E -- '--require-verus' \
+    | grep -E -- '--min-verified' \
     | head -n 1 || true
 }
 
 extract_ci_check_command_from_readme() {
   local readme_file="$1"
-  rg -No '\./scripts/check\.sh[^\n`]*' "$readme_file" \
-    | rg -- '--require-verus' \
-    | rg -- '--min-verified' \
+  grep -oE '\./scripts/check\.sh[^`]*' "$readme_file" \
+    | grep -E -- '--require-verus' \
+    | grep -E -- '--min-verified' \
     | head -n 1 || true
 }
 
 extract_min_verified_arg() {
   local cmd="$1"
   printf '%s\n' "$cmd" \
-    | rg -No -- '--min-verified[[:space:]]+[0-9]+' \
-    | rg -No -- '[0-9]+' \
+    | grep -oE -- '--min-verified[[:space:]]+[0-9]+' \
+    | grep -oE -- '[0-9]+' \
     | head -n 1 || true
 }
 
 extract_ci_toolchain_install_from_workflow() {
   local workflow_file="$1"
-  rg -No 'rustup\s+toolchain\s+install\s+([[:graph:]]+)' -r '$1' "$workflow_file" \
+  sed -nE 's/.*rustup[[:space:]]+toolchain[[:space:]]+install[[:space:]]+([[:graph:]]+).*/\1/p' "$workflow_file" \
     | head -n 1 || true
 }
 
 extract_ci_toolchain_default_from_workflow() {
   local workflow_file="$1"
-  rg -No 'rustup\s+default\s+([[:graph:]]+)' -r '$1' "$workflow_file" \
+  sed -nE 's/.*rustup[[:space:]]+default[[:space:]]+([[:graph:]]+).*/\1/p' "$workflow_file" \
     | head -n 1 || true
 }
 
@@ -242,22 +251,22 @@ check_workflow_step_fail_fast() {
   local step_name="$1"
   local step_block="$2"
 
-  if printf '%s\n' "$step_block" | rg -q '^[[:space:]]+if:[[:space:]]'; then
+  if printf '%s\n' "$step_block" | grep -qE '^[[:space:]]+if:[[:space:]]'; then
     echo "error: workflow step '$step_name' must not set step-level if: gating"
     exit 1
   fi
 
-  if printf '%s\n' "$step_block" | rg -q 'continue-on-error:[[:space:]]*true'; then
+  if printf '%s\n' "$step_block" | grep -qE 'continue-on-error:[[:space:]]*true'; then
     echo "error: workflow step '$step_name' must not set continue-on-error: true"
     exit 1
   fi
 
-  if ! printf '%s\n' "$step_block" | rg -q 'set[[:space:]]+-euo[[:space:]]+pipefail'; then
+  if ! printf '%s\n' "$step_block" | grep -qE 'set[[:space:]]+-euo[[:space:]]+pipefail'; then
     echo "error: workflow step '$step_name' must set 'set -euo pipefail'"
     exit 1
   fi
 
-  if printf '%s\n' "$step_block" | rg -q '\|\|[[:space:]]*true'; then
+  if printf '%s\n' "$step_block" | grep -qE '\|\|[[:space:]]*true'; then
     echo "error: workflow step '$step_name' must not mask failures with '|| true'"
     exit 1
   fi
@@ -293,25 +302,25 @@ check_ci_workflow_trigger_coverage() {
     exit 1
   fi
 
-  if ! printf '%s\n' "$push_block" | rg -q '^[[:space:]]+branches:[[:space:]]*$'; then
+  if ! printf '%s\n' "$push_block" | grep -qE '^[[:space:]]+branches:[[:space:]]*$'; then
     echo "error: workflow push trigger must explicitly pin branches"
     printf '%s\n' "$push_block"
     exit 1
   fi
 
-  if ! printf '%s\n' "$push_block" | rg -q '^[[:space:]]*-[[:space:]]*main[[:space:]]*$'; then
+  if ! printf '%s\n' "$push_block" | grep -qE '^[[:space:]]*-[[:space:]]*main[[:space:]]*$'; then
     echo "error: workflow push trigger must include branch 'main'"
     printf '%s\n' "$push_block"
     exit 1
   fi
 
-  if printf '%s\n' "$on_block" | rg -q '^[[:space:]]+paths(-ignore)?:[[:space:]]*$'; then
+  if printf '%s\n' "$on_block" | grep -qE '^[[:space:]]+paths(-ignore)?:[[:space:]]*$'; then
     echo "error: workflow triggers must not use paths/paths-ignore filters that can skip strict checks"
     printf '%s\n' "$on_block"
     exit 1
   fi
 
-  if printf '%s\n' "$on_block" | rg -q '^[[:space:]]+branches-ignore:[[:space:]]*$'; then
+  if printf '%s\n' "$on_block" | grep -qE '^[[:space:]]+branches-ignore:[[:space:]]*$'; then
     echo "error: workflow triggers must not use branches-ignore filters"
     printf '%s\n' "$on_block"
     exit 1
@@ -333,19 +342,19 @@ check_ci_verify_job_execution_contract() {
     exit 1
   fi
 
-  if printf '%s\n' "$verify_job_block" | rg -q '^[[:space:]]{4}if:[[:space:]]'; then
+  if printf '%s\n' "$verify_job_block" | grep -qE '^[[:space:]]{4}if:[[:space:]]'; then
     echo "error: workflow 'verify' job must not be conditionally gated with a job-level if"
     printf '%s\n' "$verify_job_block"
     exit 1
   fi
 
-  if printf '%s\n' "$verify_job_block" | rg -q '^[[:space:]]{4}continue-on-error:[[:space:]]'; then
+  if printf '%s\n' "$verify_job_block" | grep -qE '^[[:space:]]{4}continue-on-error:[[:space:]]'; then
     echo "error: workflow 'verify' job must not set job-level continue-on-error"
     printf '%s\n' "$verify_job_block"
     exit 1
   fi
 
-  if ! printf '%s\n' "$verify_job_block" | rg -q '^[[:space:]]{4}timeout-minutes:[[:space:]]*[0-9]+[[:space:]]*$'; then
+  if ! printf '%s\n' "$verify_job_block" | grep -qE '^[[:space:]]{4}timeout-minutes:[[:space:]]*[0-9]+[[:space:]]*$'; then
     echo "error: workflow 'verify' job must declare an explicit timeout-minutes"
     printf '%s\n' "$verify_job_block"
     exit 1
@@ -367,19 +376,19 @@ check_ci_verify_runner_pinning() {
     exit 1
   fi
 
-  if printf '%s\n' "$verify_job_block" | rg -q '^[[:space:]]{4}runs-on:[[:space:]]*\$\{\{'; then
+  if printf '%s\n' "$verify_job_block" | grep -qE '^[[:space:]]{4}runs-on:[[:space:]]*\$\{\{'; then
     echo "error: workflow 'verify' job runs-on must be statically pinned (no expression interpolation)"
     printf '%s\n' "$verify_job_block"
     exit 1
   fi
 
-  if printf '%s\n' "$verify_job_block" | rg -q 'self-hosted'; then
+  if printf '%s\n' "$verify_job_block" | grep -qE 'self-hosted'; then
     echo "error: workflow 'verify' job must not target self-hosted runners"
     printf '%s\n' "$verify_job_block"
     exit 1
   fi
 
-  if ! printf '%s\n' "$verify_job_block" | rg -q '^[[:space:]]{4}runs-on:[[:space:]]*ubuntu-22\.04[[:space:]]*$'; then
+  if ! printf '%s\n' "$verify_job_block" | grep -qE '^[[:space:]]{4}runs-on:[[:space:]]*ubuntu-22\.04[[:space:]]*$'; then
     echo "error: workflow 'verify' job must pin runs-on to ubuntu-22.04"
     printf '%s\n' "$verify_job_block"
     exit 1
@@ -404,19 +413,19 @@ check_ci_workflow_permissions_hardening() {
     exit 1
   fi
 
-  if ! printf '%s\n' "$permissions_block" | rg -q '^[[:space:]]+contents:[[:space:]]*read[[:space:]]*$'; then
+  if ! printf '%s\n' "$permissions_block" | grep -qE '^[[:space:]]+contents:[[:space:]]*read[[:space:]]*$'; then
     echo "error: workflow permissions must include 'contents: read'"
     printf '%s\n' "$permissions_block"
     exit 1
   fi
 
-  if printf '%s\n' "$permissions_block" | rg -q ':[[:space:]]*write([[:space:]]|$)'; then
+  if printf '%s\n' "$permissions_block" | grep -qE ':[[:space:]]*write([[:space:]]|$)'; then
     echo "error: workflow permissions block must not grant write permissions"
     printf '%s\n' "$permissions_block"
     exit 1
   fi
 
-  if printf '%s\n' "$permissions_block" | rg -q ':[[:space:]]*(read-all|write-all)([[:space:]]|$)'; then
+  if printf '%s\n' "$permissions_block" | grep -qE ':[[:space:]]*(read-all|write-all)([[:space:]]|$)'; then
     echo "error: workflow permissions must avoid broad read-all/write-all grants"
     printf '%s\n' "$permissions_block"
     exit 1
@@ -441,12 +450,12 @@ check_ci_workflow_checkout_wiring() {
     exit 1
   fi
 
-  checkout_geometry_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Checkout verus-geometry[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  checkout_verus_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Checkout Verus[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  checkout_algebra_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Checkout verus-algebra[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  checkout_linalg_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Checkout verus-linalg[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  build_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  strict_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  checkout_geometry_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Checkout verus-geometry[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  checkout_verus_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Checkout Verus[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  checkout_algebra_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Checkout verus-algebra[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  checkout_linalg_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Checkout verus-linalg[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  build_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  strict_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
 
   if [[ -z "$checkout_geometry_line" || -z "$checkout_verus_line" || -z "$checkout_algebra_line" || -z "$checkout_linalg_line" ]]; then
     echo "error: required checkout steps missing in $workflow_file"
@@ -488,66 +497,66 @@ check_ci_workflow_checkout_wiring() {
     exit 1
   fi
 
-  if ! printf '%s\n' "$checkout_geometry_step" | rg -Fq "uses: $CHECKOUT_ACTION_REF"; then
+  if ! printf '%s\n' "$checkout_geometry_step" | grep -Fq "uses: $CHECKOUT_ACTION_REF"; then
     echo "error: workflow 'Checkout verus-geometry' step must pin uses: $CHECKOUT_ACTION_REF"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_geometry_step" | rg -q 'path:[[:space:]]*verus-geometry'; then
+  if ! printf '%s\n' "$checkout_geometry_step" | grep -qE 'path:[[:space:]]*verus-geometry'; then
     echo "error: workflow 'Checkout verus-geometry' step must set path: verus-geometry"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_geometry_step" | rg -q 'persist-credentials:[[:space:]]*false'; then
+  if ! printf '%s\n' "$checkout_geometry_step" | grep -qE 'persist-credentials:[[:space:]]*false'; then
     echo "error: workflow 'Checkout verus-geometry' step must set persist-credentials: false"
     exit 1
   fi
 
-  if ! printf '%s\n' "$checkout_verus_step" | rg -Fq "uses: $CHECKOUT_ACTION_REF"; then
+  if ! printf '%s\n' "$checkout_verus_step" | grep -Fq "uses: $CHECKOUT_ACTION_REF"; then
     echo "error: workflow 'Checkout Verus' step must pin uses: $CHECKOUT_ACTION_REF"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_verus_step" | rg -q 'repository:[[:space:]]*verus-lang/verus'; then
+  if ! printf '%s\n' "$checkout_verus_step" | grep -qE 'repository:[[:space:]]*verus-lang/verus'; then
     echo "error: workflow 'Checkout Verus' step must set repository: verus-lang/verus"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_verus_step" | rg -q 'path:[[:space:]]*verus'; then
+  if ! printf '%s\n' "$checkout_verus_step" | grep -qE 'path:[[:space:]]*verus'; then
     echo "error: workflow 'Checkout Verus' step must set path: verus"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_verus_step" | rg -q 'persist-credentials:[[:space:]]*false'; then
+  if ! printf '%s\n' "$checkout_verus_step" | grep -qE 'persist-credentials:[[:space:]]*false'; then
     echo "error: workflow 'Checkout Verus' step must set persist-credentials: false"
     exit 1
   fi
 
-  if ! printf '%s\n' "$checkout_algebra_step" | rg -Fq "uses: $CHECKOUT_ACTION_REF"; then
+  if ! printf '%s\n' "$checkout_algebra_step" | grep -Fq "uses: $CHECKOUT_ACTION_REF"; then
     echo "error: workflow 'Checkout verus-algebra' step must pin uses: $CHECKOUT_ACTION_REF"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_algebra_step" | rg -q 'repository:[[:space:]]*Phylliida/verus-algebra'; then
+  if ! printf '%s\n' "$checkout_algebra_step" | grep -qE 'repository:[[:space:]]*Phylliida/verus-algebra'; then
     echo "error: workflow 'Checkout verus-algebra' step must set repository: Phylliida/verus-algebra"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_algebra_step" | rg -q 'path:[[:space:]]*verus-algebra'; then
+  if ! printf '%s\n' "$checkout_algebra_step" | grep -qE 'path:[[:space:]]*verus-algebra'; then
     echo "error: workflow 'Checkout verus-algebra' step must set path: verus-algebra"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_algebra_step" | rg -q 'persist-credentials:[[:space:]]*false'; then
+  if ! printf '%s\n' "$checkout_algebra_step" | grep -qE 'persist-credentials:[[:space:]]*false'; then
     echo "error: workflow 'Checkout verus-algebra' step must set persist-credentials: false"
     exit 1
   fi
 
-  if ! printf '%s\n' "$checkout_linalg_step" | rg -Fq "uses: $CHECKOUT_ACTION_REF"; then
+  if ! printf '%s\n' "$checkout_linalg_step" | grep -Fq "uses: $CHECKOUT_ACTION_REF"; then
     echo "error: workflow 'Checkout verus-linalg' step must pin uses: $CHECKOUT_ACTION_REF"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_linalg_step" | rg -q 'repository:[[:space:]]*Phylliida/verus-linalg'; then
+  if ! printf '%s\n' "$checkout_linalg_step" | grep -qE 'repository:[[:space:]]*Phylliida/verus-linalg'; then
     echo "error: workflow 'Checkout verus-linalg' step must set repository: Phylliida/verus-linalg"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_linalg_step" | rg -q 'path:[[:space:]]*verus-linalg'; then
+  if ! printf '%s\n' "$checkout_linalg_step" | grep -qE 'path:[[:space:]]*verus-linalg'; then
     echo "error: workflow 'Checkout verus-linalg' step must set path: verus-linalg"
     exit 1
   fi
-  if ! printf '%s\n' "$checkout_linalg_step" | rg -q 'persist-credentials:[[:space:]]*false'; then
+  if ! printf '%s\n' "$checkout_linalg_step" | grep -qE 'persist-credentials:[[:space:]]*false'; then
     echo "error: workflow 'Checkout verus-linalg' step must set persist-credentials: false"
     exit 1
   fi
@@ -565,8 +574,8 @@ check_ci_workflow_end_to_end_structure() {
     exit 1
   fi
 
-  build_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  strict_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  build_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  strict_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
   if [[ -z "$build_line" || -z "$strict_line" ]]; then
     echo "error: required workflow steps missing in $workflow_file"
     echo "expected steps: 'Build Verus tools' and 'Run strict checks'"
@@ -593,28 +602,28 @@ check_ci_workflow_end_to_end_structure() {
   check_workflow_step_fail_fast "Build Verus tools" "$build_step"
   check_workflow_step_fail_fast "Run strict checks" "$strict_step"
 
-  if ! printf '%s\n' "$build_step" | rg -q 'working-directory:[[:space:]]*verus/source'; then
+  if ! printf '%s\n' "$build_step" | grep -qE 'working-directory:[[:space:]]*verus/source'; then
     echo "error: workflow 'Build Verus tools' step must run in verus/source"
     exit 1
   fi
-  if ! printf '%s\n' "$build_step" | rg -Fq './tools/get-z3.sh'; then
+  if ! printf '%s\n' "$build_step" | grep -Fq './tools/get-z3.sh'; then
     echo "error: workflow 'Build Verus tools' step must fetch z3 via ./tools/get-z3.sh"
     exit 1
   fi
-  if ! printf '%s\n' "$build_step" | rg -q 'vargo[[:space:]]+build[[:space:]]+--release'; then
+  if ! printf '%s\n' "$build_step" | grep -qE 'vargo[[:space:]]+build[[:space:]]+--release'; then
     echo "error: workflow 'Build Verus tools' step must build Verus tools via 'vargo build --release'"
     exit 1
   fi
 
-  if ! printf '%s\n' "$strict_step" | rg -q 'working-directory:[[:space:]]*verus-geometry'; then
+  if ! printf '%s\n' "$strict_step" | grep -qE 'working-directory:[[:space:]]*verus-geometry'; then
     echo "error: workflow 'Run strict checks' step must run in verus-geometry"
     exit 1
   fi
-  if ! printf '%s\n' "$strict_step" | rg -Fq 'VERUS_ROOT: ${{ github.workspace }}/verus'; then
+  if ! printf '%s\n' "$strict_step" | grep -Fq 'VERUS_ROOT: ${{ github.workspace }}/verus'; then
     echo "error: workflow 'Run strict checks' step must export VERUS_ROOT to the checked-out Verus tree"
     exit 1
   fi
-  if ! printf '%s\n' "$strict_step" | rg -q '\./scripts/check\.sh'; then
+  if ! printf '%s\n' "$strict_step" | grep -qE '\./scripts/check\.sh'; then
     echo "error: workflow 'Run strict checks' step must execute ./scripts/check.sh"
     exit 1
   fi
@@ -638,9 +647,9 @@ check_ci_toolchain_install_wiring() {
     exit 1
   fi
 
-  install_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Install required Rust toolchain[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  build_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
-  strict_line="$(rg -n '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  install_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Install required Rust toolchain[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  build_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Build Verus tools[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
+  strict_line="$(grep -nE '^[[:space:]]*- name:[[:space:]]*Run strict checks[[:space:]]*$' "$workflow_file" | head -n 1 | cut -d: -f1)"
   if [[ -z "$install_line" || -z "$build_line" || -z "$strict_line" ]]; then
     echo "error: required workflow steps missing in $workflow_file"
     echo "expected steps: 'Install required Rust toolchain', 'Build Verus tools', and 'Run strict checks'"
@@ -660,28 +669,28 @@ check_ci_toolchain_install_wiring() {
 
   check_workflow_step_fail_fast "Install required Rust toolchain" "$install_step"
 
-  if ! printf '%s\n' "$install_step" | rg -q "rustup[[:space:]]+toolchain[[:space:]]+install[[:space:]]+$TOOLCHAIN([[:space:]]|$)"; then
-    echo "error: workflow toolchain-install step must install the pinned toolchain '$TOOLCHAIN'"
+  if ! printf '%s\n' "$install_step" | grep -qE "rustup[[:space:]]+toolchain[[:space:]]+install[[:space:]]+$CI_TOOLCHAIN([[:space:]]|$)"; then
+    echo "error: workflow toolchain-install step must install the pinned toolchain '$CI_TOOLCHAIN'"
     printf '%s\n' "$install_step"
     exit 1
   fi
 
-  if ! printf '%s\n' "$install_step" | rg -q -- '--profile[[:space:]]+minimal'; then
+  if ! printf '%s\n' "$install_step" | grep -qE -- '--profile[[:space:]]+minimal'; then
     echo "error: workflow toolchain-install step must use '--profile minimal'"
     printf '%s\n' "$install_step"
     exit 1
   fi
 
   for component in "${required_components[@]}"; do
-    if ! printf '%s\n' "$install_step" | rg -q -- "--component[[:space:]]+$component([[:space:]]|$)"; then
+    if ! printf '%s\n' "$install_step" | grep -qE -- "--component[[:space:]]+$component([[:space:]]|$)"; then
       echo "error: workflow toolchain-install step must include '--component $component'"
       printf '%s\n' "$install_step"
       exit 1
     fi
   done
 
-  if ! printf '%s\n' "$install_step" | rg -q "rustup[[:space:]]+default[[:space:]]+$TOOLCHAIN([[:space:]]|$)"; then
-    echo "error: workflow toolchain-install step must set rustup default to '$TOOLCHAIN'"
+  if ! printf '%s\n' "$install_step" | grep -qE "rustup[[:space:]]+default[[:space:]]+$CI_TOOLCHAIN([[:space:]]|$)"; then
+    echo "error: workflow toolchain-install step must set rustup default to '$CI_TOOLCHAIN'"
     printf '%s\n' "$install_step"
     exit 1
   fi
@@ -712,9 +721,9 @@ check_ci_toolchain_alignment() {
     exit 1
   fi
 
-  if [[ "$workflow_install_toolchain" != "$TOOLCHAIN" ]]; then
+  if [[ "$workflow_install_toolchain" != "$CI_TOOLCHAIN" ]]; then
     echo "error: workflow/check.sh toolchain mismatch"
-    echo "check.sh TOOLCHAIN: $TOOLCHAIN"
+    echo "check.sh CI_TOOLCHAIN: $CI_TOOLCHAIN"
     echo "workflow toolchain: $workflow_install_toolchain"
     exit 1
   fi
@@ -761,7 +770,7 @@ check_ci_strict_gate_alignment() {
   readme_norm="$(normalize_inline_command "$readme_cmd")"
 
   for flag in "${required_flags[@]}"; do
-    if ! printf '%s\n' "$workflow_norm" | rg -Fq -- "$flag"; then
+    if ! printf '%s\n' "$workflow_norm" | grep -Fq -- "$flag"; then
       echo "error: workflow strict check command is missing required flag: $flag"
       echo "command: $workflow_norm"
       exit 1
@@ -795,18 +804,19 @@ check_ci_strict_gate_alignment() {
 check_no_trusted_escapes_in_non_test_sources() {
   local matches=""
   matches="$(
-    rg -n \
-      --color never \
-      --glob '!**/tests.rs' \
-      --glob '!**/test_*.rs' \
-      --glob '!**/tests/**' \
-      -e '\badmit\s*\(' \
-      -e '\bassume\s*\(' \
-      -e '#\s*\[\s*verifier::external(_body|_fn_specification|_type_specification)?\b' \
-      -e '#\s*\[\s*verifier::truncate\b' \
-      -e '#\s*\[\s*verifier::exec_allows_no_decreases_clause\b' \
+    find "$ROOT_DIR/src" -name '*.rs' \
+      ! -name 'tests.rs' \
+      ! -name 'test_*.rs' \
+      ! -path '*/tests/*' \
+      -print0 \
+    | xargs -0 grep -nE \
+      -e '\badmit[[:space:]]*\(' \
+      -e '\bassume[[:space:]]*\(' \
+      -e '#[[:space:]]*\[[[:space:]]*verifier::external(_body|_fn_specification|_type_specification)?' \
+      -e '#[[:space:]]*\[[[:space:]]*verifier::truncate' \
+      -e '#[[:space:]]*\[[[:space:]]*verifier::exec_allows_no_decreases_clause' \
       -e '\bunsafe\b' \
-      "$ROOT_DIR/src" || true
+      || true
   )"
 
   if [[ -n "$matches" ]]; then
@@ -884,7 +894,7 @@ extract_verus_verified_count() {
   local verified_count=""
   local error_count=""
 
-  summary="$(rg -No 'verification results::\s*([0-9]+) verified,\s*([0-9]+) errors' -r '$1|$2' "$log_file" | tail -n 1 || true)"
+  summary="$(sed -nE 's/.*verification results::[[:space:]]*([0-9]+) verified,[[:space:]]*([0-9]+) errors.*/\1|\2/p' "$log_file" | tail -n 1 || true)"
   if [[ -z "$summary" ]]; then
     echo "error: could not parse Verus verification summary"
     cat "$log_file"
@@ -947,8 +957,6 @@ run_cargo_verus_verify_with_threshold() {
 
   rm -f "$verus_log"
 }
-
-require_command rg "install ripgrep (binary: rg) before running strict checks"
 
 echo "[check] Verifying CI toolchain alignment (workflow vs check.sh)"
 check_ci_toolchain_alignment
