@@ -56,7 +56,7 @@ pub proof fn lemma_det2d_antisymmetric<T: Ring>(u: Vec2<T>, v: Vec2<T>)
 }
 
 /// det2d(v, v) ≡ 0
-proof fn lemma_det2d_self_zero<T: Ring>(v: Vec2<T>)
+pub proof fn lemma_det2d_self_zero<T: Ring>(v: Vec2<T>)
     ensures
         det2d(v, v).eqv(T::zero()),
 {
@@ -366,6 +366,58 @@ pub proof fn lemma_det2d_sub_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
         det2d(u_sub_v, w),
         det2d(u, w).add(det2d(neg_v, w)),
         det2d(u, w).sub(det2d(v, w)),
+    );
+}
+
+/// det2d(u, scale(t, v)) ≡ t * det2d(u, v)
+pub proof fn lemma_det2d_scale_right<T: Ring>(t: T, u: Vec2<T>, v: Vec2<T>)
+    ensures
+        det2d(u, Vec2 { x: t.mul(v.x), y: t.mul(v.y) }).eqv(t.mul(det2d(u, v))),
+{
+    let tv = Vec2 { x: t.mul(v.x), y: t.mul(v.y) };
+
+    // u.x*(t*v.y) ≡ t*(u.x*v.y): assoc+comm
+    T::axiom_mul_associative(u.x, t, v.y);
+    T::axiom_eqv_symmetric(u.x.mul(t).mul(v.y), u.x.mul(t.mul(v.y)));
+    T::axiom_mul_commutative(u.x, t);
+    T::axiom_mul_congruence_left(u.x.mul(t), t.mul(u.x), v.y);
+    T::axiom_mul_associative(t, u.x, v.y);
+    T::axiom_eqv_transitive(
+        u.x.mul(t).mul(v.y), t.mul(u.x).mul(v.y), t.mul(u.x.mul(v.y)),
+    );
+    T::axiom_eqv_transitive(
+        u.x.mul(tv.y), u.x.mul(t).mul(v.y), t.mul(u.x.mul(v.y)),
+    );
+
+    // u.y*(t*v.x) ≡ t*(u.y*v.x): same
+    T::axiom_mul_associative(u.y, t, v.x);
+    T::axiom_eqv_symmetric(u.y.mul(t).mul(v.x), u.y.mul(t.mul(v.x)));
+    T::axiom_mul_commutative(u.y, t);
+    T::axiom_mul_congruence_left(u.y.mul(t), t.mul(u.y), v.x);
+    T::axiom_mul_associative(t, u.y, v.x);
+    T::axiom_eqv_transitive(
+        u.y.mul(t).mul(v.x), t.mul(u.y).mul(v.x), t.mul(u.y.mul(v.x)),
+    );
+    T::axiom_eqv_transitive(
+        u.y.mul(tv.x), u.y.mul(t).mul(v.x), t.mul(u.y.mul(v.x)),
+    );
+
+    // det2d(u, tv) = u.x*tv.y - u.y*tv.x ≡ t*(u.x*v.y) - t*(u.y*v.x)
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        u.x.mul(tv.y), t.mul(u.x.mul(v.y)),
+        u.y.mul(tv.x), t.mul(u.y.mul(v.x)),
+    );
+
+    // t*a - t*b ≡ t*(a-b) via distributes_over_sub reversed
+    ring_lemmas::lemma_mul_distributes_over_sub::<T>(t, u.x.mul(v.y), u.y.mul(v.x));
+    T::axiom_eqv_symmetric(
+        t.mul(u.x.mul(v.y).sub(u.y.mul(v.x))),
+        t.mul(u.x.mul(v.y)).sub(t.mul(u.y.mul(v.x))),
+    );
+    T::axiom_eqv_transitive(
+        det2d(u, tv),
+        t.mul(u.x.mul(v.y)).sub(t.mul(u.y.mul(v.x))),
+        t.mul(det2d(u, v)),
     );
 }
 
