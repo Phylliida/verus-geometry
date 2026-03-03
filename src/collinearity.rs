@@ -9,6 +9,7 @@ use crate::point3::*;
 use crate::orient2d::*;
 use crate::orient3d::{orient3d, lemma_orient3d_swap_cd, lemma_orient3d_swap_bc,
     lemma_orient3d_cycle_bcd, lemma_orient3d_degenerate_ab, lemma_orient3d_degenerate_cd};
+use crate::intersection3d::{project_drop_x, project_drop_y, project_drop_z};
 
 verus! {
 
@@ -533,6 +534,93 @@ pub proof fn lemma_collinear3d_implies_coplanar<T: Ring>(
         dot(da, z),
         T::zero(),
     );
+}
+
+// =========================================================================
+// Collinear3d implies all 2D projections are collinear
+// =========================================================================
+
+/// collinear3d(a, b, c) implies collinear2d on the drop-z projection.
+///
+/// orient2d(pz_a, pz_b, pz_c) is syntactically the same expression as
+/// cross(sub3(b,a), sub3(c,a)).z after unfolding all open spec fns.
+pub proof fn lemma_collinear3d_implies_collinear2d_drop_z<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        collinear3d(a, b, c),
+    ensures
+        collinear2d(project_drop_z(a), project_drop_z(b), project_drop_z(c)),
+{
+    // collinear3d gives cross(sub3(b,a), sub3(c,a)) ≡ Vec3::zero()
+    // so cross.z ≡ 0.
+    // orient2d(pz_a, pz_b, pz_c) unfolds to the same term as cross.z.
+}
+
+/// collinear3d(a, b, c) implies collinear2d on the drop-x projection.
+///
+/// orient2d(px_a, px_b, px_c) is syntactically the same expression as
+/// cross(sub3(b,a), sub3(c,a)).x after unfolding.
+pub proof fn lemma_collinear3d_implies_collinear2d_drop_x<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        collinear3d(a, b, c),
+    ensures
+        collinear2d(project_drop_x(a), project_drop_x(b), project_drop_x(c)),
+{
+    // cross.x ≡ 0, and orient2d of drop_x projection IS cross.x.
+}
+
+/// collinear3d(a, b, c) implies collinear2d on the drop-y projection.
+///
+/// orient2d(py_a, py_b, py_c) = A.sub(B) while cross.y = B.sub(A).
+/// By sub_antisymmetric: A.sub(B) ≡ -(B.sub(A)) = -(cross.y) ≡ -0 ≡ 0.
+pub proof fn lemma_collinear3d_implies_collinear2d_drop_y<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        collinear3d(a, b, c),
+    ensures
+        collinear2d(project_drop_y(a), project_drop_y(b), project_drop_y(c)),
+{
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    // orient2d(py_a, py_b, py_c) = ba.x*ca.z - ba.z*ca.x  (after unfolding)
+    // cross(ba, ca).y            = ba.z*ca.x - ba.x*ca.z  (after unfolding)
+    // These differ by sign: orient2d = -(cross.y) via sub_antisymmetric.
+    let big_a = ba.x.mul(ca.z);
+    let big_b = ba.z.mul(ca.x);
+    // sub_antisymmetric: A.sub(B) ≡ B.sub(A).neg()
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(big_a, big_b);
+    // orient2d ≡ -(cross.y)
+    // collinear3d gives cross.y ≡ 0
+    // -(cross.y) ≡ -(0) ≡ 0
+    T::axiom_neg_congruence(cross(ba, ca).y, T::zero());
+    additive_group_lemmas::lemma_neg_zero::<T>();
+    T::axiom_eqv_transitive(cross(ba, ca).y.neg(), T::zero().neg(), T::zero());
+    // orient2d = A.sub(B) ≡ B.sub(A).neg() = cross.y.neg() ≡ 0
+    T::axiom_eqv_transitive(
+        orient2d(project_drop_y(a), project_drop_y(b), project_drop_y(c)),
+        cross(ba, ca).y.neg(),
+        T::zero(),
+    );
+}
+
+/// collinear3d(a, b, c) implies all three 2D projections are collinear.
+pub proof fn lemma_collinear3d_implies_all_projections_collinear<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        collinear3d(a, b, c),
+    ensures
+        collinear2d(project_drop_x(a), project_drop_x(b), project_drop_x(c)),
+        collinear2d(project_drop_y(a), project_drop_y(b), project_drop_y(c)),
+        collinear2d(project_drop_z(a), project_drop_z(b), project_drop_z(c)),
+{
+    lemma_collinear3d_implies_collinear2d_drop_x::<T>(a, b, c);
+    lemma_collinear3d_implies_collinear2d_drop_y::<T>(a, b, c);
+    lemma_collinear3d_implies_collinear2d_drop_z::<T>(a, b, c);
 }
 
 } // verus!

@@ -2,6 +2,8 @@ use vstd::prelude::*;
 use verus_algebra::traits::*;
 use verus_algebra::lemmas::ordered_ring_lemmas;
 use verus_algebra::lemmas::additive_group_lemmas;
+use verus_algebra::lemmas::ordered_field_lemmas;
+use verus_algebra::lemmas::ring_lemmas;
 use crate::point2::*;
 use crate::point3::*;
 use crate::orient2d::*;
@@ -452,6 +454,87 @@ pub proof fn lemma_orient3d_sign_swap_bc<T: OrderedRing>(
     lemma_neg_flips_sign::<T>(swapped, val);
     lemma_orient3d_sign_matches::<T>(a, b, c, d);
     lemma_orient3d_sign_matches::<T>(a, c, b, d);
+}
+
+// ---------------------------------------------------------------------------
+// Sign classification for arbitrary scalars
+// ---------------------------------------------------------------------------
+
+/// Classify the sign of an arbitrary scalar.
+pub open spec fn scalar_sign<T: OrderedRing>(val: T) -> OrientationSign {
+    if T::zero().lt(val) {
+        OrientationSign::Positive
+    } else if val.lt(T::zero()) {
+        OrientationSign::Negative
+    } else {
+        OrientationSign::Zero
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Sign invariant under positive scaling (requires OrderedField)
+// ---------------------------------------------------------------------------
+
+/// Multiplying by a positive scalar preserves sign.
+pub proof fn lemma_scalar_sign_pos_scale<T: OrderedField>(s: T, val: T)
+    requires
+        T::zero().lt(s),
+    ensures
+        scalar_sign(s.mul(val)) == scalar_sign(val),
+{
+    ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), val);
+    ordered_ring_lemmas::lemma_trichotomy::<T>(val, T::zero());
+
+    if T::zero().lt(val) {
+        // 0 < s, 0 < val → 0 < s*val
+        ordered_field_lemmas::lemma_mul_pos_pos::<T>(s, val);
+        ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), s.mul(val));
+        ordered_ring_lemmas::lemma_trichotomy::<T>(s.mul(val), T::zero());
+    } else if val.lt(T::zero()) {
+        // 0 < s, val < 0 → s*val < 0
+        ordered_field_lemmas::lemma_mul_pos_neg::<T>(s, val);
+        ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), s.mul(val));
+        ordered_ring_lemmas::lemma_trichotomy::<T>(s.mul(val), T::zero());
+    } else {
+        // val ≡ 0 (from trichotomy: ¬(0 < val) ∧ ¬(val < 0) → 0 ≡ val)
+        if T::zero().eqv(val) {
+            T::axiom_eqv_symmetric(T::zero(), val);
+        }
+        // s*val ≡ s*0 ≡ 0
+        ring_lemmas::lemma_mul_congruence_right::<T>(s, val, T::zero());
+        T::axiom_mul_zero_right(s);
+        T::axiom_eqv_transitive(s.mul(val), s.mul(T::zero()), T::zero());
+        // s*val ≡ 0, so ¬(0 < s*val) and ¬(s*val < 0)
+        ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), s.mul(val));
+        ordered_ring_lemmas::lemma_trichotomy::<T>(s.mul(val), T::zero());
+        T::axiom_eqv_symmetric(s.mul(val), T::zero());
+    }
+}
+
+/// orient2d_sign is invariant under positive scaling of the determinant.
+pub proof fn lemma_orient2d_sign_pos_scale<T: OrderedField>(
+    s: T,
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+)
+    requires
+        T::zero().lt(s),
+    ensures
+        scalar_sign(s.mul(orient2d(a, b, c))) == orient2d_sign(a, b, c),
+{
+    lemma_scalar_sign_pos_scale::<T>(s, orient2d(a, b, c));
+}
+
+/// orient3d_sign is invariant under positive scaling of the determinant.
+pub proof fn lemma_orient3d_sign_pos_scale<T: OrderedField>(
+    s: T,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>,
+)
+    requires
+        T::zero().lt(s),
+    ensures
+        scalar_sign(s.mul(orient3d(a, b, c, d))) == orient3d_sign(a, b, c, d),
+{
+    lemma_scalar_sign_pos_scale::<T>(s, orient3d(a, b, c, d));
 }
 
 } // verus!
