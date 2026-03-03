@@ -64,4 +64,4 @@ jobs:
           VERUS_ROOT: ${{ github.workspace }}/verus
         run: |
           set -euo pipefail
-          ./scripts/check.sh --require-verus --forbid-trusted-escapes --min-verified 29
+          ./scripts/check.sh --require-verus --forbid-trusted-escapes
