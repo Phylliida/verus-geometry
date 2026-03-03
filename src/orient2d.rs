@@ -26,7 +26,7 @@ pub open spec fn orient2d<T: Ring>(a: Point2<T>, b: Point2<T>, c: Point2<T>) -> 
 // ---------------------------------------------------------------------------
 
 /// det2d(u, v) ≡ -det2d(v, u)
-proof fn lemma_det2d_antisymmetric<T: Ring>(u: Vec2<T>, v: Vec2<T>)
+pub proof fn lemma_det2d_antisymmetric<T: Ring>(u: Vec2<T>, v: Vec2<T>)
     ensures
         det2d(u, v).eqv(det2d(v, u).neg()),
 {
@@ -79,7 +79,7 @@ proof fn lemma_det2d_self_zero<T: Ring>(v: Vec2<T>)
 }
 
 /// Congruence: a1≡a2, b1≡b2 implies det2d(a1,b1) ≡ det2d(a2,b2)
-proof fn lemma_det2d_congruence<T: Ring>(a1: Vec2<T>, a2: Vec2<T>, b1: Vec2<T>, b2: Vec2<T>)
+pub proof fn lemma_det2d_congruence<T: Ring>(a1: Vec2<T>, a2: Vec2<T>, b1: Vec2<T>, b2: Vec2<T>)
     requires
         a1.eqv(a2),
         b1.eqv(b2),
@@ -255,7 +255,7 @@ proof fn lemma_det2d_linear_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
 }
 
 /// det2d(u-v, w) ≡ det2d(u, w) - det2d(v, w)
-proof fn lemma_det2d_sub_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
+pub proof fn lemma_det2d_sub_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
     ensures
         det2d(Vec2 { x: u.x.sub(v.x), y: u.y.sub(v.y) }, w).eqv(
             det2d(u, w).sub(det2d(v, w))

@@ -1,6 +1,11 @@
 use vstd::prelude::*;
 use verus_algebra::traits::*;
 use verus_algebra::lemmas::ordered_ring_lemmas;
+use verus_algebra::lemmas::additive_group_lemmas;
+use verus_algebra::lemmas::ordered_field_lemmas;
+use verus_algebra::lemmas::field_lemmas;
+use verus_algebra::lemmas::ring_lemmas;
+use verus_linalg::vec2::Vec2;
 use crate::point2::*;
 use crate::orient2d::*;
 use crate::orientation_sign::*;
@@ -197,6 +202,29 @@ pub proof fn lemma_proper_implies_ab_opposite_sides<T: OrderedRing>(
     lemma_orient2d_trichotomy::<T>(c, d, b);
 }
 
+/// The classification returns exactly one of the four kinds (exhaustive + pairwise disjoint).
+pub proof fn lemma_classification_exhaustive<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures ({
+        let k = segment_intersection_kind_2d(a, b, c, d);
+        &&& (k == SegmentIntersection2dKind::Disjoint
+             || k == SegmentIntersection2dKind::Proper
+             || k == SegmentIntersection2dKind::EndpointTouch
+             || k == SegmentIntersection2dKind::CollinearOverlap)
+        // Pairwise disjoint
+        &&& !(k == SegmentIntersection2dKind::Disjoint && k == SegmentIntersection2dKind::Proper)
+        &&& !(k == SegmentIntersection2dKind::Disjoint && k == SegmentIntersection2dKind::EndpointTouch)
+        &&& !(k == SegmentIntersection2dKind::Disjoint && k == SegmentIntersection2dKind::CollinearOverlap)
+        &&& !(k == SegmentIntersection2dKind::Proper && k == SegmentIntersection2dKind::EndpointTouch)
+        &&& !(k == SegmentIntersection2dKind::Proper && k == SegmentIntersection2dKind::CollinearOverlap)
+        &&& !(k == SegmentIntersection2dKind::EndpointTouch && k == SegmentIntersection2dKind::CollinearOverlap)
+    }),
+{
+    // The spec function returns exactly one enum variant via if/else branching.
+    // Pairwise disjointness follows from enum equality.
+}
+
 /// CollinearOverlap implies all four points are collinear.
 pub proof fn lemma_collinear_overlap_implies_collinear<T: OrderedRing>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
@@ -213,6 +241,67 @@ pub proof fn lemma_collinear_overlap_implies_collinear<T: OrderedRing>(
     lemma_orient2d_sign_matches::<T>(a, b, d);
     lemma_orient2d_sign_matches::<T>(c, d, a);
     lemma_orient2d_sign_matches::<T>(c, d, b);
+}
+
+// =========================================================================
+// Denominator nonzero for Proper intersection (2D)
+// =========================================================================
+
+/// The denominator orient2d(c,d,a) - orient2d(c,d,b) is nonzero
+/// when the segment intersection is Proper.
+///
+/// This follows the same pattern as the 3D `lemma_crossing_denominator_nonzero`.
+/// From Proper: orient2d_sign(c,d,a) and orient2d_sign(c,d,b) are both nonzero
+/// and have opposite signs, so their difference cannot be zero.
+pub proof fn lemma_proper_denominator_nonzero_2d<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    requires
+        segment_intersection_kind_2d(a, b, c, d) == SegmentIntersection2dKind::Proper,
+    ensures ({
+        let o3 = orient2d(c, d, a);
+        let o4 = orient2d(c, d, b);
+        !o3.add(o4.neg()).eqv(T::zero())
+    }),
+{
+    let o3 = orient2d(c, d, a);
+    let o4 = orient2d(c, d, b);
+    let denom = o3.add(o4.neg());
+
+    // From Proper: o3 and o4 are both nonzero with opposite signs.
+    lemma_proper_implies_ab_opposite_sides::<T>(a, b, c, d);
+
+    // Contradiction proof: if denom ≡ 0 then o3 ≡ o4, but they have opposite signs.
+    if denom.eqv(T::zero()) {
+        // o3 + (-o4) ≡ 0 implies (-o4) ≡ -(o3)
+        additive_group_lemmas::lemma_neg_unique::<T>(o3, o4.neg());
+        // neg both sides: o4 ≡ o3
+        T::axiom_neg_congruence(o4.neg(), o3.neg());
+        additive_group_lemmas::lemma_neg_involution::<T>(o4);
+        additive_group_lemmas::lemma_neg_involution::<T>(o3);
+        T::axiom_eqv_symmetric(o4.neg().neg(), o4);
+        T::axiom_eqv_transitive(o4, o4.neg().neg(), o3.neg().neg());
+        T::axiom_eqv_transitive(o4, o3.neg().neg(), o3);
+
+        if orient2d_positive(c, d, a) && orient2d_negative(c, d, b) {
+            // o3 > 0 and o4 < 0, but o4 ≡ o3 → 0 < o4 (from 0 < o3 + congruence)
+            T::axiom_lt_iff_le_and_not_eqv(T::zero(), o3);
+            T::axiom_eqv_symmetric(o4, o3);
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(T::zero(), o3, o4);
+            // 0 ≤ o4, but o4 < 0 → o4 ≤ 0, contradiction with antisymmetric
+            T::axiom_lt_iff_le_and_not_eqv(o4, T::zero());
+            T::axiom_le_antisymmetric(T::zero(), o4);
+            T::axiom_eqv_symmetric(T::zero(), o4);
+        } else {
+            // o3 < 0 and o4 > 0, but o4 ≡ o3 → o4 < 0 (from o3 < 0 + congruence)
+            T::axiom_eqv_symmetric(o4, o3);
+            T::axiom_lt_iff_le_and_not_eqv(T::zero(), o4);
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(T::zero(), o4, o3);
+            T::axiom_lt_iff_le_and_not_eqv(o3, T::zero());
+            T::axiom_le_antisymmetric(T::zero(), o3);
+            T::axiom_eqv_symmetric(T::zero(), o3);
+        }
+    }
 }
 
 } // verus!
