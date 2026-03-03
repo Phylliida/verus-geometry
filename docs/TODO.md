@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-29 verified items, 0 errors, 0 assumes/admits.
+97 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -27,6 +27,13 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 | `point3.rs` | `Point3<T>`, equivalence, `sub3`, `add_vec3`, self-zero + translation lemmas | Done |
 | `orient2d.rs` | `det2d`, `orient2d`, 6 private helper lemmas, 5 public lemmas (swap, degenerate, cyclic, translation) | Done |
 | `orient3d.rs` | `orient3d` via triple product, 6 public lemmas (swap_cd, swap_bc, cycle_bcd, degenerate_ab/cd, translation) | Done |
+| `orientation_sign.rs` | `OrientationSign` enum, `orient2d/3d_sign`, positive/negative/zero predicates, trichotomy, swap, degenerate lemmas | Done |
+| `collinearity.rs` | `collinear2d/3d`, `coplanar`, permutation/degenerate lemmas, three-points-coplanar | Done |
+| `sidedness.rs` | Point vs line/plane predicates, trichotomy, swap, segment-plane crossing | Done |
+| `segment_intersection.rs` | `SegmentIntersection2dKind` enum, classification spec, proper-implies-straddle lemmas | Done |
+| `convex_polygon.rs` | Point-in-convex-polygon (boundary-inclusive + strict), prefix step lemmas, superset lemma | Done |
+| `intersection3d.rs` | Segment-plane parameter/point specs, denominator-nonzero, 0<t<1 bounds, intersection-point-on-plane, 2D projection, point-in-triangle, segment-triangle intersection spec | Done |
+| `segment_polygon.rs` | Segment-convex polygon overlap spec, prefix edge hit lemma, endpoint-inside-implies-overlap | Done |
 
 Everything is generic over `T: Ring` — no concrete numeric types.
 
@@ -63,12 +70,12 @@ spec fn orient2d_sign<T: OrderedRing>(a, b, c: Point2<T>) -> OrientationSign
 spec fn orient3d_sign<T: OrderedRing>(a, b, c, d: Point3<T>) -> OrientationSign
 ```
 
-- [ ] Define `OrientationSign` enum
-- [ ] `orient2d_sign` spec: classify sign of `orient2d(a, b, c)`
-- [ ] `orient3d_sign` spec: classify sign of `orient3d(a, b, c, d)`
+- [x] Define `OrientationSign` enum
+- [x] `orient2d_sign` spec: classify sign of `orient2d(a, b, c)`
+- [x] `orient3d_sign` spec: classify sign of `orient3d(a, b, c, d)`
 - [ ] Lemma: sign is invariant under positive scaling
-- [ ] Lemma: swap reverses sign (lift existing swap lemmas to sign level)
-- [ ] Lemma: degenerate cases give Zero (lift existing degenerate lemmas)
+- [x] Lemma: swap reverses sign (lift existing swap lemmas to sign level)
+- [x] Lemma: degenerate cases give Zero (lift existing degenerate lemmas)
 
 ### 1.2 Strict positivity / negativity predicates
 
@@ -80,9 +87,9 @@ spec fn orient2d_positive<T: OrderedRing>(a, b, c) -> bool {
 }
 ```
 
-- [ ] `orient2d_positive`, `orient2d_negative`, `orient2d_zero` predicates
-- [ ] `orient3d_positive`, `orient3d_negative`, `orient3d_zero` predicates
-- [ ] Lemma: exactly one of {positive, negative, zero} holds (trichotomy)
+- [x] `orient2d_positive`, `orient2d_negative`, `orient2d_zero` predicates
+- [x] `orient3d_positive`, `orient3d_negative`, `orient3d_zero` predicates
+- [x] Lemma: exactly one of {positive, negative, zero} holds (trichotomy)
 
 ---
 
@@ -96,18 +103,18 @@ spec fn collinear2d<T: OrderedRing>(a, b, c: Point2<T>) -> bool {
 }
 ```
 
-- [ ] `collinear2d` spec
-- [ ] Lemma: reflexive — `collinear2d(a, a, c)` (from degenerate_ab)
-- [ ] Lemma: symmetric — permutation invariance (from cyclic + swap)
+- [x] `collinear2d` spec
+- [x] Lemma: reflexive — `collinear2d(a, a, c)` (from degenerate_ab)
+- [x] Lemma: symmetric — permutation invariance (from cyclic + swap)
 - [ ] Lemma: if collinear and a != b, c is an affine combination of a and b
 
 ### 2.2 Collinearity (3D)
 
 3D collinearity can't use orient2d. Instead: `cross(b-a, c-a) ≡ Vec3::zero()`.
 
-- [ ] `collinear3d` spec via cross product zero
-- [ ] Lemma: collinear3d(a, a, c) always holds
-- [ ] Lemma: collinear3d is permutation-invariant
+- [x] `collinear3d` spec via cross product zero
+- [x] Lemma: collinear3d(a, a, c) always holds
+- [x] Lemma: collinear3d is permutation-invariant
 - [ ] Lemma: collinear3d implies all 2D projections are collinear
 
 ### 2.3 Coplanarity
@@ -118,10 +125,10 @@ spec fn coplanar<T: OrderedRing>(a, b, c, d: Point3<T>) -> bool {
 }
 ```
 
-- [ ] `coplanar` spec
-- [ ] Lemma: any 3 points are coplanar with themselves
-- [ ] Lemma: permutation rules (from orient3d swap/cycle lemmas)
-- [ ] Lemma: collinear3d(a, b, c) implies coplanar(a, b, c, d) for any d
+- [x] `coplanar` spec
+- [x] Lemma: any 3 points are coplanar with themselves
+- [x] Lemma: permutation rules (from orient3d swap/cycle lemmas)
+- [x] Lemma: collinear3d(a, b, c) implies coplanar(a, b, c, d) for any d
 
 ---
 
@@ -131,25 +138,25 @@ These determine which side of a line (2D) or plane (3D) a point lies on.
 
 ### 3.1 Point vs. line (2D)
 
-- [ ] `point_left_of_line(p, a, b)` — orient2d(a, b, p) > 0
-- [ ] `point_right_of_line(p, a, b)` — orient2d(a, b, p) < 0
-- [ ] `point_on_line(p, a, b)` — orient2d(a, b, p) ≡ 0
-- [ ] Lemma: exactly one holds (trichotomy)
-- [ ] Lemma: swapping a, b flips left/right
+- [x] `point_left_of_line(p, a, b)` — orient2d(a, b, p) > 0
+- [x] `point_right_of_line(p, a, b)` — orient2d(a, b, p) < 0
+- [x] `point_on_line(p, a, b)` — orient2d(a, b, p) ≡ 0
+- [x] Lemma: exactly one holds (trichotomy)
+- [x] Lemma: swapping a, b flips left/right
 
 ### 3.2 Point vs. plane (3D)
 
-- [ ] `point_above_plane(p, a, b, c)` — orient3d(a, b, c, p) > 0
-- [ ] `point_below_plane(p, a, b, c)` — orient3d(a, b, c, p) < 0
-- [ ] `point_on_plane(p, a, b, c)` — orient3d(a, b, c, p) ≡ 0
-- [ ] Lemma: exactly one holds
-- [ ] Lemma: swapping two plane vertices flips above/below
+- [x] `point_above_plane(p, a, b, c)` — orient3d(a, b, c, p) > 0
+- [x] `point_below_plane(p, a, b, c)` — orient3d(a, b, c, p) < 0
+- [x] `point_on_plane(p, a, b, c)` — orient3d(a, b, c, p) ≡ 0
+- [x] Lemma: exactly one holds
+- [x] Lemma: swapping two plane vertices flips above/below
 
 ### 3.3 Segment-plane crossing
 
-- [ ] `segment_crosses_plane_strict(d, e, a, b, c)` — endpoints on opposite sides
-- [ ] Lemma: crossing implies d and e are not on the plane
-- [ ] Lemma: crossing implies d and e have opposite orientation signs
+- [x] `segment_crosses_plane_strict(d, e, a, b, c)` — endpoints on opposite sides
+- [x] Lemma: crossing implies d and e are not on the plane
+- [x] Lemma: crossing implies d and e have opposite orientation signs
 
 ---
 
@@ -166,9 +173,9 @@ pub enum SegmentIntersectionKind {
 }
 ```
 
-- [ ] Define classification enum
-- [ ] `segment_intersection_kind_2d(a, b, c, d)` spec
-- [ ] Algorithm: 4-way orientation test
+- [x] Define classification enum
+- [x] `segment_intersection_kind_2d(a, b, c, d)` spec
+- [x] Algorithm: 4-way orientation test
       - `o1 = orient2d_sign(a, b, c)`, `o2 = orient2d_sign(a, b, d)`
       - `o3 = orient2d_sign(c, d, a)`, `o4 = orient2d_sign(c, d, b)`
       - Proper: o1 != o2 && o3 != o4 && all nonzero
@@ -192,13 +199,13 @@ pub enum SegmentIntersectionKind {
 
 ### 5.1 Convex polygon containment
 
-- [ ] `point_in_convex_polygon_boundary_inclusive(p, polygon)` spec
+- [x] `point_in_convex_polygon_boundary_inclusive(p, polygon)` spec
       — NOT (has both positive and negative edge orientations)
-- [ ] `point_strictly_in_convex_polygon(p, polygon)` spec
+- [x] `point_strictly_in_convex_polygon(p, polygon)` spec
       — all edge orientations same sign, none zero
-- [ ] Lemma: boundary-inclusive is a superset of strict
+- [x] Lemma: boundary-inclusive is a superset of strict
 - [ ] Lemma: vertices of the polygon are boundary-inclusive
-- [ ] Precondition documentation: polygon must be convex with consistent winding
+- [x] Precondition documentation: polygon must be convex with consistent winding
 
 ### 5.2 General polygon containment (winding number / ray casting)
 
@@ -213,23 +220,28 @@ This is harder and may not be needed immediately. Defer unless required.
 
 ### 6.1 Segment-plane intersection
 
-- [ ] `segment_plane_intersection_parameter(d, e, a, b, c)` — returns parameter t
-- [ ] `segment_plane_intersection_point(d, e, a, b, c)` — returns point
-- [ ] Lemma: returned point lies on the plane
-- [ ] Lemma: 0 < t < 1 for strict crossing
+- [x] `segment_plane_intersection_parameter(d, e, a, b, c)` — returns parameter t (requires OrderedField)
+- [x] `segment_plane_intersection_point(d, e, a, b, c)` — returns point (requires OrderedField)
+- [x] Lemma: denominator is nonzero when segment strictly crosses plane
+- [x] Lemma: returned point lies on the plane
+- [x] Lemma: 0 < t < 1 for strict crossing
 - [ ] Lemma: point is affine combination of d and e at parameter t
 
 ### 6.2 Segment-triangle intersection
 
-- [ ] `segment_triangle_intersects_strict(seg_start, seg_end, tri_a, tri_b, tri_c)`
-- [ ] Algorithm: compute plane intersection point, project to 2D, test containment
+- [x] `segment_triangle_intersects_strict(seg_start, seg_end, tri_a, tri_b, tri_c)`
+- [x] Algorithm: compute plane intersection point, project to 2D, test containment
+- [x] Point-in-triangle via 2D projection (`point_in_triangle_on_plane`)
+- [x] 2D projection helpers (`project_drop_x/y/z`, `project_by_axis`, `triangle_projection_axis`)
+- [x] Lemma: segment-triangle implies crossing + endpoints off plane
 - [ ] Lemma: if intersection exists, the point lies on both the segment and the triangle
 
 ### 6.3 Segment-convex polygon overlap
 
-- [ ] `segment_overlaps_convex_polygon(seg_start, seg_end, polygon)` spec
+- [x] `segment_overlaps_convex_polygon(seg_start, seg_end, polygon)` spec
       — endpoint inside OR hits any edge
-- [ ] Lemma: if either endpoint is inside the polygon, there is overlap
+- [x] Lemma: if either endpoint is inside the polygon, there is overlap
+- [x] Prefix step lemma for edge hit induction
 
 ---
 

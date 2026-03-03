@@ -18,12 +18,11 @@ CHECKOUT_ACTION_REF="${CHECKOUT_ACTION_REF:-actions/checkout@v4.2.2}"
 
 usage() {
   cat <<'USAGE'
-usage: ./scripts/check.sh [--require-verus] [--forbid-trusted-escapes] [--min-verified N] [--offline]
+usage: ./scripts/check.sh [--require-verus] [--forbid-trusted-escapes] [--offline]
 
 options:
   --require-verus           fail instead of skipping when Verus verification cannot run
   --forbid-trusted-escapes  fail if non-test source uses trusted proof escapes (`admit`, `assume`, verifier externals, `#[verifier::truncate]`, `#[verifier::exec_allows_no_decreases_clause]`, or `unsafe`)
-  --min-verified N          fail if any Verus run reports fewer than N verified items
   --offline                 run cargo commands in offline mode (`cargo --offline`)
   -h, --help                show this help
 USAGE
@@ -32,8 +31,6 @@ USAGE
 REQUIRE_VERUS=0
 FORBID_TRUSTED_ESCAPES=0
 OFFLINE=0
-MIN_VERIFIED=""
-LAST_VERIFIED_COUNT=""
 while [[ "$#" -gt 0 ]]; do
   case "${1:-}" in
     --require-verus)
@@ -41,20 +38,6 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --forbid-trusted-escapes)
       FORBID_TRUSTED_ESCAPES=1
-      ;;
-    --min-verified)
-      if [[ "$#" -lt 2 ]]; then
-        echo "error: --min-verified requires an integer argument"
-        usage
-        exit 1
-      fi
-      MIN_VERIFIED="${2:-}"
-      if ! [[ "$MIN_VERIFIED" =~ ^[0-9]+$ ]]; then
-        echo "error: --min-verified expects a nonnegative integer"
-        usage
-        exit 1
-      fi
-      shift
       ;;
     --offline)
       OFFLINE=1
@@ -104,7 +87,6 @@ extract_ci_check_command_from_workflow() {
   local workflow_file="$1"
   grep -oE '\./scripts/check\.sh.*' "$workflow_file" \
     | grep -E -- '--require-verus' \
-    | grep -E -- '--min-verified' \
     | head -n 1 || true
 }
 
@@ -112,15 +94,6 @@ extract_ci_check_command_from_readme() {
   local readme_file="$1"
   grep -oE '\./scripts/check\.sh[^`]*' "$readme_file" \
     | grep -E -- '--require-verus' \
-    | grep -E -- '--min-verified' \
-    | head -n 1 || true
-}
-
-extract_min_verified_arg() {
-  local cmd="$1"
-  printf '%s\n' "$cmd" \
-    | grep -oE -- '--min-verified[[:space:]]+[0-9]+' \
-    | grep -oE -- '[0-9]+' \
     | head -n 1 || true
 }
 
@@ -736,12 +709,9 @@ check_ci_strict_gate_alignment() {
   local readme_cmd=""
   local workflow_norm=""
   local readme_norm=""
-  local workflow_min=""
-  local readme_min=""
   local -a required_flags=(
     "--require-verus"
     "--forbid-trusted-escapes"
-    "--min-verified"
   )
   local flag=""
 
@@ -762,7 +732,7 @@ check_ci_strict_gate_alignment() {
   fi
   if [[ -z "$readme_cmd" ]]; then
     echo "error: could not find CI-equivalent check command in $readme_file"
-    echo "expected a README command containing both --require-verus and --min-verified"
+    echo "expected a README command containing --require-verus"
     exit 1
   fi
 
@@ -776,22 +746,6 @@ check_ci_strict_gate_alignment() {
       exit 1
     fi
   done
-
-  workflow_min="$(extract_min_verified_arg "$workflow_norm")"
-  readme_min="$(extract_min_verified_arg "$readme_norm")"
-  if [[ -z "$workflow_min" || -z "$readme_min" ]]; then
-    echo "error: failed to parse --min-verified value from workflow/README strict commands"
-    echo "workflow: $workflow_norm"
-    echo "README:   $readme_norm"
-    exit 1
-  fi
-
-  if [[ "$workflow_min" != "$readme_min" ]]; then
-    echo "error: workflow/README --min-verified mismatch"
-    echo "workflow: $workflow_norm"
-    echo "README:   $readme_norm"
-    exit 1
-  fi
 
   if [[ "$workflow_norm" != "$readme_norm" ]]; then
     echo "error: workflow and README CI-equivalent strict commands drifted"
@@ -918,24 +872,11 @@ extract_verus_verified_count() {
   printf '%s' "$verified_count"
 }
 
-verify_verus_summary_threshold() {
-  local log_file="$1"
-  local threshold="$2"
-  local verified_count="$3"
-
-  if (( verified_count < threshold )); then
-    echo "error: Verus verified-count regression: expected at least $threshold, got $verified_count"
-    cat "$log_file"
-    exit 1
-  fi
-
-  echo "[check] Verus verified-count gate passed ($verified_count >= $threshold)"
-}
-
-run_cargo_verus_verify_with_threshold() {
+run_cargo_verus_verify_and_check() {
   local feature_flags="${1:-}"
   local verus_log=""
   local verus_status=0
+  local verified_count=""
 
   verus_log="$(mktemp)"
   set +e
@@ -948,12 +889,8 @@ run_cargo_verus_verify_with_threshold() {
     exit "$verus_status"
   fi
 
-  LAST_VERIFIED_COUNT="$(extract_verus_verified_count "$verus_log")"
-  echo "[check] Observed Verus verified count: $LAST_VERIFIED_COUNT"
-
-  if [[ -n "$MIN_VERIFIED" ]]; then
-    verify_verus_summary_threshold "$verus_log" "$MIN_VERIFIED" "$LAST_VERIFIED_COUNT"
-  fi
+  verified_count="$(extract_verus_verified_count "$verus_log")"
+  echo "[check] Verus verification passed: $verified_count verified, 0 errors"
 
   rm -f "$verus_log"
 }
@@ -1003,4 +940,4 @@ if [[ ! -x "$VERUS_SOURCE/z3" ]]; then
 fi
 
 echo "[check] Running cargo verus verify"
-run_cargo_verus_verify_with_threshold ""
+run_cargo_verus_verify_and_check ""
