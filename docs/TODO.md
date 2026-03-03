@@ -19,20 +19,20 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-97 verified items, 0 errors, 0 assumes/admits.
+108 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
 | `point2.rs` | `Point2<T>`, equivalence, `sub2`, `add_vec2`, self-zero + translation lemmas | Done |
 | `point3.rs` | `Point3<T>`, equivalence, `sub3`, `add_vec3`, self-zero + translation lemmas | Done |
-| `orient2d.rs` | `det2d`, `orient2d`, 6 private helper lemmas, 5 public lemmas (swap, degenerate, cyclic, translation) | Done |
+| `orient2d.rs` | `det2d`, `orient2d`, det2d helpers (antisymmetric, congruence, sub_left, scale_right, self_zero), public lemmas (swap, degenerate, cyclic, translation) | Done |
 | `orient3d.rs` | `orient3d` via triple product, 6 public lemmas (swap_cd, swap_bc, cycle_bcd, degenerate_ab/cd, translation) | Done |
-| `orientation_sign.rs` | `OrientationSign` enum, `orient2d/3d_sign`, positive/negative/zero predicates, trichotomy, swap, degenerate lemmas | Done |
-| `collinearity.rs` | `collinear2d/3d`, `coplanar`, permutation/degenerate lemmas, three-points-coplanar | Done |
+| `orientation_sign.rs` | `OrientationSign` enum, `orient2d/3d_sign`, `scalar_sign`, positive/negative/zero predicates, trichotomy, swap, degenerate, positive-scaling lemmas | Done |
+| `collinearity.rs` | `collinear2d/3d`, `coplanar`, permutation/degenerate lemmas, three-points-coplanar, collinear3d→2D-projections | Done |
 | `sidedness.rs` | Point vs line/plane predicates, trichotomy, swap, segment-plane crossing | Done |
-| `segment_intersection.rs` | `SegmentIntersection2dKind` enum, classification spec, proper-implies-straddle lemmas | Done |
+| `segment_intersection.rs` | `SegmentIntersection2dKind` enum, classification spec, proper-implies-straddle, denominator-nonzero, exhaustive, collinear-overlap-collinear, 2D intersection point spec + on-line proof | Done |
 | `convex_polygon.rs` | Point-in-convex-polygon (boundary-inclusive + strict), prefix step lemmas, superset lemma | Done |
-| `intersection3d.rs` | Segment-plane parameter/point specs, denominator-nonzero, 0<t<1 bounds, intersection-point-on-plane, 2D projection, point-in-triangle, segment-triangle intersection spec | Done |
+| `intersection3d.rs` | Segment-plane parameter/point specs, denominator-nonzero, 0<t<1 bounds, intersection-point-on-plane, affine combination, 2D projection, point-in-triangle, segment-triangle intersection spec + combined properties lemma | Done |
 | `segment_polygon.rs` | Segment-convex polygon overlap spec, prefix edge hit lemma, endpoint-inside-implies-overlap | Done |
 
 Everything is generic over `T: Ring` — no concrete numeric types.
@@ -73,7 +73,7 @@ spec fn orient3d_sign<T: OrderedRing>(a, b, c, d: Point3<T>) -> OrientationSign
 - [x] Define `OrientationSign` enum
 - [x] `orient2d_sign` spec: classify sign of `orient2d(a, b, c)`
 - [x] `orient3d_sign` spec: classify sign of `orient3d(a, b, c, d)`
-- [ ] Lemma: sign is invariant under positive scaling
+- [x] Lemma: sign is invariant under positive scaling
 - [x] Lemma: swap reverses sign (lift existing swap lemmas to sign level)
 - [x] Lemma: degenerate cases give Zero (lift existing degenerate lemmas)
 
@@ -115,7 +115,7 @@ spec fn collinear2d<T: OrderedRing>(a, b, c: Point2<T>) -> bool {
 - [x] `collinear3d` spec via cross product zero
 - [x] Lemma: collinear3d(a, a, c) always holds
 - [x] Lemma: collinear3d is permutation-invariant
-- [ ] Lemma: collinear3d implies all 2D projections are collinear
+- [x] Lemma: collinear3d implies all 2D projections are collinear
 
 ### 2.3 Coplanarity
 
@@ -182,16 +182,17 @@ pub enum SegmentIntersectionKind {
       - Collinear: all zero, then check 1D overlap
       - EndpointTouch: some zero, others consistent
       - Disjoint: otherwise
-- [ ] Lemma: classification is exhaustive (exactly one case)
-- [ ] Lemma: Proper implies segments straddle each other
+- [x] Lemma: classification is exhaustive (exactly one case)
+- [x] Lemma: Proper implies segments straddle each other
 - [ ] Lemma: Disjoint implies no shared point exists
 
 ### 4.2 Segment intersection point (for Proper and EndpointTouch)
 
-- [ ] `segment_intersection_point_2d(a, b, c, d)` — compute witness point
-- [ ] For Proper: parameter `t = cross(c-a, d-c) / cross(b-a, d-c)`, point = `a + t*(b-a)`
-- [ ] Lemma: witness point lies on both segments
-- [ ] Lemma: denominator is nonzero for Proper case
+- [x] `segment_intersection_point_2d(a, b, c, d)` — compute witness point
+- [x] For Proper: parameter `t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))`, point = `a + t*(b-a)`
+- [ ] Lemma: witness point lies on both segments (on-line AB done; on-line CD + bounding box remaining)
+- [x] Lemma: denominator is nonzero for Proper case
+- [x] Lemma: intersection point lies on line(a, b) (orient2d(a,b,p) ≡ 0)
 
 ---
 
@@ -225,7 +226,7 @@ This is harder and may not be needed immediately. Defer unless required.
 - [x] Lemma: denominator is nonzero when segment strictly crosses plane
 - [x] Lemma: returned point lies on the plane
 - [x] Lemma: 0 < t < 1 for strict crossing
-- [ ] Lemma: point is affine combination of d and e at parameter t
+- [x] Lemma: point is affine combination of d and e at parameter t
 
 ### 6.2 Segment-triangle intersection
 
@@ -234,7 +235,7 @@ This is harder and may not be needed immediately. Defer unless required.
 - [x] Point-in-triangle via 2D projection (`point_in_triangle_on_plane`)
 - [x] 2D projection helpers (`project_drop_x/y/z`, `project_by_axis`, `triangle_projection_axis`)
 - [x] Lemma: segment-triangle implies crossing + endpoints off plane
-- [ ] Lemma: if intersection exists, the point lies on both the segment and the triangle
+- [x] Lemma: if intersection exists, the point lies on the plane, is strictly between endpoints (0<t<1), is the affine combination (1-t)*d+t*e, and is in the triangle
 
 ### 6.3 Segment-convex polygon overlap
 

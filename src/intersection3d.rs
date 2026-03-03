@@ -813,4 +813,131 @@ pub proof fn lemma_intersection_point_on_plane<T: OrderedField>(
     );
 }
 
+// =========================================================================
+// Combined lemma: segment-triangle intersection point properties
+// =========================================================================
+
+/// When a segment-triangle intersection exists, the intersection point:
+/// - lies on the plane (orient3d ≡ 0)
+/// - is strictly between the segment endpoints (0 < t < 1)
+/// - is the affine combination (1-t)*d + t*e
+/// - is inside the triangle
+pub proof fn lemma_segment_triangle_intersection_properties<T: OrderedField>(
+    d: Point3<T>, e: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        segment_triangle_intersects_strict(d, e, a, b, c),
+    ensures ({
+        let p = segment_plane_intersection_point(d, e, a, b, c);
+        let t = segment_plane_intersection_parameter(d, e, a, b, c);
+        let s = T::one().sub(t);
+        // On plane
+        &&& orient3d(a, b, c, p).eqv(T::zero())
+        // Strictly between d and e
+        &&& T::zero().lt(t) && t.lt(T::one())
+        // Affine combination
+        &&& p.x.eqv(s.mul(d.x).add(t.mul(e.x)))
+        &&& p.y.eqv(s.mul(d.y).add(t.mul(e.y)))
+        &&& p.z.eqv(s.mul(d.z).add(t.mul(e.z)))
+        // In triangle
+        &&& point_in_triangle_on_plane(p, a, b, c)
+    }),
+{
+    let t = segment_plane_intersection_parameter(d, e, a, b, c);
+    lemma_intersection_point_on_plane::<T>(d, e, a, b, c);
+    lemma_crossing_parameter_bounds::<T>(d, e, a, b, c);
+    lemma_intersection_affine_combination::<T>(d, e, t);
+}
+
+// =========================================================================
+// Affine combination form: d + t*(e - d) ≡ (1-t)*d + t*e
+// =========================================================================
+
+/// Scalar identity: a + t*(b - a) ≡ (1-t)*a + t*b.
+proof fn lemma_affine_scalar<T: Ring>(a: T, b: T, t: T)
+    ensures
+        a.add(t.mul(b.sub(a))).eqv(T::one().sub(t).mul(a).add(t.mul(b))),
+{
+    let ta = t.mul(a);
+    let tb = t.mul(b);
+    let common = a.add(tb.sub(ta));
+
+    // === LHS ≡ common ===
+    // t*(b-a) ≡ t*b - t*a
+    ring_lemmas::lemma_mul_distributes_over_sub::<T>(t, b, a);
+    // a + t*(b-a) ≡ a + (t*b - t*a)
+    additive_group_lemmas::lemma_add_congruence_right::<T>(a, t.mul(b.sub(a)), tb.sub(ta));
+
+    // === RHS ≡ common ===
+    // (1-t)*a ≡ 1*a - t*a
+    ring_lemmas::lemma_sub_mul_right::<T>(T::one(), t, a);
+    // 1*a ≡ a
+    ring_lemmas::lemma_mul_one_left::<T>(a);
+    // 1*a - t*a ≡ a - t*a
+    T::axiom_eqv_reflexive(ta);
+    additive_group_lemmas::lemma_sub_congruence::<T>(T::one().mul(a), a, ta, ta);
+    // (1-t)*a ≡ a - t*a
+    T::axiom_eqv_transitive(
+        T::one().sub(t).mul(a), T::one().mul(a).sub(ta), a.sub(ta),
+    );
+    // RHS = (1-t)*a + t*b ≡ (a - t*a) + t*b
+    T::axiom_add_congruence_left(T::one().sub(t).mul(a), a.sub(ta), tb);
+
+    // (a - t*a) + t*b ≡ a + (t*b - t*a) = common
+    // Expand sub: a.sub(ta) ≡ a.add(ta.neg())
+    T::axiom_sub_is_add_neg(a, ta);
+    T::axiom_add_congruence_left(a.sub(ta), a.add(ta.neg()), tb);
+    // (a + (-ta)) + tb ≡ a + ((-ta) + tb)
+    T::axiom_add_associative(a, ta.neg(), tb);
+    T::axiom_eqv_transitive(
+        a.sub(ta).add(tb), a.add(ta.neg()).add(tb), a.add(ta.neg().add(tb)),
+    );
+    // (-ta) + tb ≡ tb + (-ta)
+    T::axiom_add_commutative(ta.neg(), tb);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a, ta.neg().add(tb), tb.add(ta.neg()),
+    );
+    T::axiom_eqv_transitive(
+        a.sub(ta).add(tb), a.add(ta.neg().add(tb)), a.add(tb.add(ta.neg())),
+    );
+    // tb + (-ta) ≡ tb - ta
+    T::axiom_sub_is_add_neg(tb, ta);
+    T::axiom_eqv_symmetric(tb.sub(ta), tb.add(ta.neg()));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a, tb.add(ta.neg()), tb.sub(ta),
+    );
+    T::axiom_eqv_transitive(
+        a.sub(ta).add(tb), a.add(tb.add(ta.neg())), common,
+    );
+
+    // Chain: RHS ≡ a.sub(ta).add(tb) ≡ common
+    let rhs = T::one().sub(t).mul(a).add(tb);
+    T::axiom_eqv_transitive(rhs, a.sub(ta).add(tb), common);
+
+    // Final: LHS ≡ common, common ≡ RHS (symmetric), so LHS ≡ RHS
+    T::axiom_eqv_symmetric(rhs, common);
+    let lhs = a.add(t.mul(b.sub(a)));
+    T::axiom_eqv_transitive(lhs, common, rhs);
+}
+
+/// The intersection point p = d + t*(e - d) equals (1-t)*d + t*e
+/// coordinate-wise (affine combination form).
+pub proof fn lemma_intersection_affine_combination<T: Ring>(
+    d: Point3<T>, e: Point3<T>, t: T,
+)
+    ensures ({
+        let dir = sub3(e, d);
+        let p = add_vec3(d, scale(t, dir));
+        let s = T::one().sub(t);
+        &&& p.x.eqv(s.mul(d.x).add(t.mul(e.x)))
+        &&& p.y.eqv(s.mul(d.y).add(t.mul(e.y)))
+        &&& p.z.eqv(s.mul(d.z).add(t.mul(e.z)))
+    }),
+{
+    lemma_affine_scalar::<T>(d.x, e.x, t);
+    lemma_affine_scalar::<T>(d.y, e.y, t);
+    lemma_affine_scalar::<T>(d.z, e.z, t);
+}
+
 } // verus!

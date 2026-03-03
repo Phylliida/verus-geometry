@@ -6,6 +6,7 @@ use verus_algebra::lemmas::ordered_field_lemmas;
 use verus_algebra::lemmas::field_lemmas;
 use verus_algebra::lemmas::ring_lemmas;
 use verus_linalg::vec2::Vec2;
+use verus_linalg::vec2::ops::scale as scale2;
 use crate::point2::*;
 use crate::orient2d::*;
 use crate::orientation_sign::*;
@@ -302,6 +303,119 @@ pub proof fn lemma_proper_denominator_nonzero_2d<T: OrderedRing>(
             T::axiom_eqv_symmetric(T::zero(), o3);
         }
     }
+}
+
+// =========================================================================
+// 2D Segment intersection point spec
+// =========================================================================
+
+/// Intersection parameter t for segments [a,b] and [c,d] (2D).
+///
+/// t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))
+///
+/// Parallel to the 3D `segment_plane_intersection_parameter`.
+pub open spec fn segment_intersection_parameter_2d<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+) -> T {
+    let o3 = orient2d(c, d, a);
+    let o4 = orient2d(c, d, b);
+    o3.div(o3.add(o4.neg()))
+}
+
+/// The intersection point: a + t * (b - a).
+pub open spec fn segment_intersection_point_2d<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+) -> Point2<T> {
+    let t = segment_intersection_parameter_2d(a, b, c, d);
+    let dir = sub2(b, a);
+    add_vec2(a, scale2(t, dir))
+}
+
+// =========================================================================
+// On-line proof: intersection point lies on line(a, b)
+// =========================================================================
+
+/// sub2(add_vec2(a, v), a) ≡ v
+proof fn lemma_sub2_add_vec2_cancel<T: Ring>(a: Point2<T>, v: Vec2<T>)
+    ensures
+        sub2(add_vec2(a, v), a).eqv(v),
+{
+    // Component x: (a.x + v.x) - a.x ≡ v.x
+    T::axiom_add_commutative(a.x, v.x);
+    T::axiom_eqv_reflexive(a.x);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        a.x.add(v.x), v.x.add(a.x), a.x, a.x,
+    );
+    additive_group_lemmas::lemma_add_then_sub_cancel::<T>(v.x, a.x);
+    T::axiom_eqv_transitive(
+        a.x.add(v.x).sub(a.x), v.x.add(a.x).sub(a.x), v.x,
+    );
+
+    // Component y: same
+    T::axiom_add_commutative(a.y, v.y);
+    T::axiom_eqv_reflexive(a.y);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        a.y.add(v.y), v.y.add(a.y), a.y, a.y,
+    );
+    additive_group_lemmas::lemma_add_then_sub_cancel::<T>(v.y, a.y);
+    T::axiom_eqv_transitive(
+        a.y.add(v.y).sub(a.y), v.y.add(a.y).sub(a.y), v.y,
+    );
+}
+
+/// The intersection point lies on line(a, b): orient2d(a, b, p) ≡ 0.
+///
+/// Proof: p = a + t*(b-a), so p-a = t*(b-a).
+/// orient2d(a,b,p) = det2d(b-a, p-a) = det2d(b-a, t*(b-a))
+///                 = t * det2d(b-a, b-a) = t * 0 = 0.
+pub proof fn lemma_intersection_point_on_line_ab_2d<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures ({
+        let p = segment_intersection_point_2d(a, b, c, d);
+        orient2d(a, b, p).eqv(T::zero())
+    }),
+{
+    let t = segment_intersection_parameter_2d(a, b, c, d);
+    let dir = sub2(b, a);
+    let w = scale2(t, dir);
+    let p = add_vec2(a, w);
+
+    // Step 1: sub2(p, a) ≡ w = scale2(t, dir)
+    lemma_sub2_add_vec2_cancel::<T>(a, w);
+
+    // Step 2: det2d congruence: det2d(dir, sub2(p, a)) ≡ det2d(dir, w)
+    Vec2::<T>::axiom_eqv_reflexive(dir);
+    lemma_det2d_congruence::<T>(dir, dir, sub2(p, a), w);
+
+    // Step 3: w = scale2(t, dir), so det2d(dir, w) = det2d(dir, scale(t, dir))
+    //         ≡ t * det2d(dir, dir)  [scale_right]
+    lemma_det2d_scale_right::<T>(t, dir, dir);
+
+    // Step 4: det2d(dir, dir) ≡ 0  [self_zero]
+    lemma_det2d_self_zero::<T>(dir);
+
+    // Step 5: t * det2d(dir, dir) ≡ t * 0 ≡ 0
+    ring_lemmas::lemma_mul_congruence_right::<T>(t, det2d(dir, dir), T::zero());
+    T::axiom_mul_zero_right(t);
+    T::axiom_eqv_transitive(
+        t.mul(det2d(dir, dir)), t.mul(T::zero()), T::zero(),
+    );
+
+    // Chain: orient2d(a,b,p) = det2d(dir, sub2(p,a))
+    //        ≡ det2d(dir, w)               [Step 2]
+    //        ≡ t * det2d(dir, dir)          [Step 3]
+    //        ≡ 0                            [Steps 4-5]
+    T::axiom_eqv_transitive(
+        det2d(dir, sub2(p, a)),
+        det2d(dir, w),
+        t.mul(det2d(dir, dir)),
+    );
+    T::axiom_eqv_transitive(
+        orient2d(a, b, p),
+        t.mul(det2d(dir, dir)),
+        T::zero(),
+    );
 }
 
 } // verus!
