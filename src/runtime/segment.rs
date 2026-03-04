@@ -29,7 +29,7 @@ verus! {
 // OrientationSign exec helpers
 // ---------------------------------------------------------------------------
 
-fn is_zero_sign(s: &OrientationSign) -> (out: bool)
+pub fn is_zero_sign(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Zero),
 {
     match s {
@@ -38,7 +38,7 @@ fn is_zero_sign(s: &OrientationSign) -> (out: bool)
     }
 }
 
-fn signs_equal(a: &OrientationSign, b: &OrientationSign) -> (out: bool)
+pub fn signs_equal(a: &OrientationSign, b: &OrientationSign) -> (out: bool)
     ensures out == (*a == *b),
 {
     match (a, b) {
@@ -55,7 +55,7 @@ fn signs_equal(a: &OrientationSign, b: &OrientationSign) -> (out: bool)
 // Point-on-segment predicate
 // ---------------------------------------------------------------------------
 
-fn point_on_segment_inclusive_2d_exec(
+pub fn point_on_segment_inclusive_2d_exec(
     p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: bool)
     requires
@@ -78,7 +78,7 @@ fn point_on_segment_inclusive_2d_exec(
     min_x_le_px && px_le_max_x && min_y_le_py && py_le_max_y
 }
 
-fn point_on_both_segments_2d_exec(
+pub fn point_on_both_segments_2d_exec(
     p: &RuntimePoint2,
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -99,7 +99,7 @@ fn point_on_both_segments_2d_exec(
 // 1D interval overlap for collinear case
 // ---------------------------------------------------------------------------
 
-fn collinear_overlap_kind_1d_exec(
+pub fn collinear_overlap_kind_1d_exec(
     a1: &RuntimeRational, a2: &RuntimeRational,
     b1: &RuntimeRational, b2: &RuntimeRational,
 ) -> (out: i8)

@@ -103,7 +103,7 @@ pub proof fn lemma_det2d_congruence<T: Ring>(a1: Vec2<T>, a2: Vec2<T>, b1: Vec2<
 }
 
 /// det2d(u, -v) ≡ -det2d(u, v)
-proof fn lemma_det2d_neg_right<T: Ring>(u: Vec2<T>, v: Vec2<T>)
+pub proof fn lemma_det2d_neg_right<T: Ring>(u: Vec2<T>, v: Vec2<T>)
     ensures
         det2d(u, Vec2 { x: v.x.neg(), y: v.y.neg() }).eqv(det2d(u, v).neg()),
 {
@@ -223,7 +223,7 @@ pub proof fn lemma_det2d_neg_left<T: Ring>(u: Vec2<T>, v: Vec2<T>)
 }
 
 /// det2d(u+v, w) ≡ det2d(u, w) + det2d(v, w)
-proof fn lemma_det2d_linear_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
+pub proof fn lemma_det2d_linear_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
     ensures
         det2d(Vec2 { x: u.x.add(v.x), y: u.y.add(v.y) }, w).eqv(
             det2d(u, w).add(det2d(v, w))

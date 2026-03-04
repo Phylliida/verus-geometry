@@ -38,7 +38,7 @@ verus! {
 /// - `Rational::zero().lt(v) = from_int_spec(0).lt_spec(v) = 0 * v.denom() < v.num * 1 = 0 < v.num`
 /// - `v.signum() == 1` iff `v.num > 0`
 /// So `Rational::zero().lt(v)` iff `v.signum() == 1`.
-proof fn lemma_signum_bridge(val: RationalModel)
+pub proof fn lemma_signum_bridge(val: RationalModel)
     ensures
         (val.signum() == 1) == Rational::from_int_spec(0).lt_spec(val),
         (val.signum() == -1) == val.lt_spec(Rational::from_int_spec(0)),

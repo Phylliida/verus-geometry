@@ -50,13 +50,13 @@ verus! {
 // OrientationSign helpers (avoid derived PartialEq in exec)
 // ---------------------------------------------------------------------------
 
-fn is_positive(s: &OrientationSign) -> (out: bool)
+pub fn is_positive(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Positive),
 {
     match s { OrientationSign::Positive => true, _ => false }
 }
 
-fn is_negative(s: &OrientationSign) -> (out: bool)
+pub fn is_negative(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Negative),
 {
     match s { OrientationSign::Negative => true, _ => false }
@@ -152,7 +152,7 @@ pub fn project_drop_x_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
 }
 
 /// Project by chosen axis.
-fn project_by_axis_exec(p: &RuntimePoint3, axis: u8) -> (out: RuntimePoint2)
+pub fn project_by_axis_exec(p: &RuntimePoint3, axis: u8) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
     ensures
@@ -173,7 +173,7 @@ fn project_by_axis_exec(p: &RuntimePoint3, axis: u8) -> (out: RuntimePoint2)
 // ---------------------------------------------------------------------------
 
 /// Compute projection axis (0=drop x, 1=drop y, 2=drop z).
-fn triangle_projection_axis_exec(
+pub fn triangle_projection_axis_exec(
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
 ) -> (out: u8)
     requires

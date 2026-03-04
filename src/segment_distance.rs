@@ -81,7 +81,7 @@ pub open spec fn line_line_squared_distance<T: OrderedField>(
 // =========================================================================
 
 /// (a + b) - a ≡ b. Derived from commutativity + lemma_add_then_sub_cancel.
-proof fn lemma_add_sub_cancel_left<T: Ring>(a: T, b: T)
+pub proof fn lemma_add_sub_cancel_left<T: Ring>(a: T, b: T)
     ensures
         a.add(b).sub(a).eqv(b),
 {
@@ -94,7 +94,7 @@ proof fn lemma_add_sub_cancel_left<T: Ring>(a: T, b: T)
 
 /// (a + b) - c ≡ (a - c) + b. Rearranges add/sub.
 /// Re-derived from intersection3d (private there).
-proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
     ensures
         a.add(b).sub(c).eqv(a.sub(c).add(b)),
 {
@@ -134,7 +134,7 @@ proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
 }
 
 /// (a/b) * c ≡ (a*c) / b for nonzero b.
-proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
+pub proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
     requires
         !b.eqv(T::zero()),
     ensures
@@ -177,7 +177,7 @@ proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
 }
 
 /// a ≡ b implies a/c ≡ b/c. Derived from div_is_mul_recip + congruence.
-proof fn lemma_div_congruence_numerator<T: OrderedField>(a: T, b: T, c: T)
+pub proof fn lemma_div_congruence_numerator<T: OrderedField>(a: T, b: T, c: T)
     requires
         a.eqv(b),
     ensures
@@ -212,7 +212,7 @@ proof fn lemma_div_congruence_numerator<T: OrderedField>(a: T, b: T, c: T)
 // terms cancel by commutativity, then factor the remainder.
 
 /// Numerator identity 1: ns*uu + D*uw ≡ nt*uv.
-proof fn lemma_numerator_eq1<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
+pub proof fn lemma_numerator_eq1<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
     ensures ({
         let ns = uv.mul(vw).sub(vv.mul(uw));
         let nt = uu.mul(vw).sub(uv.mul(uw));
@@ -368,7 +368,7 @@ proof fn lemma_numerator_eq1<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
 }
 
 /// Numerator identity 2: ns*uv + D*vw ≡ nt*vv.
-proof fn lemma_numerator_eq2<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
+pub proof fn lemma_numerator_eq2<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
     ensures ({
         let ns = uv.mul(vw).sub(vv.mul(uw));
         let nt = uu.mul(vw).sub(uv.mul(uw));
@@ -514,7 +514,7 @@ proof fn lemma_numerator_eq2<T: Ring>(uu: T, vv: T, uv: T, uw: T, vw: T)
 // =========================================================================
 
 /// Cramer equation 1: s*uu + uw ≡ t*uv, where s = ns/D, t = nt/D.
-proof fn lemma_cramer_eq1<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
+pub proof fn lemma_cramer_eq1<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
     requires ({
         let dd = uu.mul(vv).sub(uv.mul(uv));
         !dd.eqv(T::zero())
@@ -589,7 +589,7 @@ proof fn lemma_cramer_eq1<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
 }
 
 /// Cramer equation 2: s*uv + vw ≡ t*vv, where s = ns/D, t = nt/D.
-proof fn lemma_cramer_eq2<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
+pub proof fn lemma_cramer_eq2<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
     requires ({
         let dd = uu.mul(vv).sub(uv.mul(uv));
         !dd.eqv(T::zero())
@@ -664,7 +664,7 @@ proof fn lemma_cramer_eq2<T: OrderedField>(uu: T, vv: T, uv: T, uw: T, vw: T)
 
 /// Vector expansion: sub3(add_vec3(a, su), add_vec3(c, tv)) ≡ sub3(a,c).add(su).sub(tv)
 /// where su, tv are arbitrary Vec3 offsets.
-proof fn lemma_diff_expansion<T: Ring>(
+pub proof fn lemma_diff_expansion<T: Ring>(
     a: Point3<T>, c: Point3<T>, su: Vec3<T>, tv: Vec3<T>,
 )
     ensures
@@ -687,7 +687,7 @@ proof fn lemma_diff_expansion<T: Ring>(
 }
 
 /// Scalar helper: (a + p) - (b + q) ≡ (a - b) + p - q.
-proof fn lemma_add_sub_add_scalar<T: Ring>(a: T, p: T, b: T, q: T)
+pub proof fn lemma_add_sub_add_scalar<T: Ring>(a: T, p: T, b: T, q: T)
     ensures
         a.add(p).sub(b.add(q)).eqv(a.sub(b).add(p).sub(q)),
 {

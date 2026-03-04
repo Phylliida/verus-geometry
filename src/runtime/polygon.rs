@@ -59,19 +59,19 @@ impl RuntimePolygon2 {
 // OrientationSign helpers (avoid derived PartialEq in exec)
 // ---------------------------------------------------------------------------
 
-fn is_positive(s: &OrientationSign) -> (out: bool)
+pub fn is_positive(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Positive),
 {
     match s { OrientationSign::Positive => true, _ => false }
 }
 
-fn is_negative(s: &OrientationSign) -> (out: bool)
+pub fn is_negative(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Negative),
 {
     match s { OrientationSign::Negative => true, _ => false }
 }
 
-fn is_zero(s: &OrientationSign) -> (out: bool)
+pub fn is_zero(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Zero),
 {
     match s { OrientationSign::Zero => true, _ => false }

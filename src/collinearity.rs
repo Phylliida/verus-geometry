@@ -137,7 +137,7 @@ pub open spec fn collinear3d<T: Ring>(
 }
 
 /// Helper: cross(zero_vec, v) ≡ zero_vec.
-proof fn lemma_cross_zero_left<T: Ring>(v: Vec3<T>)
+pub proof fn lemma_cross_zero_left<T: Ring>(v: Vec3<T>)
     ensures
         cross(Vec3::<T>::zero(), v).eqv(Vec3::<T>::zero()),
 {
@@ -644,7 +644,7 @@ pub open spec fn collinear2d_affine_parameter<T: OrderedField>(
 }
 
 /// Helper: a - b ≡ 0 implies a ≡ b.
-proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
+pub proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
     requires
         a.sub(b).eqv(T::zero()),
     ensures
@@ -671,7 +671,7 @@ proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
 }
 
 /// Helper: !a.eqv(b) implies !(b - a).eqv(0).
-proof fn lemma_distinct_implies_sub_nonzero<T: Ring>(a: T, b: T)
+pub proof fn lemma_distinct_implies_sub_nonzero<T: Ring>(a: T, b: T)
     requires
         !a.eqv(b),
     ensures
@@ -685,7 +685,7 @@ proof fn lemma_distinct_implies_sub_nonzero<T: Ring>(a: T, b: T)
 }
 
 /// Helper: a + (b - a) ≡ b.
-proof fn lemma_add_sub_self_cancel<T: Ring>(a: T, b: T)
+pub proof fn lemma_add_sub_self_cancel<T: Ring>(a: T, b: T)
     ensures
         a.add(b.sub(a)).eqv(b),
 {
