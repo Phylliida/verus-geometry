@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Star Polygon Counterexample</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e13;
+    --surface: #14171e;
+    --border: #252a35;
+    --text: #c8cdd8;
+    --text-dim: #6b7280;
+    --accent: #e8b931;
+    --red: #ef4444;
+    --green: #22c55e;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Source Serif 4', Georgia, serif;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 3rem 2rem 5rem;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.3rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 2.5rem 0 1rem;
+  }
+
+  h2 .num {
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    margin-right: 0.4rem;
+  }
+
+  p { margin-bottom: 1rem; }
+
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin: 1.5rem 0;
+    position: relative;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    padding: 0.45rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  button:hover { border-color: var(--accent); color: #fff; }
+  button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+
+  .math-block {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    border-radius: 0 8px 8px 0;
+    overflow-x: auto;
+  }
+
+  .math-block .pos { color: var(--green); font-weight: 600; }
+  .math-block .neg { color: var(--red); font-weight: 600; }
+  .math-block .zero { color: var(--text-dim); }
+  .math-block .label { color: var(--text-dim); }
+
+  .verdict {
+    padding: 1rem 1.2rem;
+    border-radius: 8px;
+    margin: 1.2rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .verdict.pass { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: var(--green); }
+  .verdict.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: var(--red); }
+
+  .key-insight {
+    background: rgba(232,185,49,0.08);
+    border: 1px solid rgba(232,185,49,0.2);
+    border-radius: 10px;
+    padding: 1.3rem 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .key-insight strong { color: var(--accent); }
+
+  .legend {
+    display: flex;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.8rem;
+  }
+
+  .legend span::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  .legend .l-edge::before { background: var(--blue); }
+  .legend .l-pos::before { background: var(--green); }
+  .legend .l-neg::before { background: var(--red); }
+  .legend .l-zero::before { background: var(--text-dim); }
+  .legend .l-turn::before { background: var(--purple); }
+
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--surface);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+
+  @media (max-width: 600px) {
+    .container { padding: 2rem 1rem 4rem; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.15rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Why the Star Polygon Breaks the Lemma</h1>
+<p class="subtitle">A counterexample to: local convexity ⟹ vertex ∈ convex polygon</p>
+
+<h2><span class="num">01</span> The Setup</h2>
+<p>
+The Verus codebase defines <code>is_convex_polygon</code> using a <em>local</em> condition: every three consecutive vertices must not make a right turn. Formally, for every index <em>i</em>, the orientation of the triple (v[i], v[i+1], v[i+2]) must be non-negative.
+</p>
+<p>
+The lemma <code>lemma_vertex_in_convex_polygon</code> claims that if a polygon is "convex" by this definition, then every vertex satisfies <code>point_in_convex_polygon_boundary_inclusive</code> — meaning you can't find one edge where the vertex is on the left <em>and</em> another where it's on the right.
+</p>
+<p>
+This sounds obviously true for a normal convex polygon. But the local definition allows something sneaky: a <strong>star polygon</strong> that self-intersects while always turning left.
+</p>
+
+<h2><span class="num">02</span> The Star Polygon</h2>
+<p>
+Take five points arranged like a regular pentagon, but visit them in a star order — skipping every other vertex. The polygon visits: A → D → B → E → C → back to A.
+</p>
+
+<div class="canvas-wrap">
+  <canvas id="cvs1" width="800" height="500"></canvas>
+  <div class="legend">
+    <span class="l-edge">Star edges</span>
+    <span class="l-turn">Turn arcs</span>
+  </div>
+  <div class="controls">
+    <button id="btn-star" class="active" onclick="setView1('star')">Star traversal</button>
+    <button id="btn-hull" onclick="setView1('hull')">Convex hull order</button>
+    <button id="btn-both" onclick="setView1('both')">Both overlaid</button>
+  </div>
+</div>
+
+<p>
+In the star traversal, the path crosses itself — edges AD and BE intersect near the center. Yet at every vertex, the turn is to the <em>left</em>. The polygon winds around twice (winding number 2), and each step is a ~144° left turn.
+</p>
+
+<h2><span class="num">03</span> Local Convexity Check: All Passes</h2>
+<p>
+The <code>orient2d</code> function computes a 2×2 determinant: positive means a left turn, negative means right, zero means collinear. Let's check every consecutive triple:
+</p>
+
+<div class="math-block">
+orient2d(A, D, B) = <span class="pos">+197</span>  <span class="label">← left turn ✓</span><br>
+orient2d(D, B, E) = <span class="pos">+198</span>  <span class="label">← left turn ✓</span><br>
+orient2d(B, E, C) = <span class="pos">+198</span>  <span class="label">← left turn ✓</span><br>
+orient2d(E, C, A) = <span class="pos">+197</span>  <span class="label">← left turn ✓</span><br>
+orient2d(C, A, D) = <span class="pos">+180</span>  <span class="label">← left turn ✓</span>
+</div>
+
+<div class="verdict pass">✓ is_convex_polygon passes — every consecutive triple is non-negative.</div>
+
+<h2><span class="num">04</span> The Failure: Vertex A vs. All Edges</h2>
+<p>
+Now test vertex A = (0, 10) against <em>every</em> edge. The <code>point_in_convex_polygon_boundary_inclusive</code> predicate requires that we don't see both positive and negative signs:
+</p>
+
+<div class="canvas-wrap">
+  <canvas id="cvs2" width="800" height="500"></canvas>
+  <div class="legend">
+    <span class="l-pos">Positive orient2d (A is left of edge)</span>
+    <span class="l-neg">Negative orient2d (A is right of edge)</span>
+    <span class="l-zero">Zero orient2d (A on edge)</span>
+  </div>
+  <div class="controls">
+    <button class="active" id="btn-all" onclick="setEdge('all')">All edges</button>
+    <button id="btn-e0" onclick="setEdge(0)">A→D <span style="color:var(--text-dim)">(zero)</span></button>
+    <button id="btn-e1" onclick="setEdge(1)">D→B <span style="color:var(--green)">(+197)</span></button>
+    <button id="btn-e2" onclick="setEdge(2)">B→E <span style="color:var(--red)">(-126)</span></button>
+    <button id="btn-e3" onclick="setEdge(3)">E→C <span style="color:var(--green)">(+126)</span></button>
+    <button id="btn-e4" onclick="setEdge(4)">C→A <span style="color:var(--text-dim)">(zero)</span></button>
+  </div>
+</div>
+
+<div class="math-block">
+orient2d(A, D, <b>A</b>) = <span class="zero"> 0</span>   <span class="label">← A is endpoint of this edge</span><br>
+orient2d(D, B, <b>A</b>) = <span class="pos">+197</span>  <span class="label">← A is to the LEFT</span><br>
+orient2d(B, E, <b>A</b>) = <span class="neg">-126</span>  <span class="label">← A is to the RIGHT ✗</span><br>
+orient2d(E, C, <b>A</b>) = <span class="pos">+126</span>  <span class="label">← A is to the LEFT</span><br>
+orient2d(C, A, <b>A</b>) = <span class="zero"> 0</span>   <span class="label">← A is endpoint of this edge</span>
+</div>
+
+<div class="verdict fail">✗ Both positive AND negative signs found → point_in_convex_polygon_boundary_inclusive(A, polygon) is FALSE.</div>
+
+<p>
+Edge D→B has A on its left (+197), but edge B→E has A on its right (−126). The predicate sees mixed signs and reports that A is <em>not</em> inside the polygon — even though A is a vertex of the polygon. The lemma's postcondition fails.
+</p>
+
+<h2><span class="num">05</span> Why It Happens</h2>
+
+<div class="canvas-wrap">
+  <canvas id="cvs3" width="800" height="500"></canvas>
+  <div class="legend">
+    <span class="l-pos">Half-plane where orient2d > 0</span>
+    <span class="l-neg">Half-plane where orient2d < 0</span>
+  </div>
+  <div class="controls">
+    <button class="active" id="btn-hp1" onclick="setHP(1)">Edge D→B half-planes</button>
+    <button id="btn-hp2" onclick="setHP(2)">Edge B→E half-planes</button>
+  </div>
+</div>
+
+<p>
+Every directed edge divides the plane into two half-planes: a "left" side (positive orient2d) and a "right" side (negative). For a truly convex polygon, <em>all</em> vertices sit in the left half-plane of every edge. But in the star polygon, vertex A is on the left of edge D→B and on the right of edge B→E. The self-intersection lets a vertex escape to the "wrong" side of a far-away edge.
+</p>
+
+<div class="key-insight">
+  <strong>The core issue:</strong> Local convexity (consecutive triples only) does not prevent self-intersection. A star polygon can turn left at every vertex while its edges cross each other. This breaks the assumption that vertices stay on a consistent side of all edges — which is what the <code>point_in_convex_polygon_boundary_inclusive</code> predicate actually checks.
+</div>
+
+<h2><span class="num">06</span> The Fix</h2>
+<p>
+To make <code>lemma_vertex_in_convex_polygon</code> true, the definition needs a <em>global</em> condition — either directly (every vertex is left of every edge) or by adding a simplicity requirement (no self-intersections). With the current local-only definition, star polygons slip through and the lemma is provably false.
+</p>
+
+</div>
+
+<script>
+// Vertices
+const rawPts = {
+  A: [0, 10], D: [-5, -8], B: [9, 3], E: [-9, 3], C: [5, -8]
+};
+const starOrder = ['A','D','B','E','C'];
+const hullOrder = ['A','B','C','D','E']; // CW top → clockwise for display
+
+// orient2d(a,b,c) = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x)
+function orient2d(a, b, c) {
+  return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
+}
+
+// Transform polygon coords to canvas coords
+function txX(x, cx, scale) { return cx + x * scale; }
+function txY(y, cy, scale) { return cy - y * scale; }
+
+const colors = {
+  edge: '#60a5fa', edgeDim: 'rgba(96,165,250,0.2)',
+  pos: '#22c55e', neg: '#ef4444', zero: '#6b7280',
+  turn: '#a78bfa', hull: 'rgba(251,146,60,0.5)',
+  vertFill: '#fff', vertStroke: '#0c0e13',
+  textBg: 'rgba(12,14,19,0.7)',
+};
+
+function drawPoly(ctx, pts, order, color, lineWidth, dash) {
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.setLineDash(dash || []);
+  const n = order.length;
+  for (let i = 0; i <= n; i++) {
+    const p = pts[order[i % n]];
+    const x = txX(p[0], ctx._cx, ctx._sc);
+    const y = txY(p[1], ctx._cy, ctx._sc);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawVerts(ctx, pts, order, highlight) {
+  const r = 7;
+  order.forEach((name, i) => {
+    const p = pts[name];
+    const x = txX(p[0], ctx._cx, ctx._sc);
+    const y = txY(p[1], ctx._cy, ctx._sc);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = highlight === name ? '#e8b931' : colors.vertFill;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = colors.vertStroke;
+    ctx.stroke();
+
+    // Label
+    const offsets = { A: [0, -16], B: [14, 0], C: [10, 12], D: [-22, 0], E: [-22, 0] };
+    const off = offsets[name] || [0, -14];
+    ctx.font = '600 14px "IBM Plex Mono", monospace';
+    ctx.fillStyle = highlight === name ? '#e8b931' : '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${name}(${p[0]},${p[1]})`, x + off[0], y + off[1]);
+  });
+}
+
+function drawTurnArc(ctx, pts, a, b, c) {
+  const pa = pts[a], pb = pts[b], pc = pts[c];
+  const bx = txX(pb[0], ctx._cx, ctx._sc);
+  const by = txY(pb[1], ctx._cy, ctx._sc);
+  const ang1 = Math.atan2(-(pa[1]-pb[1]), pa[0]-pb[0]);
+  const ang2 = Math.atan2(-(pc[1]-pb[1]), pc[0]-pb[0]);
+  ctx.beginPath();
+  ctx.arc(bx, by, 22, ang1, ang2, false);
+  ctx.strokeStyle = colors.turn;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // arrow
+  const aEnd = ang2;
+  const ax1 = bx + 22 * Math.cos(aEnd);
+  const ay1 = by + 22 * Math.sin(aEnd);
+  ctx.beginPath();
+  ctx.moveTo(ax1, ay1);
+  ctx.lineTo(ax1 + 6*Math.cos(aEnd+2.4), ay1 + 6*Math.sin(aEnd+2.4));
+  ctx.moveTo(ax1, ay1);
+  ctx.lineTo(ax1 + 6*Math.cos(aEnd-0.7), ay1 + 6*Math.sin(aEnd-0.7));
+  ctx.stroke();
+}
+
+function setupCanvas(id) {
+  const cvs = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cvs.getBoundingClientRect();
+  cvs.width = rect.width * dpr;
+  cvs.height = rect.height * dpr;
+  const ctx = cvs.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx._w = rect.width;
+  ctx._h = rect.height;
+  ctx._cx = rect.width / 2;
+  ctx._cy = rect.height / 2 + 10;
+  ctx._sc = Math.min(rect.width, rect.height) / 28;
+  return ctx;
+}
+
+// === Canvas 1: Star vs Hull ===
+let view1 = 'star';
+function setView1(v) {
+  view1 = v;
+  document.querySelectorAll('#btn-star,#btn-hull,#btn-both').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + v.replace('both','both')).classList.add('active');
+  if(v==='star') document.getElementById('btn-star').classList.add('active');
+  if(v==='hull') document.getElementById('btn-hull').classList.add('active');
+  if(v==='both') document.getElementById('btn-both').classList.add('active');
+  drawCanvas1();
+}
+
+function drawCanvas1() {
+  const ctx = setupCanvas('cvs1');
+  ctx.clearRect(0, 0, ctx._w, ctx._h);
+
+  if (view1 === 'hull' || view1 === 'both') {
+    drawPoly(ctx, rawPts, hullOrder, colors.hull, 2, [6, 4]);
+  }
+  if (view1 === 'star' || view1 === 'both') {
+    drawPoly(ctx, rawPts, starOrder, colors.edge, 2.5);
+    // Draw turn arcs
+    for (let i = 0; i < 5; i++) {
+      const a = starOrder[i];
+      const b = starOrder[(i+1)%5];
+      const c = starOrder[(i+2)%5];
+      drawTurnArc(ctx, rawPts, a, b, c);
+    }
+  }
+
+  drawVerts(ctx, rawPts, starOrder);
+
+  // Draw traversal numbers
+  if (view1 === 'star' || view1 === 'both') {
+    ctx.font = '500 11px "IBM Plex Mono", monospace';
+    ctx.fillStyle = colors.edge;
+    for (let i = 0; i < 5; i++) {
+      const a = rawPts[starOrder[i]];
+      const b = rawPts[starOrder[(i+1)%5]];
+      const mx = txX((a[0]+b[0])/2, ctx._cx, ctx._sc);
+      const my = txY((a[1]+b[1])/2, ctx._cy, ctx._sc);
+      ctx.fillText(`e${i}`, mx + 8, my - 4);
+    }
+  }
+}
+
+// === Canvas 2: Edge orient2d signs ===
+let activeEdge = 'all';
+function setEdge(e) {
+  activeEdge = e;
+  document.querySelectorAll('#btn-all,#btn-e0,#btn-e1,#btn-e2,#btn-e3,#btn-e4').forEach(b => b.classList.remove('active'));
+  if (e === 'all') document.getElementById('btn-all').classList.add('active');
+  else document.getElementById('btn-e' + e).classList.add('active');
+  drawCanvas2();
+}
+
+const edgeOrients = [0, 197, -126, 126, 0]; // orient2d(edge_i_start, edge_i_end, A)
+
+function drawCanvas2() {
+  const ctx = setupCanvas('cvs2');
+  ctx.clearRect(0, 0, ctx._w, ctx._h);
+
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    if (activeEdge !== 'all' && activeEdge !== i) continue;
+    const a = rawPts[starOrder[i]];
+    const b = rawPts[starOrder[(i+1)%n]];
+    const ax = txX(a[0], ctx._cx, ctx._sc);
+    const ay = txY(a[1], ctx._cy, ctx._sc);
+    const bx = txX(b[0], ctx._cx, ctx._sc);
+    const by = txY(b[1], ctx._cy, ctx._sc);
+
+    const o = edgeOrients[i];
+    const col = o > 0 ? colors.pos : o < 0 ? colors.neg : colors.zero;
+
+    // Draw edge
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(bx, by);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = activeEdge === 'all' ? 2 : 3;
+    ctx.stroke();
+
+    // Arrow
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    const ux = dx/len, uy = dy/len;
+    const mx = (ax+bx)/2, my = (ay+by)/2;
+    ctx.beginPath();
+    ctx.moveTo(mx + ux*8, my + uy*8);
+    ctx.lineTo(mx - ux*4 + uy*5, my - uy*4 - ux*5);
+    ctx.moveTo(mx + ux*8, my + uy*8);
+    ctx.lineTo(mx - ux*4 - uy*5, my - uy*4 + ux*5);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Orient label
+    if (activeEdge !== 'all' || true) {
+      const sign = o > 0 ? '+' : o < 0 ? '' : '';
+      const lx = (ax+bx)/2 - uy*20;
+      const ly = (ay+by)/2 + ux*20;
+      ctx.font = '600 12px "IBM Plex Mono", monospace';
+      ctx.fillStyle = col;
+      ctx.textAlign = 'center';
+      ctx.fillText(`${sign}${o}`, lx, ly);
+    }
+
+    // If single edge, draw dashed line to A and shade half-plane
+    if (activeEdge === i && o !== 0) {
+      const pA = rawPts['A'];
+      const pAx = txX(pA[0], ctx._cx, ctx._sc);
+      const pAy = txY(pA[1], ctx._cy, ctx._sc);
+      ctx.beginPath();
+      ctx.moveTo(pAx, pAy);
+      ctx.lineTo((ax+bx)/2, (ay+by)/2);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Draw dim star outline
+  if (activeEdge !== 'all') {
+    for (let i = 0; i < n; i++) {
+      if (i === activeEdge) continue;
+      const a = rawPts[starOrder[i]];
+      const b = rawPts[starOrder[(i+1)%n]];
+      ctx.beginPath();
+      ctx.moveTo(txX(a[0], ctx._cx, ctx._sc), txY(a[1], ctx._cy, ctx._sc));
+      ctx.lineTo(txX(b[0], ctx._cx, ctx._sc), txY(b[1], ctx._cy, ctx._sc));
+      ctx.strokeStyle = colors.edgeDim;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  drawVerts(ctx, rawPts, starOrder, 'A');
+}
+
+// === Canvas 3: Half-planes ===
+let hpEdge = 1;
+function setHP(e) {
+  hpEdge = e;
+  document.querySelectorAll('#btn-hp1,#btn-hp2').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-hp' + e).classList.add('active');
+  drawCanvas3();
+}
+
+function drawCanvas3() {
+  const ctx = setupCanvas('cvs3');
+  ctx.clearRect(0, 0, ctx._w, ctx._h);
+
+  const edgeIdx = hpEdge === 1 ? 1 : 2; // D→B or B→E
+  const a = rawPts[starOrder[edgeIdx]];
+  const b = rawPts[starOrder[(edgeIdx+1)%5]];
+  const ax = txX(a[0], ctx._cx, ctx._sc);
+  const ay = txY(a[1], ctx._cy, ctx._sc);
+  const bx = txX(b[0], ctx._cx, ctx._sc);
+  const by = txY(b[1], ctx._cy, ctx._sc);
+
+  // Extend edge line across canvas
+  const dx = bx - ax, dy = by - ay;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const ux = dx/len, uy = dy/len;
+  // Normal (left side)
+  const nx = -uy, ny = ux;
+
+  // Fill half-planes
+  // Left half-plane (positive)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ax - ux*500, ay - uy*500);
+  ctx.lineTo(bx + ux*500, by + uy*500);
+  ctx.lineTo(bx + ux*500 + nx*500, by + uy*500 + ny*500);
+  ctx.lineTo(ax - ux*500 + nx*500, ay - uy*500 + ny*500);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(34,197,94,0.06)';
+  ctx.fill();
+  ctx.restore();
+
+  // Right half-plane (negative)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(ax - ux*500, ay - uy*500);
+  ctx.lineTo(bx + ux*500, by + uy*500);
+  ctx.lineTo(bx + ux*500 - nx*500, by + uy*500 - ny*500);
+  ctx.lineTo(ax - ux*500 - nx*500, ay - uy*500 - ny*500);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(239,68,68,0.06)';
+  ctx.fill();
+  ctx.restore();
+
+  // Draw extended edge line
+  ctx.beginPath();
+  ctx.moveTo(ax - ux*400, ay - uy*400);
+  ctx.lineTo(bx + ux*400, by + uy*400);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Draw actual edge
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  const col = edgeIdx === 1 ? colors.pos : colors.neg;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Half-plane labels
+  ctx.font = '500 13px "IBM Plex Mono", monospace';
+  const lbl1x = (ax+bx)/2 + nx*50;
+  const lbl1y = (ay+by)/2 + ny*50;
+  ctx.fillStyle = 'rgba(34,197,94,0.5)';
+  ctx.textAlign = 'center';
+  ctx.fillText('orient2d > 0', lbl1x, lbl1y);
+  ctx.fillText('(LEFT)', lbl1x, lbl1y + 16);
+  const lbl2x = (ax+bx)/2 - nx*50;
+  const lbl2y = (ay+by)/2 - ny*50;
+  ctx.fillStyle = 'rgba(239,68,68,0.5)';
+  ctx.fillText('orient2d < 0', lbl2x, lbl2y);
+  ctx.fillText('(RIGHT)', lbl2x, lbl2y + 16);
+
+  // Draw dim star
+  for (let i = 0; i < 5; i++) {
+    if (i === edgeIdx) continue;
+    const p1 = rawPts[starOrder[i]];
+    const p2 = rawPts[starOrder[(i+1)%5]];
+    ctx.beginPath();
+    ctx.moveTo(txX(p1[0], ctx._cx, ctx._sc), txY(p1[1], ctx._cy, ctx._sc));
+    ctx.lineTo(txX(p2[0], ctx._cx, ctx._sc), txY(p2[1], ctx._cy, ctx._sc));
+    ctx.strokeStyle = colors.edgeDim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Draw vertex A with indicator
+  const pA = rawPts['A'];
+  const pAx = txX(pA[0], ctx._cx, ctx._sc);
+  const pAy = txY(pA[1], ctx._cy, ctx._sc);
+  const o = edgeOrients[edgeIdx];
+  const side = o > 0 ? colors.pos : colors.neg;
+
+  // Dashed line from A to edge midpoint
+  ctx.beginPath();
+  ctx.moveTo(pAx, pAy);
+  ctx.lineTo((ax+bx)/2, (ay+by)/2);
+  ctx.strokeStyle = side;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawVerts(ctx, rawPts, starOrder, 'A');
+
+  // Edge label
+  const eName = starOrder[edgeIdx] + '→' + starOrder[(edgeIdx+1)%5];
+  ctx.font = '600 14px "IBM Plex Mono", monospace';
+  ctx.fillStyle = col;
+  ctx.textAlign = 'center';
+  ctx.fillText(`Edge ${eName}`, ctx._w/2, 28);
+  ctx.font = '500 12px "IBM Plex Mono", monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`A is on the ${o > 0 ? 'LEFT (+' + o + ')' : 'RIGHT (' + o + ')'}`, ctx._w/2, 48);
+}
+
+// Initial draws
+drawCanvas1();
+drawCanvas2();
+drawCanvas3();
+
+// Redraw on resize
+window.addEventListener('resize', () => {
+  drawCanvas1();
+  drawCanvas2();
+  drawCanvas3();
+});
+</script>
+</body>
+</html>
