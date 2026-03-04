@@ -2,6 +2,7 @@ use vstd::prelude::*;
 use verus_algebra::traits::*;
 use verus_linalg::vec3::ops::{dot};
 use crate::point3::*;
+use crate::orient3d::orient3d;
 use crate::orientation_sign::*;
 use crate::intersection3d::triangle_normal;
 
@@ -57,6 +58,48 @@ pub open spec fn faces_consistently_oriented<T: OrderedRing>(
     a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>,
 ) -> bool {
     orient3d_positive(a, b, c, d)
+}
+
+/// Consistent face orientation is symmetric:
+/// if d is above plane(a,b,c), then a is above plane(d,c,b).
+///
+/// Proof requires: orient3d(a,b,c,d) ≡ orient3d(d,c,b,a)
+/// which follows from the even permutation (a,b,c,d) → (d,c,b,a)
+/// = (1 4)(2 3) being a product of two transpositions.
+/// The proof needs orient3d swap_ab or a full permutation lemma
+/// that is not yet available in orient3d.rs.
+pub proof fn lemma_consistent_orientation_symmetric<T: OrderedRing>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>,
+)
+    requires
+        faces_consistently_oriented(a, b, c, d),
+    ensures
+        faces_consistently_oriented(d, c, b, a),
+{
+    // faces_consistently_oriented = orient3d_positive = 0.lt(orient3d(...))
+    // Key: orient3d(d,c,b,a) ≡ orient3d(a,b,c,d) [even permutation]
+    crate::orient3d::lemma_orient3d_even_perm_dcba::<T>(a, b, c, d);
+    T::axiom_eqv_symmetric(orient3d(d, c, b, a), orient3d(a, b, c, d));
+    let val_abcd = orient3d(a, b, c, d);
+    let val_dcba = orient3d(d, c, b, a);
+
+    // Decompose: 0 < val_abcd iff 0 <= val_abcd && !0.eqv(val_abcd)
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), val_abcd);
+
+    // le congruence: 0 <= val_abcd && val_abcd ≡ val_dcba => 0 <= val_dcba
+    verus_algebra::lemmas::ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+        T::zero(), val_abcd, val_dcba,
+    );
+
+    // !eqv: if 0 ≡ val_dcba, by transitivity with val_dcba ≡ val_abcd: 0 ≡ val_abcd, contradiction
+    assert(!T::zero().eqv(val_dcba)) by {
+        if T::zero().eqv(val_dcba) {
+            T::axiom_eqv_transitive(T::zero(), val_dcba, val_abcd);
+        }
+    };
+
+    // Reassemble: 0 <= val_dcba && !0.eqv(val_dcba) => 0 < val_dcba
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), val_dcba);
 }
 
 } // verus!

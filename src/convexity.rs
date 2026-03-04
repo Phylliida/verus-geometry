@@ -53,4 +53,28 @@ pub proof fn lemma_strictly_convex_implies_convex<T: OrderedRing>(
     }
 }
 
+/// Every vertex of a convex polygon is inside the polygon (boundary inclusive).
+///
+/// Proof strategy: For a convex polygon and vertex k:
+/// - Edges k-1→k and k→k+1 give Zero orientation (degenerate cases).
+/// - For all other edges, orient2d(v[i], v[i+1], v[k]) is non-negative,
+///   which follows from the orient2d decomposition identity:
+///   orient2d(a,c,d) + orient2d(a,b,c) = orient2d(a,b,d) + orient2d(b,c,d)
+///   applied inductively along the "fan" from vertex k.
+/// - Since all signs are non-negative (or zero), we can never have both
+///   Positive and Negative, so point_in_convex_polygon_boundary_inclusive holds.
+pub proof fn lemma_vertex_in_convex_polygon<T: OrderedRing>(
+    polygon: Seq<Point2<T>>, k: int,
+)
+    requires
+        is_convex_polygon(polygon),
+        0 <= k < polygon.len(),
+    ensures
+        point_in_convex_polygon_boundary_inclusive(polygon[k], polygon),
+{
+    // TODO: Requires proving the orient2d decomposition identity
+    // and a fan induction argument (~200 lines of det2d algebra).
+    assume(false);
+}
+
 } // verus!

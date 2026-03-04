@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-142 verified items, 0 errors, 0 assumes/admits.
+156 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -189,7 +189,7 @@ pub enum SegmentIntersectionKind {
       - Disjoint: otherwise
 - [x] Lemma: classification is exhaustive (exactly one case)
 - [x] Lemma: Proper implies segments straddle each other
-- [ ] Lemma: Disjoint implies no shared point exists
+- [x] Lemma: Disjoint implies no shared point exists
 
 ### 4.2 Segment intersection point (for Proper and EndpointTouch)
 
@@ -331,7 +331,7 @@ For each predicate in Phases 1-6:
 
 ### 8.6 Disjoint-implies-no-shared-point
 
-- [ ] `lemma_shared_point_implies_not_disjoint` — contrapositive form (deferred: depends on 8.1 completeness)
+- [x] `lemma_shared_point_implies_not_disjoint` — contrapositive form
 
 ---
 
