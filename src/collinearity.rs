@@ -2,6 +2,9 @@ use vstd::prelude::*;
 use verus_algebra::traits::*;
 use verus_algebra::lemmas::additive_group_lemmas;
 use verus_algebra::lemmas::ring_lemmas;
+use verus_algebra::lemmas::field_lemmas;
+use verus_linalg::vec2::Vec2;
+use verus_linalg::vec2::ops::scale as scale2;
 use verus_linalg::vec3::Vec3;
 use verus_linalg::vec3::ops::*;
 use crate::point2::*;
@@ -621,6 +624,258 @@ pub proof fn lemma_collinear3d_implies_all_projections_collinear<T: Ring>(
     lemma_collinear3d_implies_collinear2d_drop_x::<T>(a, b, c);
     lemma_collinear3d_implies_collinear2d_drop_y::<T>(a, b, c);
     lemma_collinear3d_implies_collinear2d_drop_z::<T>(a, b, c);
+}
+
+// =========================================================================
+// Collinear2d implies affine combination
+// =========================================================================
+
+/// Affine parameter for expressing c as a + t*(b-a) when collinear.
+/// If b.x ≢ a.x, t = (c.x - a.x) / (b.x - a.x).
+/// Otherwise, t = (c.y - a.y) / (b.y - a.y).
+pub open spec fn collinear2d_affine_parameter<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+) -> T {
+    if !a.x.eqv(b.x) {
+        c.x.sub(a.x).div(b.x.sub(a.x))
+    } else {
+        c.y.sub(a.y).div(b.y.sub(a.y))
+    }
+}
+
+/// Helper: a - b ≡ 0 implies a ≡ b.
+proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
+    requires
+        a.sub(b).eqv(T::zero()),
+    ensures
+        a.eqv(b),
+{
+    T::axiom_sub_is_add_neg(a, b);
+    // sub_is_add_neg gives: a.sub(b) ≡ a.add(b.neg())
+    // We need: a.add(b.neg()) ≡ 0
+    T::axiom_eqv_symmetric(a.sub(b), a.add(b.neg()));
+    // Now: a.add(b.neg()) ≡ a.sub(b)
+    T::axiom_eqv_transitive(a.add(b.neg()), a.sub(b), T::zero());
+    // a + (-b) ≡ 0 → (-b) ≡ a.neg() by neg_unique
+    additive_group_lemmas::lemma_neg_unique::<T>(a, b.neg());
+    // b.neg() ≡ a.neg()
+    T::axiom_neg_congruence(b.neg(), a.neg());
+    // b.neg().neg() ≡ a.neg().neg()
+    additive_group_lemmas::lemma_neg_involution::<T>(b);
+    additive_group_lemmas::lemma_neg_involution::<T>(a);
+    // b ≡ b.neg().neg() ≡ a.neg().neg() ≡ a → a ≡ b
+    T::axiom_eqv_symmetric(b.neg().neg(), b);
+    T::axiom_eqv_transitive(b, b.neg().neg(), a.neg().neg());
+    T::axiom_eqv_transitive(b, a.neg().neg(), a);
+    T::axiom_eqv_symmetric(b, a);
+}
+
+/// Helper: !a.eqv(b) implies !(b - a).eqv(0).
+proof fn lemma_distinct_implies_sub_nonzero<T: Ring>(a: T, b: T)
+    requires
+        !a.eqv(b),
+    ensures
+        !b.sub(a).eqv(T::zero()),
+{
+    if b.sub(a).eqv(T::zero()) {
+        lemma_sub_zero_implies_eqv::<T>(b, a);
+        T::axiom_eqv_symmetric(b, a);
+        // a ≡ b — contradiction
+    }
+}
+
+/// Helper: a + (b - a) ≡ b.
+proof fn lemma_add_sub_self_cancel<T: Ring>(a: T, b: T)
+    ensures
+        a.add(b.sub(a)).eqv(b),
+{
+    // a + (b - a) ≡ (b - a) + a [comm]
+    T::axiom_add_commutative(a, b.sub(a));
+    // (b - a) + a: expand sub, then cancel
+    T::axiom_sub_is_add_neg(b, a);
+    // b - a ≡ b + (-a)
+    T::axiom_add_congruence_left(b.sub(a), b.add(a.neg()), a);
+    // (b - a) + a ≡ (b + (-a)) + a
+    T::axiom_add_associative(b, a.neg(), a);
+    // (b + (-a)) + a ≡ b + ((-a) + a)
+    T::axiom_add_commutative(a.neg(), a);
+    // (-a) + a ≡ a + (-a)
+    T::axiom_add_inverse_right(a);
+    // a + (-a) ≡ 0
+    T::axiom_eqv_transitive(a.neg().add(a), a.add(a.neg()), T::zero());
+    additive_group_lemmas::lemma_add_congruence_right::<T>(b, a.neg().add(a), T::zero());
+    T::axiom_eqv_transitive(
+        b.add(a.neg()).add(a),
+        b.add(a.neg().add(a)),
+        b.add(T::zero()),
+    );
+    T::axiom_add_zero_right(b);
+    T::axiom_eqv_transitive(
+        b.add(a.neg()).add(a),
+        b.add(T::zero()),
+        b,
+    );
+    // Chain: a + (b-a) ≡ (b-a)+a ≡ (b+(-a))+a ≡ b
+    T::axiom_eqv_transitive(
+        b.sub(a).add(a),
+        b.add(a.neg()).add(a),
+        b,
+    );
+    T::axiom_eqv_transitive(
+        a.add(b.sub(a)),
+        b.sub(a).add(a),
+        b,
+    );
+}
+
+/// If collinear2d(a, b, c) and a ≢ b, then c = a + t*(b-a) for t = collinear2d_affine_parameter.
+///
+/// The proof has two cases based on whether b.x ≢ a.x or b.y ≢ a.y.
+/// In each case, one component follows from div_mul_cancel, and the other
+/// from the collinearity constraint plus field cancellation.
+pub proof fn lemma_collinear2d_affine_combination<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+)
+    requires
+        collinear2d(a, b, c),
+        !a.eqv(b),
+    ensures ({
+        let t = collinear2d_affine_parameter(a, b, c);
+        add_vec2(a, scale2(t, sub2(b, a))).eqv(c)
+    }),
+{
+    let t = collinear2d_affine_parameter(a, b, c);
+    let dx = b.x.sub(a.x);
+    let dy = b.y.sub(a.y);
+    let cx_ = c.x.sub(a.x);
+    let cy_ = c.y.sub(a.y);
+
+    // Collinearity gives det2d(sub2(b,a), sub2(c,a)) ≡ 0, i.e., dx*cy_ - dy*cx_ ≡ 0
+    // Hence dx*cy_ ≡ dy*cx_
+    lemma_sub_zero_implies_eqv::<T>(dx.mul(cy_), dy.mul(cx_));
+
+    // !a.eqv(b) means !a.x.eqv(b.x) || !a.y.eqv(b.y)
+    if !a.x.eqv(b.x) {
+        // Case 1: t = cx_ / dx
+        lemma_distinct_implies_sub_nonzero::<T>(a.x, b.x);
+        // !dx.eqv(0)
+
+        // --- x component: a.x + t*dx ≡ c.x ---
+        // t*dx = (cx_/dx)*dx ≡ cx_ by div_mul_cancel
+        field_lemmas::lemma_div_mul_cancel::<T>(cx_, dx);
+        // a.x + cx_ ≡ a.x + (c.x - a.x) ≡ c.x
+        lemma_add_sub_self_cancel::<T>(a.x, c.x);
+        // Chain: a.x + t*dx ≡ a.x + cx_ ≡ c.x
+        additive_group_lemmas::lemma_add_congruence_right::<T>(a.x, t.mul(dx), cx_);
+        T::axiom_eqv_transitive(
+            a.x.add(t.mul(dx)),
+            a.x.add(cx_),
+            c.x,
+        );
+
+        // --- y component: a.y + t*dy ≡ c.y ---
+        // Need: t*dy ≡ cy_
+        // From collinearity: dx*cy_ ≡ dy*cx_
+        // Show: dx*(t*dy) ≡ dy*cx_
+        //   dx*(t*dy) = (dx*t)*dy [assoc] = (t*dx)*dy [comm] ≡ cx_*dy [div_mul_cancel]
+        //            = dy*cx_ [comm]
+        T::axiom_mul_associative(dx, t, dy);
+        // dx*(t*dy) ≡ (dx*t)*dy
+        T::axiom_mul_commutative(dx, t);
+        // dx*t ≡ t*dx
+        T::axiom_mul_congruence_left(dx.mul(t), t.mul(dx), dy);
+        // (dx*t)*dy ≡ (t*dx)*dy
+        // t*dx ≡ cx_ from div_mul_cancel above; lift to mul
+        T::axiom_mul_congruence_left(t.mul(dx), cx_, dy);
+        // (t*dx)*dy ≡ cx_*dy
+        T::axiom_eqv_transitive(
+            dx.mul(t).mul(dy), t.mul(dx).mul(dy), cx_.mul(dy),
+        );
+        // cx_ * dy ≡ dy * cx_
+        T::axiom_mul_commutative(cx_, dy);
+        T::axiom_eqv_transitive(
+            dx.mul(t).mul(dy), cx_.mul(dy), dy.mul(cx_),
+        );
+        T::axiom_eqv_symmetric(dx.mul(t.mul(dy)), dx.mul(t).mul(dy));
+        T::axiom_eqv_transitive(
+            dx.mul(t.mul(dy)),
+            dx.mul(t).mul(dy),
+            dy.mul(cx_),
+        );
+        // dx*(t*dy) ≡ dy*cx_ ≡ dx*cy_
+        T::axiom_eqv_symmetric(dx.mul(cy_), dy.mul(cx_));
+        T::axiom_eqv_transitive(
+            dx.mul(t.mul(dy)),
+            dy.mul(cx_),
+            dx.mul(cy_),
+        );
+        // Cancel dx: t*dy ≡ cy_
+        field_lemmas::lemma_mul_cancel_left::<T>(t.mul(dy), cy_, dx);
+
+        // a.y + t*dy ≡ a.y + cy_ = a.y + (c.y - a.y) ≡ c.y
+        lemma_add_sub_self_cancel::<T>(a.y, c.y);
+        additive_group_lemmas::lemma_add_congruence_right::<T>(a.y, t.mul(dy), cy_);
+        T::axiom_eqv_transitive(
+            a.y.add(t.mul(dy)),
+            a.y.add(cy_),
+            c.y,
+        );
+    } else {
+        // Case 2: a.x ≡ b.x, so !a.y.eqv(b.y). t = cy_ / dy.
+        lemma_distinct_implies_sub_nonzero::<T>(a.y, b.y);
+        // !dy.eqv(0)
+
+        // --- y component: a.y + t*dy ≡ c.y ---
+        field_lemmas::lemma_div_mul_cancel::<T>(cy_, dy);
+        lemma_add_sub_self_cancel::<T>(a.y, c.y);
+        additive_group_lemmas::lemma_add_congruence_right::<T>(a.y, t.mul(dy), cy_);
+        T::axiom_eqv_transitive(
+            a.y.add(t.mul(dy)),
+            a.y.add(cy_),
+            c.y,
+        );
+
+        // --- x component: a.x + t*dx ≡ c.x ---
+        // Need: t*dx ≡ cx_
+        // From collinearity: dx*cy_ ≡ dy*cx_, i.e., dy*cx_ ≡ dx*cy_
+        // Show: dy*(t*dx) ≡ dx*cy_
+        //   dy*(t*dx) = (dy*t)*dx [assoc] = (t*dy)*dx [comm] ≡ cy_*dx [div_mul_cancel]
+        //            = dx*cy_ [comm]
+        T::axiom_mul_associative(dy, t, dx);
+        T::axiom_mul_commutative(dy, t);
+        T::axiom_mul_congruence_left(dy.mul(t), t.mul(dy), dx);
+        // t*dy ≡ cy_ from div_mul_cancel above; lift to mul
+        T::axiom_mul_congruence_left(t.mul(dy), cy_, dx);
+        T::axiom_eqv_transitive(
+            dy.mul(t).mul(dx), t.mul(dy).mul(dx), cy_.mul(dx),
+        );
+        T::axiom_mul_commutative(cy_, dx);
+        T::axiom_eqv_transitive(
+            dy.mul(t).mul(dx), cy_.mul(dx), dx.mul(cy_),
+        );
+        T::axiom_eqv_symmetric(dy.mul(t.mul(dx)), dy.mul(t).mul(dx));
+        T::axiom_eqv_transitive(
+            dy.mul(t.mul(dx)),
+            dy.mul(t).mul(dx),
+            dx.mul(cy_),
+        );
+        // dy*(t*dx) ≡ dx*cy_ ≡ dy*cx_
+        T::axiom_eqv_transitive(
+            dy.mul(t.mul(dx)),
+            dx.mul(cy_),
+            dy.mul(cx_),
+        );
+        // Cancel dy: t*dx ≡ cx_
+        field_lemmas::lemma_mul_cancel_left::<T>(t.mul(dx), cx_, dy);
+
+        lemma_add_sub_self_cancel::<T>(a.x, c.x);
+        additive_group_lemmas::lemma_add_congruence_right::<T>(a.x, t.mul(dx), cx_);
+        T::axiom_eqv_transitive(
+            a.x.add(t.mul(dx)),
+            a.x.add(cx_),
+            c.x,
+        );
+    }
 }
 
 } // verus!

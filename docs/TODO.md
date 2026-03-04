@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-108 verified items, 0 errors, 0 assumes/admits.
+117 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -106,7 +106,7 @@ spec fn collinear2d<T: OrderedRing>(a, b, c: Point2<T>) -> bool {
 - [x] `collinear2d` spec
 - [x] Lemma: reflexive — `collinear2d(a, a, c)` (from degenerate_ab)
 - [x] Lemma: symmetric — permutation invariance (from cyclic + swap)
-- [ ] Lemma: if collinear and a != b, c is an affine combination of a and b
+- [x] Lemma: if collinear and a != b, c is an affine combination of a and b
 
 ### 2.2 Collinearity (3D)
 
@@ -190,7 +190,7 @@ pub enum SegmentIntersectionKind {
 
 - [x] `segment_intersection_point_2d(a, b, c, d)` — compute witness point
 - [x] For Proper: parameter `t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))`, point = `a + t*(b-a)`
-- [ ] Lemma: witness point lies on both segments (on-line AB done; on-line CD + bounding box remaining)
+- [ ] Lemma: witness point lies on both segments (on-line AB done; on-line CD done; bounding box remaining)
 - [x] Lemma: denominator is nonzero for Proper case
 - [x] Lemma: intersection point lies on line(a, b) (orient2d(a,b,p) ≡ 0)
 
