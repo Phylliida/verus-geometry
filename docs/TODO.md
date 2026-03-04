@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-156 verified items, 0 errors, 0 assumes/admits.
+262 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -34,11 +34,11 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 | `convex_polygon.rs` | Point-in-convex-polygon (boundary-inclusive + strict), prefix step lemmas, superset lemma | Done |
 | `intersection3d.rs` | Segment-plane parameter/point specs, denominator-nonzero, 0<t<1 bounds, intersection-point-on-plane, affine combination, 2D projection, point-in-triangle, segment-triangle intersection spec + combined properties lemma | Done |
 | `segment_polygon.rs` | Segment-convex polygon overlap spec, prefix edge hit lemma, endpoint-inside-implies-overlap | Done |
-| `convexity.rs` | `is_convex_polygon`, `is_strictly_convex_polygon` specs, strictly-convex-implies-convex lemma | Done |
+| `convexity.rs` | `is_convex_polygon` (global half-plane), `is_strictly_convex_polygon`, `is_locally_convex_polygon`, `is_locally_strictly_convex_polygon`, convex-implies-locally-convex, strictly-convex-implies-convex, vertex-in-convex-polygon lemmas | Done |
 | `face_normal.rs` | Normal orthogonality to edges, normal swap-negation, `faces_consistently_oriented` spec | Done |
 | `aabb.rs` | `point_in_aabb2/3`, `aabb2/3_separated` specs, separation-implies-no-common-point lemmas (2D & 3D) | Done |
 | `barycentric.rs` | Barycentric coordinate specs (unnormalized & normalized), orient2d repeated_ac, vertex-sum lemmas (a, b, c) | Done |
-| `segment_distance.rs` | Line-line closest approach specs: `gram_entries`, `gram_determinant`, `closest_parameter_s/t`, `line_line_squared_distance` | Done (specs only) |
+| `segment_distance.rs` | Line-line closest approach specs + perpendicularity proof: `gram_entries`, `gram_determinant`, `closest_parameter_s/t`, `line_line_squared_distance`, `lemma_closest_points_perpendicular` | Done |
 
 Everything is generic over `T: Ring` — no concrete numeric types.
 
@@ -211,7 +211,7 @@ pub enum SegmentIntersectionKind {
 - [x] `point_strictly_in_convex_polygon(p, polygon)` spec
       — all edge orientations same sign, none zero
 - [x] Lemma: boundary-inclusive is a superset of strict
-- [ ] Lemma: vertices of the polygon are boundary-inclusive
+- [x] Lemma: vertices of the polygon are boundary-inclusive (via `lemma_vertex_in_convex_polygon`)
 - [x] Precondition documentation: polygon must be convex with consistent winding
 
 ### 5.2 General polygon containment (winding number / ray casting)
@@ -269,7 +269,7 @@ Two options:
 - Pro: simpler verification, matches old crate pattern
 - Con: less reusable, need separate instantiations
 
-- [ ] Decide approach (probably Option B initially, generalize later)
+- [x] Decided: Option B — concrete exec functions over RuntimeRational
 
 ### 7.2 Implement exec functions
 
@@ -283,9 +283,8 @@ For each predicate in Phases 1-6:
 - [x] `point_in_aabb2/3` — point containment specs
 - [x] `aabb2/3_separated` — separation predicate specs
 - [x] Lemma: separation implies no common point (2D and 3D)
-- [ ] `Aabb2` / `Aabb3` — exec-level axis-aligned bounding boxes
-- [ ] `aabb_overlap(a, b)` — broad-phase intersection test (exec)
-- [ ] `aabb_contains_point(box, p)` — containment test (exec)
+- [x] `point_in_aabb2_exec`, `point_in_aabb3_exec` — exec point containment
+- [x] `aabb2_separated_exec`, `aabb3_separated_exec` — exec separation tests
 
 ---
 
@@ -301,17 +300,21 @@ For each predicate in Phases 1-6:
 
 ### 8.2 Convexity predicates
 
-- [x] `is_convex_polygon` — all consecutive triples have non-negative orientation
-- [x] `is_strictly_convex_polygon` — all consecutive triples have strictly positive orientation
+- [x] `is_convex_polygon` — global half-plane: every vertex non-negative for every edge (see docs/convexity-redesign.md)
+- [x] `is_strictly_convex_polygon` — convex + non-adjacent vertices strictly positive
+- [x] `is_locally_convex_polygon` — all consecutive triples have non-negative orientation (necessary but not sufficient)
+- [x] `is_locally_strictly_convex_polygon` — all consecutive triples have strictly positive orientation
+- [x] `lemma_convex_implies_locally_convex`
+- [x] `lemma_locally_strictly_convex_implies_locally_convex`
 - [x] `lemma_strictly_convex_implies_convex`
-- [ ] `lemma_vertex_in_convex_polygon` — vertex of convex polygon is boundary-inclusive (deferred: needs inductive argument)
+- [x] `lemma_vertex_in_convex_polygon` — vertex of convex polygon is boundary-inclusive (trivial from global definition)
 
 ### 8.3 Face normal predicates
 
 - [x] `lemma_normal_orthogonal_to_edges` — triangle normal is orthogonal to both edges
 - [x] `lemma_normal_swap_bc` — swapping b and c negates the normal
 - [x] `faces_consistently_oriented` spec predicate
-- [ ] `lemma_consistent_orientation_symmetric` — consistent orientation is symmetric (deferred: needs orient3d even-permutation lemmas)
+- [x] `lemma_consistent_orientation_symmetric` — consistent orientation is symmetric (proved via orient3d even-permutation lemma)
 
 ### 8.4 Barycentric coordinates
 
@@ -319,15 +322,15 @@ For each predicate in Phases 1-6:
 - [x] `barycentric_coords_2d` — normalized barycentric coordinate spec (OrderedField)
 - [x] `lemma_orient2d_repeated_ac` — orient2d(a, b, a) ≡ 0
 - [x] `lemma_barycentric_sum_at_vertex_a/b/c` — unnormalized sum at each vertex equals orient2d(a,b,c)
-- [ ] `lemma_barycentric_partition_of_unity` — u + v + w ≡ 1 for any point (deferred: ~200 lines of det2d algebra)
-- [ ] `lemma_barycentric_reconstruction` — p ≡ u*a + v*b + w*c (deferred)
+- [x] `lemma_barycentric_partition_of_unity` — orient2d(b,c,p) + orient2d(c,a,p) + orient2d(a,b,p) ≡ orient2d(a,b,c)
+- [x] `lemma_barycentric_reconstruction` — p ≡ u*a + v*b + w*c for normalized barycentric coordinates
 
 ### 8.5 Line-line closest approach (3D)
 
 - [x] `line_point_3d`, `gram_entries`, `gram_determinant` specs
 - [x] `closest_parameter_s`, `closest_parameter_t` specs
 - [x] `line_line_squared_distance` spec
-- [ ] `lemma_closest_points_perpendicular` — closest-approach vector is orthogonal to both line directions (deferred)
+- [x] `lemma_closest_points_perpendicular` — closest-approach vector is orthogonal to both line directions
 
 ### 8.6 Disjoint-implies-no-shared-point
 
@@ -386,7 +389,7 @@ Many proof steps reduce to algebraic identities already proven:
 |---|---|---|
 | `vstd` | Verus standard library | Maintained by Verus team |
 | `verus-algebra` axioms | Ring/Field axiom soundness | Axioms match standard math definitions |
-| `verus-linalg` | Vector operation specs | 195+ verified items, 0 assumes |
+| `verus-linalg` | Vector operation specs | 533+ verified items, 0 assumes |
 
 Everything in this crate: verified, no `unsafe`, no `assume`.
 Enforced by `--forbid-trusted-escapes` in CI.
