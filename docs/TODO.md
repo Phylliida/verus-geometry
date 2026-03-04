@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-117 verified items, 0 errors, 0 assumes/admits.
+142 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -34,6 +34,11 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 | `convex_polygon.rs` | Point-in-convex-polygon (boundary-inclusive + strict), prefix step lemmas, superset lemma | Done |
 | `intersection3d.rs` | Segment-plane parameter/point specs, denominator-nonzero, 0<t<1 bounds, intersection-point-on-plane, affine combination, 2D projection, point-in-triangle, segment-triangle intersection spec + combined properties lemma | Done |
 | `segment_polygon.rs` | Segment-convex polygon overlap spec, prefix edge hit lemma, endpoint-inside-implies-overlap | Done |
+| `convexity.rs` | `is_convex_polygon`, `is_strictly_convex_polygon` specs, strictly-convex-implies-convex lemma | Done |
+| `face_normal.rs` | Normal orthogonality to edges, normal swap-negation, `faces_consistently_oriented` spec | Done |
+| `aabb.rs` | `point_in_aabb2/3`, `aabb2/3_separated` specs, separation-implies-no-common-point lemmas (2D & 3D) | Done |
+| `barycentric.rs` | Barycentric coordinate specs (unnormalized & normalized), orient2d repeated_ac, vertex-sum lemmas (a, b, c) | Done |
+| `segment_distance.rs` | Line-line closest approach specs: `gram_entries`, `gram_determinant`, `closest_parameter_s/t`, `line_line_squared_distance` | Done (specs only) |
 
 Everything is generic over `T: Ring` — no concrete numeric types.
 
@@ -190,7 +195,8 @@ pub enum SegmentIntersectionKind {
 
 - [x] `segment_intersection_point_2d(a, b, c, d)` — compute witness point
 - [x] For Proper: parameter `t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))`, point = `a + t*(b-a)`
-- [ ] Lemma: witness point lies on both segments (on-line AB done; on-line CD done; bounding box remaining)
+- [x] Lemma: witness point lies on segment AB (on-line + bounding box via affine combination)
+- [x] Lemma: witness point lies on segment CD (CD parameter + uniqueness proof)
 - [x] Lemma: denominator is nonzero for Proper case
 - [x] Lemma: intersection point lies on line(a, b) (orient2d(a,b,p) ≡ 0)
 
@@ -274,10 +280,58 @@ For each predicate in Phases 1-6:
 
 ### 7.3 AABB utilities (for broad-phase)
 
-- [ ] `Aabb2` / `Aabb3` — axis-aligned bounding boxes
-- [ ] `aabb_overlap(a, b)` — broad-phase intersection test
-- [ ] `aabb_contains_point(box, p)` — containment test
-- [ ] These are simple interval comparisons — should be easy to verify
+- [x] `point_in_aabb2/3` — point containment specs
+- [x] `aabb2/3_separated` — separation predicate specs
+- [x] Lemma: separation implies no common point (2D and 3D)
+- [ ] `Aabb2` / `Aabb3` — exec-level axis-aligned bounding boxes
+- [ ] `aabb_overlap(a, b)` — broad-phase intersection test (exec)
+- [ ] `aabb_contains_point(box, p)` — containment test (exec)
+
+---
+
+## Phase 8 — New predicates & correctness proofs
+
+### 8.1 Point-on-segment lemmas
+
+- [x] `lemma_weighted_average_bounds` — 0 ≤ t ≤ 1 implies min(a,b) ≤ a+t*(b-a) ≤ max(a,b)
+- [x] `lemma_endpoint_a_on_segment`, `lemma_endpoint_b_on_segment`
+- [x] `lemma_affine_combination_on_segment` — affine point with 0≤t≤1 is on segment
+- [x] `lemma_proper_intersection_on_segment_ab` — proper intersection lies on segment AB
+- [x] `lemma_proper_intersection_on_segment_cd` — proper intersection lies on segment CD (via CD parameter + uniqueness)
+
+### 8.2 Convexity predicates
+
+- [x] `is_convex_polygon` — all consecutive triples have non-negative orientation
+- [x] `is_strictly_convex_polygon` — all consecutive triples have strictly positive orientation
+- [x] `lemma_strictly_convex_implies_convex`
+- [ ] `lemma_vertex_in_convex_polygon` — vertex of convex polygon is boundary-inclusive (deferred: needs inductive argument)
+
+### 8.3 Face normal predicates
+
+- [x] `lemma_normal_orthogonal_to_edges` — triangle normal is orthogonal to both edges
+- [x] `lemma_normal_swap_bc` — swapping b and c negates the normal
+- [x] `faces_consistently_oriented` spec predicate
+- [ ] `lemma_consistent_orientation_symmetric` — consistent orientation is symmetric (deferred: needs orient3d even-permutation lemmas)
+
+### 8.4 Barycentric coordinates
+
+- [x] `barycentric_unnorm_2d` — unnormalized barycentric coordinate spec
+- [x] `barycentric_coords_2d` — normalized barycentric coordinate spec (OrderedField)
+- [x] `lemma_orient2d_repeated_ac` — orient2d(a, b, a) ≡ 0
+- [x] `lemma_barycentric_sum_at_vertex_a/b/c` — unnormalized sum at each vertex equals orient2d(a,b,c)
+- [ ] `lemma_barycentric_partition_of_unity` — u + v + w ≡ 1 for any point (deferred: ~200 lines of det2d algebra)
+- [ ] `lemma_barycentric_reconstruction` — p ≡ u*a + v*b + w*c (deferred)
+
+### 8.5 Line-line closest approach (3D)
+
+- [x] `line_point_3d`, `gram_entries`, `gram_determinant` specs
+- [x] `closest_parameter_s`, `closest_parameter_t` specs
+- [x] `line_line_squared_distance` spec
+- [ ] `lemma_closest_points_perpendicular` — closest-approach vector is orthogonal to both line directions (deferred)
+
+### 8.6 Disjoint-implies-no-shared-point
+
+- [ ] `lemma_shared_point_implies_not_disjoint` — contrapositive form (deferred: depends on 8.1 completeness)
 
 ---
 
@@ -348,6 +402,7 @@ Enforced by `--forbid-trusted-escapes` in CI.
 | **M3: 2D intersection** | 4-5 | Segment intersection + polygon containment for boolean ops |
 | **M4: 3D intersection** | 6 | Segment-triangle intersection for mesh self-intersection detection |
 | **M5: Runtime layer** | 7 | Executable predicates for actual computation |
+| **M6: Extended predicates** | 8 | Convexity, face normals, AABB, barycentric, distance |
 
 **M1 is needed first** — verus-topology's geometric validation layer depends
 on collinearity and coplanarity. **M3 is the big one** for boolean operations.

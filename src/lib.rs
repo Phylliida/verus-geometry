@@ -30,3 +30,18 @@ pub mod intersection3d;
 
 #[cfg(verus_keep_ghost)]
 pub mod segment_polygon;
+
+#[cfg(verus_keep_ghost)]
+pub mod convexity;
+
+#[cfg(verus_keep_ghost)]
+pub mod face_normal;
+
+#[cfg(verus_keep_ghost)]
+pub mod aabb;
+
+#[cfg(verus_keep_ghost)]
+pub mod barycentric;
+
+#[cfg(verus_keep_ghost)]
+pub mod segment_distance;
