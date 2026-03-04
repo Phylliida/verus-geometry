@@ -50,7 +50,7 @@ pub open spec fn aabb2_separated<T: OrderedRing>(
 // =========================================================================
 
 /// Helper: a ≤ b and b < c is contradictory with c ≤ a.
-proof fn lemma_le_lt_contradiction<T: OrderedRing>(a: T, b: T, c: T)
+pub proof fn lemma_le_lt_contradiction<T: OrderedRing>(a: T, b: T, c: T)
     requires
         a.le(b),
         b.lt(c),

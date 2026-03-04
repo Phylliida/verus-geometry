@@ -341,7 +341,7 @@ pub open spec fn segment_intersection_point_2d<T: OrderedField>(
 // =========================================================================
 
 /// sub2(add_vec2(a, v), a) ≡ v
-proof fn lemma_sub2_add_vec2_cancel<T: Ring>(a: Point2<T>, v: Vec2<T>)
+pub proof fn lemma_sub2_add_vec2_cancel<T: Ring>(a: Point2<T>, v: Vec2<T>)
     ensures
         sub2(add_vec2(a, v), a).eqv(v),
 {
@@ -431,7 +431,7 @@ pub proof fn lemma_intersection_point_on_line_ab_2d<T: OrderedField>(
 /// Vec2 { x: (a.x - c.x) + v.x, y: (a.y - c.y) + v.y }
 ///
 /// i.e. sub2(add_vec2(a, v), c) ≡ Vec2 { x: sub2(a,c).x + v.x, y: sub2(a,c).y + v.y }
-proof fn lemma_sub2_add_vec2_decompose<T: Ring>(a: Point2<T>, v: Vec2<T>, c: Point2<T>)
+pub proof fn lemma_sub2_add_vec2_decompose<T: Ring>(a: Point2<T>, v: Vec2<T>, c: Point2<T>)
     ensures
         sub2(add_vec2(a, v), c).eqv(
             Vec2 { x: sub2(a, c).x.add(v.x), y: sub2(a, c).y.add(v.y) }
@@ -959,7 +959,7 @@ pub proof fn lemma_proper_parameter_bounds_2d<T: OrderedField>(
 // Helper: a ≤ b implies 0 ≤ b - a
 // =========================================================================
 
-proof fn lemma_le_implies_sub_nonneg<T: OrderedRing>(a: T, b: T)
+pub proof fn lemma_le_implies_sub_nonneg<T: OrderedRing>(a: T, b: T)
     requires
         a.le(b),
     ensures
@@ -981,7 +981,7 @@ proof fn lemma_le_implies_sub_nonneg<T: OrderedRing>(a: T, b: T)
 // 0 ≤ t ≤ 1 implies min(a,b) ≤ a + t*(b-a) ≤ max(a,b)
 // =========================================================================
 
-proof fn lemma_weighted_average_bounds<T: OrderedRing>(a: T, b: T, t: T)
+pub proof fn lemma_weighted_average_bounds<T: OrderedRing>(a: T, b: T, t: T)
     requires
         T::zero().le(t),
         t.le(T::one()),
@@ -1174,7 +1174,7 @@ pub proof fn lemma_endpoint_b_on_segment<T: OrderedRing>(
 
 /// Any point of the form a + t*(b-a) lies on line(a,b).
 /// orient2d(a, b, a + t*(b-a)) ≡ 0.
-proof fn lemma_affine_point_on_line<T: Ring>(a: Point2<T>, b: Point2<T>, t: T)
+pub proof fn lemma_affine_point_on_line<T: Ring>(a: Point2<T>, b: Point2<T>, t: T)
     ensures ({
         let p = add_vec2(a, scale2(t, sub2(b, a)));
         orient2d(a, b, p).eqv(T::zero())
@@ -1704,7 +1704,7 @@ pub proof fn lemma_cd_point_on_line_ab_2d<T: OrderedField>(
 // Helper: a - b ≡ 0 implies a ≡ b
 // =========================================================================
 
-proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
+pub proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
     requires
         a.sub(b).eqv(T::zero()),
     ensures
@@ -1734,7 +1734,7 @@ proof fn lemma_sub_zero_implies_eqv<T: Ring>(a: T, b: T)
 ///
 /// Proof: Cross-multiply the determinant conditions and use field cancellation
 /// (contradiction) to show each component of w must be zero.
-proof fn lemma_det2d_zero_both_implies_zero<T: OrderedField>(
+pub proof fn lemma_det2d_zero_both_implies_zero<T: OrderedField>(
     u: Vec2<T>, v: Vec2<T>, w: Vec2<T>,
 )
     requires
@@ -1874,7 +1874,7 @@ proof fn lemma_det2d_zero_both_implies_zero<T: OrderedField>(
 ///
 /// Proof: det2d(b-a, d-c) ≡ orient2d(a,b,d) - orient2d(a,b,c).
 /// If this were 0, then o1 ≡ o2, contradicting opposite signs.
-proof fn lemma_lines_not_parallel_for_proper<T: OrderedField>(
+pub proof fn lemma_lines_not_parallel_for_proper<T: OrderedField>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
 )
     requires
@@ -1979,7 +1979,7 @@ proof fn lemma_lines_not_parallel_for_proper<T: OrderedField>(
 // Helper: (a - c) - (b - c) ≡ a - b
 // =========================================================================
 
-proof fn lemma_sub_cancel_common<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_sub_cancel_common<T: Ring>(a: T, b: T, c: T)
     ensures
         a.sub(c).sub(b.sub(c)).eqv(a.sub(b)),
 {
@@ -2133,7 +2133,7 @@ pub proof fn lemma_proper_intersection_on_segment_cd<T: OrderedField>(
 // ---- Piece 1: scalar_max/min helper lemmas ----
 
 /// If a ≤ x and b ≤ x, then max(a, b) ≤ x.
-proof fn lemma_le_scalar_max<T: OrderedRing>(a: T, b: T, x: T)
+pub proof fn lemma_le_scalar_max<T: OrderedRing>(a: T, b: T, x: T)
     requires
         a.le(x),
         b.le(x),
@@ -2146,7 +2146,7 @@ proof fn lemma_le_scalar_max<T: OrderedRing>(a: T, b: T, x: T)
 }
 
 /// If x ≤ a and x ≤ b, then x ≤ min(a, b).
-proof fn lemma_scalar_min_le<T: OrderedRing>(x: T, a: T, b: T)
+pub proof fn lemma_scalar_min_le<T: OrderedRing>(x: T, a: T, b: T)
     requires
         x.le(a),
         x.le(b),
@@ -2162,7 +2162,7 @@ proof fn lemma_scalar_min_le<T: OrderedRing>(x: T, a: T, b: T)
 
 /// If x lies in both 1D intervals [a1,a2] and [b1,b2], then
 /// collinear_overlap_kind_1d(a1, a2, b1, b2) >= 0.
-proof fn lemma_shared_point_implies_overlap_1d<T: OrderedRing>(
+pub proof fn lemma_shared_point_implies_overlap_1d<T: OrderedRing>(
     x: T, a1: T, a2: T, b1: T, b2: T,
 )
     requires
@@ -2208,7 +2208,7 @@ proof fn lemma_shared_point_implies_overlap_1d<T: OrderedRing>(
 ///
 /// Proof: p-c lies in the kernel of both det2d(ba, ·) and det2d(dc, ·).
 /// Since det2d(ba, dc) ≢ 0 (d not on line(a,b)), uniqueness gives p-c = 0.
-proof fn lemma_zero_orient_and_shared_point_implies_eqv<T: OrderedField>(
+pub proof fn lemma_zero_orient_and_shared_point_implies_eqv<T: OrderedField>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>, p: Point2<T>,
 )
     requires
@@ -2336,7 +2336,7 @@ pub open spec fn segment_parameter_of_point<T: OrderedField>(
 }
 
 /// If p is on segment [c, d] and c ≢ d, then 0 ≤ s ≤ 1 where s is the parameter.
-proof fn lemma_segment_parameter_bounds<T: OrderedField>(
+pub proof fn lemma_segment_parameter_bounds<T: OrderedField>(
     p: Point2<T>, c: Point2<T>, d: Point2<T>,
 )
     requires
@@ -2638,7 +2638,7 @@ proof fn lemma_segment_parameter_bounds<T: OrderedField>(
 
 /// If p is on segment [c, d] (non-degenerate), then p-c ≡ s*(d-c)
 /// where s = segment_parameter_of_point(p, c, d).
-proof fn lemma_point_is_affine_combination<T: OrderedField>(
+pub proof fn lemma_point_is_affine_combination<T: OrderedField>(
     p: Point2<T>, c: Point2<T>, d: Point2<T>,
 )
     requires
@@ -2753,7 +2753,7 @@ proof fn lemma_point_is_affine_combination<T: OrderedField>(
 /// For p on segment [c, d] (non-degenerate):
 ///   orient2d(a, b, p) ≡ o1 + s*(o2 - o1)
 /// where o1 = orient2d(a,b,c), o2 = orient2d(a,b,d), s = parameter.
-proof fn lemma_orient2d_interpolation_on_segment<T: OrderedField>(
+pub proof fn lemma_orient2d_interpolation_on_segment<T: OrderedField>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>, p: Point2<T>,
 )
     requires
@@ -2843,7 +2843,7 @@ proof fn lemma_orient2d_interpolation_on_segment<T: OrderedField>(
 // ---- Piece 7b: Parallelism is transitive (when reference vector is nonzero) ----
 
 /// If det2d(u,v) ≡ 0, det2d(u,w) ≡ 0, and u is nonzero, then det2d(v,w) ≡ 0.
-proof fn lemma_det2d_parallel_transitive<T: OrderedField>(
+pub proof fn lemma_det2d_parallel_transitive<T: OrderedField>(
     u: Vec2<T>, v: Vec2<T>, w: Vec2<T>,
 )
     requires
@@ -2970,7 +2970,7 @@ proof fn lemma_det2d_parallel_transitive<T: OrderedField>(
 /// If 0 < o1, 0 < o2, 0 ≤ s ≤ 1, then o1 + s*(o2-o1) is not zero.
 /// Uses weighted_average_bounds: min(o1,o2) ≤ val ≤ max(o1,o2).
 /// Since both > 0, min > 0, hence val > 0 ≢ 0.
-proof fn lemma_convex_combination_positive<T: OrderedField>(
+pub proof fn lemma_convex_combination_positive<T: OrderedField>(
     o1: T, o2: T, s: T,
 )
     requires
@@ -3012,7 +3012,7 @@ proof fn lemma_convex_combination_positive<T: OrderedField>(
 /// Same as above but for negative o1, o2.
 /// Uses weighted_average_bounds: val ≤ max(o1,o2).
 /// Since both < 0, max < 0, hence val < 0 ≢ 0.
-proof fn lemma_convex_combination_negative<T: OrderedField>(
+pub proof fn lemma_convex_combination_negative<T: OrderedField>(
     o1: T, o2: T, s: T,
 )
     requires
@@ -3054,7 +3054,7 @@ proof fn lemma_convex_combination_negative<T: OrderedField>(
 // ---- Piece 7d: Helper — endpoint is on its own segment ----
 
 /// c is always on segment [c, d].
-proof fn lemma_endpoint_on_own_segment<T: OrderedRing>(
+pub proof fn lemma_endpoint_on_own_segment<T: OrderedRing>(
     c: Point2<T>, d: Point2<T>,
 )
     ensures
@@ -3075,7 +3075,7 @@ proof fn lemma_endpoint_on_own_segment<T: OrderedRing>(
 // ---- Piece 7e: Helper — segment membership transfers via point equivalence ----
 
 /// If p is on segment [a,b] and q ≡ p componentwise, then q is on [a,b].
-proof fn lemma_segment_membership_congruence<T: OrderedRing>(
+pub proof fn lemma_segment_membership_congruence<T: OrderedRing>(
     p: Point2<T>, q: Point2<T>, a: Point2<T>, b: Point2<T>,
 )
     requires
@@ -3118,7 +3118,7 @@ proof fn lemma_segment_membership_congruence<T: OrderedRing>(
 // ---- Piece 7f: Helper — derive orient2d with swapped first pair ----
 
 /// orient2d(c,d,p) ≡ 0 implies orient2d(d,c,p) ≡ 0.
-proof fn lemma_orient2d_swap_ab_zero<T: Ring>(
+pub proof fn lemma_orient2d_swap_ab_zero<T: Ring>(
     c: Point2<T>, d: Point2<T>, p: Point2<T>,
 )
     requires orient2d(c, d, p).eqv(T::zero()),

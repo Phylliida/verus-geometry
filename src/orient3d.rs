@@ -24,7 +24,7 @@ pub open spec fn orient3d<T: Ring>(
 // ---------------------------------------------------------------------------
 
 /// cross product congruence: a1≡a2, b1≡b2 implies cross(a1,b1) ≡ cross(a2,b2)
-proof fn lemma_cross_congruence<T: Ring>(
+pub proof fn lemma_cross_congruence<T: Ring>(
     a1: Vec3<T>, a2: Vec3<T>, b1: Vec3<T>, b2: Vec3<T>,
 )
     requires
@@ -186,7 +186,7 @@ pub proof fn lemma_orient3d_translation<T: Ring>(
 // ---------------------------------------------------------------------------
 
 /// (a - p) - (b - p) ≡ a - b for Ring elements.
-proof fn lemma_sub_rebase<T: Ring>(a: T, b: T, p: T)
+pub proof fn lemma_sub_rebase<T: Ring>(a: T, b: T, p: T)
     ensures
         a.sub(p).sub(b.sub(p)).eqv(a.sub(b)),
 {
@@ -268,7 +268,7 @@ proof fn lemma_sub_rebase<T: Ring>(a: T, b: T, p: T)
 }
 
 /// sub3(a, b) ≡ sub3(a, p).sub(sub3(b, p)) for any anchor point p.
-proof fn lemma_sub3_rebase<T: Ring>(a: Point3<T>, b: Point3<T>, p: Point3<T>)
+pub proof fn lemma_sub3_rebase<T: Ring>(a: Point3<T>, b: Point3<T>, p: Point3<T>)
     ensures
         sub3(a, b).eqv(sub3(a, p).sub(sub3(b, p))),
 {
@@ -282,7 +282,7 @@ proof fn lemma_sub3_rebase<T: Ring>(a: Point3<T>, b: Point3<T>, p: Point3<T>)
 }
 
 /// sub3(a, b) ≡ sub3(b, a).neg()
-proof fn lemma_sub3_antisymmetric<T: Ring>(a: Point3<T>, b: Point3<T>)
+pub proof fn lemma_sub3_antisymmetric<T: Ring>(a: Point3<T>, b: Point3<T>)
     ensures
         sub3(a, b).eqv(sub3(b, a).neg()),
 {

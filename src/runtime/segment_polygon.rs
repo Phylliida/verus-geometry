@@ -25,7 +25,7 @@ verus! {
 // SegmentIntersection2dKind helper (avoid derived PartialEq)
 // ---------------------------------------------------------------------------
 
-fn is_disjoint(k: &SegmentIntersection2dKind) -> (out: bool)
+pub fn is_disjoint(k: &SegmentIntersection2dKind) -> (out: bool)
     ensures out == (*k == SegmentIntersection2dKind::Disjoint),
 {
     match k {

@@ -518,7 +518,7 @@ pub proof fn lemma_sum_of_negatives_is_negative<T: OrderedRing>(a: T, b: T)
 // =========================================================================
 
 /// Scalar: (a+b)-c ≡ (a-c)+b, bridging opaque sub via axiom_sub_is_add_neg.
-proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
     ensures
         a.add(b).sub(c).eqv(a.sub(c).add(b)),
 {
@@ -558,7 +558,7 @@ proof fn lemma_add_sub_rearrange<T: Ring>(a: T, b: T, c: T)
 }
 
 /// sub3(add_vec3(d, w), a) ≡ sub3(d, a).add(w)
-proof fn lemma_sub3_add_vec3<T: Ring>(
+pub proof fn lemma_sub3_add_vec3<T: Ring>(
     d: Point3<T>, w: Vec3<T>, a: Point3<T>,
 )
     ensures
@@ -570,7 +570,7 @@ proof fn lemma_sub3_add_vec3<T: Ring>(
 }
 
 /// Scalar: e-d ≡ (e-a)-(d-a)
-proof fn lemma_sub_triangle_scalar<T: Ring>(e: T, d: T, a: T)
+pub proof fn lemma_sub_triangle_scalar<T: Ring>(e: T, d: T, a: T)
     ensures
         e.sub(d).eqv(e.sub(a).sub(d.sub(a))),
 {
@@ -599,7 +599,7 @@ proof fn lemma_sub_triangle_scalar<T: Ring>(e: T, d: T, a: T)
 }
 
 /// sub3(e, d) ≡ sub3(e, a).sub(sub3(d, a))
-proof fn lemma_sub3_triangle<T: Ring>(
+pub proof fn lemma_sub3_triangle<T: Ring>(
     e: Point3<T>, d: Point3<T>, a: Point3<T>,
 )
     ensures
@@ -615,7 +615,7 @@ use verus_algebra::lemmas::ring_lemmas;
 /// Algebraic cancellation: od + (od/denom) * (-(denom)) ≡ 0.
 /// Here oe_minus_od = oe.add(od.neg()) and denom = od.add(oe.neg()).
 /// We prove od + t * oe_minus_od ≡ 0 where t = od/denom.
-proof fn lemma_orient_cancel<T: OrderedField>(od: T, oe: T)
+pub proof fn lemma_orient_cancel<T: OrderedField>(od: T, oe: T)
     requires
         !od.add(oe.neg()).eqv(T::zero()),
     ensures
@@ -855,7 +855,7 @@ pub proof fn lemma_segment_triangle_intersection_properties<T: OrderedField>(
 // =========================================================================
 
 /// Scalar identity: a + t*(b - a) ≡ (1-t)*a + t*b.
-proof fn lemma_affine_scalar<T: Ring>(a: T, b: T, t: T)
+pub proof fn lemma_affine_scalar<T: Ring>(a: T, b: T, t: T)
     ensures
         a.add(t.mul(b.sub(a))).eqv(T::one().sub(t).mul(a).add(t.mul(b))),
 {

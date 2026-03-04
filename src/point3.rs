@@ -85,7 +85,7 @@ pub proof fn lemma_sub3_translation<T: Ring>(a: Point3<T>, b: Point3<T>, t: Vec3
 }
 
 /// Helper: (b+t)-(a+t) ≡ b-a for a single Ring component
-proof fn lemma_sub_add_cancel_component<T: Ring>(a: T, b: T, t: T)
+pub proof fn lemma_sub_add_cancel_component<T: Ring>(a: T, b: T, t: T)
     ensures
         b.add(t).sub(a.add(t)).eqv(b.sub(a)),
 {

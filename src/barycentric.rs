@@ -239,7 +239,7 @@ pub proof fn lemma_barycentric_sum_at_vertex_c<T: Ring>(
 // =========================================================================
 
 /// a - 0 ≡ a for Ring elements.
-proof fn lemma_sub_zero<T: Ring>(a: T)
+pub proof fn lemma_sub_zero<T: Ring>(a: T)
     ensures
         a.sub(T::zero()).eqv(a),
 {
@@ -254,7 +254,7 @@ proof fn lemma_sub_zero<T: Ring>(a: T)
 /// det2d(v.sub(u), q.sub(u)) ≡ det2d(v, q) - det2d(v, u) - det2d(u, q)
 ///
 /// Expansion via sub_left and sub_right, with det2d(u, u) = 0.
-proof fn lemma_det2d_expand_vsub_qsub<T: Ring>(
+pub proof fn lemma_det2d_expand_vsub_qsub<T: Ring>(
     u: Vec2<T>, v: Vec2<T>, q: Vec2<T>,
 )
     ensures
@@ -307,7 +307,7 @@ proof fn lemma_det2d_expand_vsub_qsub<T: Ring>(
 /// det2d(v.neg(), q.sub(v)) ≡ -det2d(v, q)
 ///
 /// Uses neg_left and sub_right with det2d(v,v) = 0.
-proof fn lemma_det2d_expand_vneg_qsub<T: Ring>(
+pub proof fn lemma_det2d_expand_vneg_qsub<T: Ring>(
     v: Vec2<T>, q: Vec2<T>,
 )
     ensures
@@ -713,7 +713,7 @@ pub proof fn lemma_barycentric_coords_sum_to_one<T: OrderedField>(
 // =========================================================================
 
 /// a*(b*c) ≡ c*(a*b) — cycle right in a triple product.
-proof fn lemma_mul_cycle_right<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_mul_cycle_right<T: Ring>(a: T, b: T, c: T)
     ensures a.mul(b.mul(c)).eqv(c.mul(a.mul(b)))
 {
     T::axiom_mul_associative(a, b, c);
@@ -723,7 +723,7 @@ proof fn lemma_mul_cycle_right<T: Ring>(a: T, b: T, c: T)
 }
 
 /// a*(b*c) ≡ c*(b*a) — swap outer factors in a triple product.
-proof fn lemma_mul_swap_outer<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_mul_swap_outer<T: Ring>(a: T, b: T, c: T)
     ensures a.mul(b.mul(c)).eqv(c.mul(b.mul(a)))
 {
     lemma_mul_cycle_right::<T>(a, b, c);
@@ -734,7 +734,7 @@ proof fn lemma_mul_swap_outer<T: Ring>(a: T, b: T, c: T)
 }
 
 /// a*(b*c) ≡ b*(a*c) — swap first two factors in a triple product.
-proof fn lemma_mul_swap_first_two<T: Ring>(a: T, b: T, c: T)
+pub proof fn lemma_mul_swap_first_two<T: Ring>(a: T, b: T, c: T)
     ensures a.mul(b.mul(c)).eqv(b.mul(a.mul(c)))
 {
     T::axiom_mul_associative(a, b, c);
@@ -747,7 +747,7 @@ proof fn lemma_mul_swap_first_two<T: Ring>(a: T, b: T, c: T)
 }
 
 /// (a/b)*c ≡ (a*c)/b for nonzero b.
-proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
+pub proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
     requires !b.eqv(T::zero()),
     ensures a.div(b).mul(c).eqv(a.mul(c).div(b))
 {
@@ -776,7 +776,7 @@ proof fn lemma_div_mul_right<T: OrderedField>(a: T, b: T, c: T)
 
 /// Cramer identity: det2d(q,b)*a.k + det2d(a,q)*b.k ≡ q.k*det2d(a,b)
 /// for k ∈ {x, y}. This is the 2D analog of Cramer's rule.
-proof fn lemma_det2d_cramer<T: Ring>(a: Vec2<T>, b: Vec2<T>, q: Vec2<T>)
+pub proof fn lemma_det2d_cramer<T: Ring>(a: Vec2<T>, b: Vec2<T>, q: Vec2<T>)
     ensures
         det2d(q, b).mul(a.x).add(det2d(a, q).mul(b.x)).eqv(q.x.mul(det2d(a, b))),
         det2d(q, b).mul(a.y).add(det2d(a, q).mul(b.y)).eqv(q.y.mul(det2d(a, b))),
@@ -979,7 +979,7 @@ proof fn lemma_det2d_cramer<T: Ring>(a: Vec2<T>, b: Vec2<T>, q: Vec2<T>)
 
 /// T1*a.x + T2*b.x + T3*c.x ≡ p.x*area and same for y.
 /// Uses Cramer identity + partition of unity.
-proof fn lemma_barycentric_integral_identity<T: Ring>(
+pub proof fn lemma_barycentric_integral_identity<T: Ring>(
     p: Point2<T>, a: Point2<T>, b: Point2<T>, c: Point2<T>,
 )
     ensures

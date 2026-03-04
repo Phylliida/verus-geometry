@@ -180,7 +180,7 @@ pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2
 }
 
 /// (a - p) - (b - p) ≡ a - b for Ring elements (componentwise helper).
-proof fn lemma_sub_rebase_component<T: Ring>(a: T, b: T, p: T)
+pub proof fn lemma_sub_rebase_component<T: Ring>(a: T, b: T, p: T)
     ensures
         a.sub(p).sub(b.sub(p)).eqv(a.sub(b)),
 {
