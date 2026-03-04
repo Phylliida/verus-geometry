@@ -369,6 +369,139 @@ pub proof fn lemma_det2d_sub_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
     );
 }
 
+/// det2d(u, v+w) ≡ det2d(u, v) + det2d(u, w)
+pub proof fn lemma_det2d_add_right<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
+    ensures
+        det2d(u, Vec2 { x: v.x.add(w.x), y: v.y.add(w.y) }).eqv(
+            det2d(u, v).add(det2d(u, w))
+        ),
+{
+    let vw = Vec2 { x: v.x.add(w.x), y: v.y.add(w.y) };
+
+    // u.x*(v.y+w.y) ≡ u.x*v.y + u.x*w.y  [distributes_left]
+    T::axiom_mul_distributes_left(u.x, v.y, w.y);
+    // u.y*(v.x+w.x) ≡ u.y*v.x + u.y*w.x  [distributes_left]
+    T::axiom_mul_distributes_left(u.y, v.x, w.x);
+
+    // det2d(u, vw) = u.x*(v.y+w.y) - u.y*(v.x+w.x)
+    //             ≡ (u.x*v.y + u.x*w.y) - (u.y*v.x + u.y*w.x)
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        u.x.mul(vw.y), u.x.mul(v.y).add(u.x.mul(w.y)),
+        u.y.mul(vw.x), u.y.mul(v.x).add(u.y.mul(w.x)),
+    );
+
+    // (a+b)-(c+d) ≡ (a-c)+(b-d) — same pattern as lemma_det2d_linear_left
+    let a = u.x.mul(v.y);
+    let b = u.x.mul(w.y);
+    let c = u.y.mul(v.x);
+    let d = u.y.mul(w.x);
+
+    T::axiom_sub_is_add_neg(a.add(b), c.add(d));
+    additive_group_lemmas::lemma_neg_add::<T>(c, d);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(a.add(b), c.add(d).neg(), c.neg().add(d.neg()));
+    T::axiom_eqv_transitive(
+        a.add(b).sub(c.add(d)),
+        a.add(b).add(c.add(d).neg()),
+        a.add(b).add(c.neg().add(d.neg())),
+    );
+    additive_group_lemmas::lemma_add_rearrange_2x2::<T>(a, b, c.neg(), d.neg());
+    T::axiom_eqv_transitive(
+        a.add(b).sub(c.add(d)),
+        a.add(b).add(c.neg().add(d.neg())),
+        a.add(c.neg()).add(b.add(d.neg())),
+    );
+    T::axiom_sub_is_add_neg(a, c);
+    T::axiom_eqv_symmetric(a.sub(c), a.add(c.neg()));
+    T::axiom_sub_is_add_neg(b, d);
+    T::axiom_eqv_symmetric(b.sub(d), b.add(d.neg()));
+    T::axiom_add_congruence_left(a.add(c.neg()), a.sub(c), b.add(d.neg()));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(a.sub(c), b.add(d.neg()), b.sub(d));
+    T::axiom_eqv_transitive(
+        a.add(c.neg()).add(b.add(d.neg())),
+        a.sub(c).add(b.add(d.neg())),
+        a.sub(c).add(b.sub(d)),
+    );
+
+    T::axiom_eqv_transitive(
+        a.add(b).sub(c.add(d)),
+        a.add(c.neg()).add(b.add(d.neg())),
+        a.sub(c).add(b.sub(d)),
+    );
+
+    // Chain: det2d(u, vw) ≡ (a+b)-(c+d) ≡ (a-c)+(b-d) = det2d(u,v)+det2d(u,w)
+    T::axiom_eqv_transitive(
+        det2d(u, vw),
+        a.add(b).sub(c.add(d)),
+        det2d(u, v).add(det2d(u, w)),
+    );
+}
+
+/// det2d(u, v-w) ≡ det2d(u, v) - det2d(u, w)
+pub proof fn lemma_det2d_sub_right<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
+    ensures
+        det2d(u, Vec2 { x: v.x.sub(w.x), y: v.y.sub(w.y) }).eqv(
+            det2d(u, v).sub(det2d(u, w))
+        ),
+{
+    // v-w = v+(-w), so use add_right + neg_right
+    let neg_w = Vec2 { x: w.x.neg(), y: w.y.neg() };
+    let v_sub_w = Vec2 { x: v.x.sub(w.x), y: v.y.sub(w.y) };
+    let v_add_neg_w = Vec2 { x: v.x.add(w.x.neg()), y: v.y.add(w.y.neg()) };
+
+    // v_sub_w ≡ v_add_neg_w (via sub_is_add_neg per component)
+    T::axiom_sub_is_add_neg(v.x, w.x);
+    T::axiom_sub_is_add_neg(v.y, w.y);
+
+    // det2d(v_sub_w, u) ≡ det2d(v_add_neg_w, u) via congruence
+    Vec2::<T>::axiom_eqv_reflexive(u);
+    lemma_det2d_congruence::<T>(v_sub_w, v_add_neg_w, u, u);
+
+    // det2d(u, v_sub_w) ≡ det2d(u, v_add_neg_w) via congruence
+    Vec2::<T>::axiom_eqv_reflexive(u);
+    // Need: det2d with u on left — recongruence
+    // Actually v_sub_w and v_add_neg_w differ in second arg position
+    // det2d(u, v_sub_w) vs det2d(u, v_add_neg_w)
+    lemma_det2d_congruence::<T>(u, u, v_sub_w, v_add_neg_w);
+
+    // det2d(u, v_add_neg_w) ≡ det2d(u, v) + det2d(u, neg_w) via add_right
+    lemma_det2d_add_right::<T>(u, v, neg_w);
+
+    T::axiom_eqv_transitive(
+        det2d(u, v_sub_w),
+        det2d(u, v_add_neg_w),
+        det2d(u, v).add(det2d(u, neg_w)),
+    );
+
+    // det2d(u, neg_w) ≡ -det2d(u, w) via neg_right
+    lemma_det2d_neg_right::<T>(u, w);
+
+    // det2d(u,v) + det2d(u, neg_w) ≡ det2d(u,v) + (-det2d(u,w))
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        det2d(u, v),
+        det2d(u, neg_w),
+        det2d(u, w).neg(),
+    );
+
+    // det2d(u,v) + (-det2d(u,w)) ≡ det2d(u,v) - det2d(u,w)
+    T::axiom_sub_is_add_neg(det2d(u, v), det2d(u, w));
+    T::axiom_eqv_symmetric(
+        det2d(u, v).sub(det2d(u, w)),
+        det2d(u, v).add(det2d(u, w).neg()),
+    );
+
+    T::axiom_eqv_transitive(
+        det2d(u, v).add(det2d(u, neg_w)),
+        det2d(u, v).add(det2d(u, w).neg()),
+        det2d(u, v).sub(det2d(u, w)),
+    );
+
+    T::axiom_eqv_transitive(
+        det2d(u, v_sub_w),
+        det2d(u, v).add(det2d(u, neg_w)),
+        det2d(u, v).sub(det2d(u, w)),
+    );
+}
+
 /// det2d(u, scale(t, v)) ≡ t * det2d(u, v)
 pub proof fn lemma_det2d_scale_right<T: Ring>(t: T, u: Vec2<T>, v: Vec2<T>)
     ensures

@@ -222,7 +222,7 @@ pub proof fn lemma_segment_triangle_endpoints_off_plane<T: OrderedField>(
 // =========================================================================
 
 /// a < 0 implies 0 < a.neg()
-proof fn lemma_neg_of_neg_is_pos<T: OrderedRing>(a: T)
+pub proof fn lemma_neg_of_neg_is_pos<T: OrderedRing>(a: T)
     requires
         a.lt(T::zero()),
     ensures
@@ -248,7 +248,7 @@ proof fn lemma_neg_of_neg_is_pos<T: OrderedRing>(a: T)
 }
 
 /// 0 < a implies a.neg() < 0
-proof fn lemma_neg_of_pos_is_neg<T: OrderedRing>(a: T)
+pub proof fn lemma_neg_of_pos_is_neg<T: OrderedRing>(a: T)
     requires
         T::zero().lt(a),
     ensures
@@ -277,7 +277,7 @@ proof fn lemma_neg_of_pos_is_neg<T: OrderedRing>(a: T)
 
 /// Transfer 0 < a*r to 0 < a/b when a/b ≡ a*r.
 /// (Used to transfer positivity from mul form to div form.)
-proof fn lemma_lt_transfer_eqv<T: OrderedRing>(a: T, b: T)
+pub proof fn lemma_lt_transfer_eqv<T: OrderedRing>(a: T, b: T)
     requires
         T::zero().lt(a),
         a.eqv(b),
@@ -295,7 +295,7 @@ proof fn lemma_lt_transfer_eqv<T: OrderedRing>(a: T, b: T)
 }
 
 /// If 0 < num < denom, then 0 < num/denom < 1.
-proof fn lemma_positive_ratio_bounds<T: OrderedField>(num: T, denom: T)
+pub proof fn lemma_positive_ratio_bounds<T: OrderedField>(num: T, denom: T)
     requires
         T::zero().lt(num),
         num.lt(denom),
@@ -469,7 +469,7 @@ pub proof fn lemma_crossing_parameter_bounds<T: OrderedField>(
 }
 
 /// Transfer a < b to c < d when a ≡ c and b ≡ d.
-proof fn lemma_lt_congruence_both<T: OrderedRing>(a: T, c: T, b: T, d: T)
+pub proof fn lemma_lt_congruence_both<T: OrderedRing>(a: T, c: T, b: T, d: T)
     requires
         a.lt(b),
         a.eqv(c),
@@ -492,7 +492,7 @@ proof fn lemma_lt_congruence_both<T: OrderedRing>(a: T, c: T, b: T, d: T)
 }
 
 /// Show denom < 0 from od < 0 and oe.neg() < 0.
-proof fn lemma_sum_of_negatives_is_negative<T: OrderedRing>(a: T, b: T)
+pub proof fn lemma_sum_of_negatives_is_negative<T: OrderedRing>(a: T, b: T)
     requires
         a.lt(T::zero()),
         b.lt(T::zero()),
