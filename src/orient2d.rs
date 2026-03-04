@@ -180,6 +180,48 @@ proof fn lemma_det2d_neg_right<T: Ring>(u: Vec2<T>, v: Vec2<T>)
     );
 }
 
+/// det2d(-u, v) ≡ -det2d(u, v)
+pub proof fn lemma_det2d_neg_left<T: Ring>(u: Vec2<T>, v: Vec2<T>)
+    ensures
+        det2d(Vec2 { x: u.x.neg(), y: u.y.neg() }, v).eqv(det2d(u, v).neg()),
+{
+    let u_neg = Vec2 { x: u.x.neg(), y: u.y.neg() };
+    // det2d(-u, v) = (-u.x)*v.y - (-u.y)*v.x
+    // (-u.x)*v.y ≡ -(u.x*v.y)  [mul_neg_left]
+    ring_lemmas::lemma_mul_neg_left::<T>(u.x, v.y);
+    // (-u.y)*v.x ≡ -(u.y*v.x)  [mul_neg_left]
+    ring_lemmas::lemma_mul_neg_left::<T>(u.y, v.x);
+    // det2d(-u, v) = (-u.x)*v.y - (-u.y)*v.x ≡ -(u.x*v.y) - -(u.y*v.x)
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        u.x.neg().mul(v.y), u.x.mul(v.y).neg(),
+        u.y.neg().mul(v.x), u.y.mul(v.x).neg(),
+    );
+    // -(a) - -(b) ≡ -(a - b) [same pattern as neg_right]
+    let a = u.x.mul(v.y);
+    let b = u.y.mul(v.x);
+    additive_group_lemmas::lemma_sub_neg_both::<T>(a, b);
+    // (-a) - (-b) ≡ b - a, but we need -(a - b)
+    // Use: sub_antisymmetric then neg
+    // Actually: -(a-b) ≡ b-a [sub_antisymmetric reversed: a.sub(b) ≡ b.sub(a).neg(), so a.sub(b).neg() ≡ b.sub(a)]
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a, b);
+    T::axiom_neg_congruence(a.sub(b), b.sub(a).neg());
+    additive_group_lemmas::lemma_neg_involution::<T>(b.sub(a));
+    T::axiom_eqv_transitive(a.sub(b).neg(), b.sub(a).neg().neg(), b.sub(a));
+    // So sub_neg_both gives: a.neg().sub(b.neg()) ≡ b.sub(a) ≡ a.sub(b).neg() reversed
+    T::axiom_eqv_symmetric(a.sub(b).neg(), b.sub(a));
+    T::axiom_eqv_transitive(
+        a.neg().sub(b.neg()),
+        b.sub(a),
+        a.sub(b).neg(),
+    );
+    // Chain: det2d(-u, v) ≡ a.neg().sub(b.neg()) ≡ det2d(u, v).neg()
+    T::axiom_eqv_transitive(
+        det2d(u_neg, v),
+        a.neg().sub(b.neg()),
+        det2d(u, v).neg(),
+    );
+}
+
 /// det2d(u+v, w) ≡ det2d(u, w) + det2d(v, w)
 proof fn lemma_det2d_linear_left<T: Ring>(u: Vec2<T>, v: Vec2<T>, w: Vec2<T>)
     ensures
@@ -611,6 +653,17 @@ pub proof fn lemma_orient2d_degenerate_bc<T: Ring>(a: Point2<T>, b: Point2<T>)
 {
     // orient2d(a,b,b) = det2d(sub2(b,a), sub2(b,a))
     lemma_det2d_self_zero::<T>(sub2(b, a));
+}
+
+/// orient2d(a, b, a) ≡ 0
+pub proof fn lemma_orient2d_degenerate_ac<T: Ring>(a: Point2<T>, b: Point2<T>)
+    ensures
+        orient2d(a, b, a).eqv(T::zero()),
+{
+    // orient2d(a,b,a) ≡ orient2d(b,a,a) [cyclic] ≡ 0 [degenerate_bc]
+    lemma_orient2d_cyclic::<T>(a, b, a);
+    lemma_orient2d_degenerate_bc::<T>(b, a);
+    T::axiom_eqv_transitive(orient2d(a, b, a), orient2d(b, a, a), T::zero());
 }
 
 /// orient2d(a, b, c) ≡ orient2d(b, c, a)  (cyclic permutation)

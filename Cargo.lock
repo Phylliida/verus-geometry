@@ -78,11 +78,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "verus-bigint"
+version = "0.1.0"
+dependencies = [
+ "verus-algebra",
+ "vstd",
+]
+
+[[package]]
 name = "verus-geometry"
 version = "0.1.0"
 dependencies = [
  "verus-algebra",
+ "verus-bigint",
  "verus-linalg",
+ "verus-rational",
  "vstd",
 ]
 
@@ -91,6 +101,17 @@ name = "verus-linalg"
 version = "0.1.0"
 dependencies = [
  "verus-algebra",
+ "verus-bigint",
+ "verus-rational",
+ "vstd",
+]
+
+[[package]]
+name = "verus-rational"
+version = "0.1.0"
+dependencies = [
+ "verus-algebra",
+ "verus-bigint",
  "vstd",
 ]
 

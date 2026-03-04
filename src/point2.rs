@@ -179,4 +179,88 @@ pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2
     );
 }
 
+/// (a - p) - (b - p) ≡ a - b for Ring elements (componentwise helper).
+proof fn lemma_sub_rebase_component<T: Ring>(a: T, b: T, p: T)
+    ensures
+        a.sub(p).sub(b.sub(p)).eqv(a.sub(b)),
+{
+    T::axiom_sub_is_add_neg(a, p);
+    T::axiom_sub_is_add_neg(b, p);
+    T::axiom_neg_congruence(b.sub(p), b.add(p.neg()));
+    additive_group_lemmas::lemma_neg_add::<T>(b, p.neg());
+    additive_group_lemmas::lemma_neg_involution::<T>(p);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(b.neg(), p.neg().neg(), p);
+    T::axiom_eqv_transitive(
+        b.add(p.neg()).neg(), b.neg().add(p.neg().neg()), b.neg().add(p),
+    );
+    T::axiom_eqv_transitive(
+        b.sub(p).neg(), b.add(p.neg()).neg(), b.neg().add(p),
+    );
+    T::axiom_sub_is_add_neg(a.sub(p), b.sub(p));
+    T::axiom_add_congruence_left(a.sub(p), a.add(p.neg()), b.sub(p).neg());
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.sub(p).add(b.sub(p).neg()),
+        a.add(p.neg()).add(b.sub(p).neg()),
+    );
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a.add(p.neg()), b.sub(p).neg(), b.neg().add(p),
+    );
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.add(p.neg()).add(b.sub(p).neg()),
+        a.add(p.neg()).add(b.neg().add(p)),
+    );
+    additive_group_lemmas::lemma_add_rearrange_2x2::<T>(a, p.neg(), b.neg(), p);
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.add(p.neg()).add(b.neg().add(p)),
+        a.add(b.neg()).add(p.neg().add(p)),
+    );
+    T::axiom_add_commutative(p.neg(), p);
+    T::axiom_add_inverse_right(p);
+    T::axiom_eqv_transitive(p.neg().add(p), p.add(p.neg()), T::zero());
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a.add(b.neg()), p.neg().add(p), T::zero(),
+    );
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.add(b.neg()).add(p.neg().add(p)),
+        a.add(b.neg()).add(T::zero()),
+    );
+    T::axiom_add_zero_right(a.add(b.neg()));
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.add(b.neg()).add(T::zero()),
+        a.add(b.neg()),
+    );
+    T::axiom_sub_is_add_neg(a, b);
+    T::axiom_eqv_symmetric(a.sub(b), a.add(b.neg()));
+    T::axiom_eqv_transitive(
+        a.sub(p).sub(b.sub(p)),
+        a.add(b.neg()),
+        a.sub(b),
+    );
+}
+
+/// sub2(a, b) ≡ sub2(a, p).sub(sub2(b, p)) — rebase point subtraction.
+pub proof fn lemma_sub2_rebase<T: Ring>(a: Point2<T>, b: Point2<T>, p: Point2<T>)
+    ensures
+        sub2(a, b).eqv(sub2(a, p).sub(sub2(b, p))),
+{
+    lemma_sub_rebase_component::<T>(a.x, b.x, p.x);
+    T::axiom_eqv_symmetric(a.x.sub(p.x).sub(b.x.sub(p.x)), a.x.sub(b.x));
+    lemma_sub_rebase_component::<T>(a.y, b.y, p.y);
+    T::axiom_eqv_symmetric(a.y.sub(p.y).sub(b.y.sub(p.y)), a.y.sub(b.y));
+}
+
+/// sub2(a, b) ≡ sub2(b, a).neg()
+pub proof fn lemma_sub2_antisymmetric<T: Ring>(a: Point2<T>, b: Point2<T>)
+    ensures
+        sub2(a, b).eqv(sub2(b, a).neg()),
+{
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.x, b.x);
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.y, b.y);
+}
+
 } // verus!

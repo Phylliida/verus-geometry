@@ -2126,4 +2126,1237 @@ pub proof fn lemma_proper_intersection_on_segment_cd<T: OrderedField>(
     T::axiom_le_congruence(q.y, p.y, scalar_max(c.y, d.y), scalar_max(c.y, d.y));
 }
 
+// =========================================================================
+// Batch 7: Disjoint-implies-no-shared-point
+// =========================================================================
+
+// ---- Piece 1: scalar_max/min helper lemmas ----
+
+/// If a ≤ x and b ≤ x, then max(a, b) ≤ x.
+proof fn lemma_le_scalar_max<T: OrderedRing>(a: T, b: T, x: T)
+    requires
+        a.le(x),
+        b.le(x),
+    ensures
+        scalar_max(a, b).le(x),
+{
+    T::axiom_le_total(a, b);
+    // If a ≤ b: scalar_max = b, need b ≤ x — given.
+    // If ¬(a ≤ b): scalar_max = a, need a ≤ x — given.
+}
+
+/// If x ≤ a and x ≤ b, then x ≤ min(a, b).
+proof fn lemma_scalar_min_le<T: OrderedRing>(x: T, a: T, b: T)
+    requires
+        x.le(a),
+        x.le(b),
+    ensures
+        x.le(scalar_min(a, b)),
+{
+    T::axiom_le_total(a, b);
+    // If a ≤ b: scalar_min = a, need x ≤ a — given.
+    // If ¬(a ≤ b): scalar_min = b, need x ≤ b — given.
+}
+
+// ---- Piece 2: Collinear interval overlap contradiction ----
+
+/// If x lies in both 1D intervals [a1,a2] and [b1,b2], then
+/// collinear_overlap_kind_1d(a1, a2, b1, b2) >= 0.
+proof fn lemma_shared_point_implies_overlap_1d<T: OrderedRing>(
+    x: T, a1: T, a2: T, b1: T, b2: T,
+)
+    requires
+        scalar_min(a1, a2).le(x),
+        x.le(scalar_max(a1, a2)),
+        scalar_min(b1, b2).le(x),
+        x.le(scalar_max(b1, b2)),
+    ensures
+        collinear_overlap_kind_1d(a1, a2, b1, b2) >= 0,
+{
+    let a_lo = scalar_min(a1, a2);
+    let a_hi = scalar_max(a1, a2);
+    let b_lo = scalar_min(b1, b2);
+    let b_hi = scalar_max(b1, b2);
+    let lo = scalar_max(a_lo, b_lo);
+    let hi = scalar_min(a_hi, b_hi);
+
+    // a_lo ≤ x and b_lo ≤ x → max(a_lo, b_lo) = lo ≤ x
+    lemma_le_scalar_max::<T>(a_lo, b_lo, x);
+
+    // x ≤ a_hi and x ≤ b_hi → x ≤ min(a_hi, b_hi) = hi
+    lemma_scalar_min_le::<T>(x, a_hi, b_hi);
+
+    // lo ≤ x ≤ hi → lo ≤ hi
+    T::axiom_le_transitive(lo, x, hi);
+
+    // lo ≤ hi → ¬(hi < lo)
+    // hi.lt(lo) ↔ hi ≤ lo ∧ ¬hi ≡ lo
+    T::axiom_lt_iff_le_and_not_eqv(hi, lo);
+    if hi.le(lo) && !hi.eqv(lo) {
+        // hi ≤ lo and lo ≤ hi → lo ≡ hi
+        T::axiom_le_antisymmetric(lo, hi);
+        // lo ≡ hi → hi ≡ lo
+        T::axiom_eqv_symmetric(lo, hi);
+        // contradiction with !hi.eqv(lo)
+    }
+}
+
+// ---- Piece 3: Two-points-on-line uniqueness ----
+
+/// If c and p are both on line(a,b), and p is on line(c,d), and d is NOT on
+/// line(a,b), then p ≡ c (componentwise).
+///
+/// Proof: p-c lies in the kernel of both det2d(ba, ·) and det2d(dc, ·).
+/// Since det2d(ba, dc) ≢ 0 (d not on line(a,b)), uniqueness gives p-c = 0.
+proof fn lemma_zero_orient_and_shared_point_implies_eqv<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>, p: Point2<T>,
+)
+    requires
+        orient2d(a, b, c).eqv(T::zero()),
+        orient2d(a, b, p).eqv(T::zero()),
+        orient2d(c, d, p).eqv(T::zero()),
+        !orient2d(a, b, d).eqv(T::zero()),
+    ensures
+        p.x.eqv(c.x),
+        p.y.eqv(c.y),
+{
+    let ba = sub2(b, a);
+    let dc = sub2(d, c);
+    let pc = sub2(p, c);
+    let ca = sub2(c, a);
+    let pa = sub2(p, a);
+    let da = sub2(d, a);
+
+    // Step 1: det2d(ba, pc) ≡ 0
+    // orient2d(a,b,p) = det2d(ba, pa) ≡ 0
+    // orient2d(a,b,c) = det2d(ba, ca) ≡ 0
+    // det2d(ba, pa-ca) = det2d(ba,pa) - det2d(ba,ca) ≡ 0 - 0 ≡ 0
+    let pa_minus_ca = Vec2 { x: pa.x.sub(ca.x), y: pa.y.sub(ca.y) };
+    lemma_det2d_sub_right::<T>(ba, pa, ca);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        orient2d(a, b, p), T::zero(), orient2d(a, b, c), T::zero(),
+    );
+    additive_group_lemmas::lemma_sub_self::<T>(T::zero());
+    T::axiom_eqv_transitive(
+        det2d(ba, pa_minus_ca),
+        orient2d(a, b, p).sub(orient2d(a, b, c)),
+        T::zero().sub(T::zero()),
+    );
+    T::axiom_eqv_transitive(det2d(ba, pa_minus_ca), T::zero().sub(T::zero()), T::zero());
+
+    // pa_minus_ca ≡ pc componentwise: (p.x-a.x)-(c.x-a.x) ≡ p.x-c.x
+    lemma_sub_cancel_common::<T>(p.x, c.x, a.x);
+    lemma_sub_cancel_common::<T>(p.y, c.y, a.y);
+    // Swap direction
+    T::axiom_eqv_symmetric(pa.x.sub(ca.x), pc.x);
+    T::axiom_eqv_symmetric(pa.y.sub(ca.y), pc.y);
+    // det2d(ba, pc) ≡ det2d(ba, pa_minus_ca)
+    Vec2::<T>::axiom_eqv_reflexive(ba);
+    lemma_det2d_congruence::<T>(ba, ba, pc, pa_minus_ca);
+    T::axiom_eqv_transitive(det2d(ba, pc), det2d(ba, pa_minus_ca), T::zero());
+
+    // Step 2: det2d(dc, pc) ≡ 0
+    // orient2d(c, d, p) = det2d(dc, pc) ≡ 0
+
+    // Step 3: det2d(ba, dc) ≢ 0
+    // Show det2d(ba, dc) ≡ o2 - o1 where o2 = orient2d(a,b,d), o1 = orient2d(a,b,c)
+    let da_minus_ca = Vec2 { x: da.x.sub(ca.x), y: da.y.sub(ca.y) };
+
+    // dc ≡ da_minus_ca componentwise: (d.x-c.x) ≡ (d.x-a.x)-(c.x-a.x)
+    lemma_sub_cancel_common::<T>(d.x, c.x, a.x);
+    lemma_sub_cancel_common::<T>(d.y, c.y, a.y);
+    T::axiom_eqv_symmetric(da.x.sub(ca.x), dc.x);
+    T::axiom_eqv_symmetric(da.y.sub(ca.y), dc.y);
+
+    lemma_det2d_congruence::<T>(ba, ba, dc, da_minus_ca);
+    lemma_det2d_sub_right::<T>(ba, da, ca);
+    T::axiom_eqv_transitive(
+        det2d(ba, dc), det2d(ba, da_minus_ca), orient2d(a, b, d).sub(orient2d(a, b, c)),
+    );
+    // o2 - o1 ≡ o2 - 0 ≡ o2
+    T::axiom_eqv_reflexive(orient2d(a, b, d));
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        orient2d(a, b, d), orient2d(a, b, d), orient2d(a, b, c), T::zero(),
+    );
+    // o2 - 0: use sub_is_add_neg, neg_zero, add_zero_right
+    T::axiom_sub_is_add_neg(orient2d(a, b, d), T::zero());
+    additive_group_lemmas::lemma_neg_zero::<T>();
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        orient2d(a, b, d), T::zero().neg(), T::zero(),
+    );
+    T::axiom_eqv_transitive(
+        orient2d(a, b, d).sub(T::zero()),
+        orient2d(a, b, d).add(T::zero().neg()),
+        orient2d(a, b, d).add(T::zero()),
+    );
+    T::axiom_add_zero_right(orient2d(a, b, d));
+    T::axiom_eqv_transitive(
+        orient2d(a, b, d).sub(T::zero()),
+        orient2d(a, b, d).add(T::zero()),
+        orient2d(a, b, d),
+    );
+    // Chain: det2d(ba, dc) ≡ o2 - o1 ≡ o2 - 0 ≡ o2
+    T::axiom_eqv_transitive(
+        det2d(ba, dc),
+        orient2d(a, b, d).sub(orient2d(a, b, c)),
+        orient2d(a, b, d).sub(T::zero()),
+    );
+    T::axiom_eqv_transitive(
+        det2d(ba, dc),
+        orient2d(a, b, d).sub(T::zero()),
+        orient2d(a, b, d),
+    );
+
+    // If det2d(ba, dc) ≡ 0 then o2 ≡ 0, contradiction
+    if det2d(ba, dc).eqv(T::zero()) {
+        T::axiom_eqv_symmetric(det2d(ba, dc), orient2d(a, b, d));
+        T::axiom_eqv_transitive(orient2d(a, b, d), det2d(ba, dc), T::zero());
+    }
+
+    // Step 4: Apply uniqueness
+    lemma_det2d_zero_both_implies_zero::<T>(ba, dc, pc);
+    // pc.x ≡ 0 and pc.y ≡ 0
+
+    // Step 5: p.x - c.x ≡ 0 → p.x ≡ c.x
+    lemma_sub_zero_implies_eqv::<T>(p.x, c.x);
+    lemma_sub_zero_implies_eqv::<T>(p.y, c.y);
+}
+
+// ---- Piece 4: Affine parameter on segment ----
+
+/// Parameter s such that p = c + s*(d - c), choosing x-axis if c.x ≢ d.x.
+pub open spec fn segment_parameter_of_point<T: OrderedField>(
+    p: Point2<T>, c: Point2<T>, d: Point2<T>,
+) -> T {
+    if !c.x.eqv(d.x) {
+        p.x.sub(c.x).div(d.x.sub(c.x))
+    } else {
+        p.y.sub(c.y).div(d.y.sub(c.y))
+    }
+}
+
+/// If p is on segment [c, d] and c ≢ d, then 0 ≤ s ≤ 1 where s is the parameter.
+proof fn lemma_segment_parameter_bounds<T: OrderedField>(
+    p: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    requires
+        point_on_segment_inclusive_2d(p, c, d),
+        !c.x.eqv(d.x) || !c.y.eqv(d.y),
+    ensures
+        T::zero().le(segment_parameter_of_point(p, c, d)),
+        segment_parameter_of_point(p, c, d).le(T::one()),
+{
+    if !c.x.eqv(d.x) {
+        // s = (p.x - c.x) / (d.x - c.x)
+        let num = p.x.sub(c.x);
+        let den = d.x.sub(c.x);
+
+        // den ≢ 0: c.x ≢ d.x → d.x-c.x ≢ 0
+        if den.eqv(T::zero()) {
+            additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.x, c.x);
+            T::axiom_eqv_symmetric(d.x, c.x);
+        }
+
+        // From bbox: scalar_min(c.x, d.x) ≤ p.x ≤ scalar_max(c.x, d.x)
+        T::axiom_le_total(c.x, d.x);
+
+        if c.x.le(d.x) {
+            // c.x ≤ d.x, so scalar_min = c.x, scalar_max = d.x
+            // But c.x ≢ d.x, so c.x < d.x → den > 0
+
+            // c.x ≤ p.x → 0 ≤ p.x - c.x = num
+            lemma_le_implies_sub_nonneg::<T>(c.x, p.x);
+            // p.x ≤ d.x → 0 ≤ d.x - p.x, equivalently num ≤ den
+            lemma_le_implies_sub_nonneg::<T>(p.x, d.x);
+            ordered_ring_lemmas::lemma_le_sub_monotone::<T>(p.x, d.x, c.x);
+            // p.x - c.x ≤ d.x - c.x, i.e. num ≤ den
+
+            // 0 < den
+            lemma_le_implies_sub_nonneg::<T>(c.x, d.x);
+            T::axiom_lt_iff_le_and_not_eqv(T::zero(), den);
+            // Need !0 ≡ den. If 0 ≡ den then den ≡ 0 contradiction
+            if T::zero().eqv(den) {
+                T::axiom_eqv_symmetric(T::zero(), den);
+            }
+
+            // 0 ≤ num, 0 < den → 0/den ≤ num/den i.e. 0 ≤ s
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(T::zero(), num, den);
+            // 0/den ≡ 0
+            field_lemmas::lemma_div_one::<T>(T::zero());
+            ring_lemmas::lemma_mul_zero_left::<T>(den.recip());
+            T::axiom_div_is_mul_recip(T::zero(), den);
+            T::axiom_eqv_transitive(
+                T::zero().div(den), T::zero().mul(den.recip()), T::zero(),
+            );
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().div(den), T::zero(), num.div(den),
+            );
+
+            // num ≤ den, 0 < den → num/den ≤ den/den = 1
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(num, den, den);
+            field_lemmas::lemma_div_self::<T>(den);
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                num.div(den), den.div(den), T::one(),
+            );
+        } else {
+            // d.x < c.x (¬(c.x ≤ d.x)), scalar_min = d.x, scalar_max = c.x
+            // den = d.x - c.x < 0
+
+            // d.x ≤ p.x and p.x ≤ c.x (from bbox with swapped min/max)
+            // p.x ≤ c.x → c.x - p.x ≥ 0, i.e. -(p.x - c.x) ≥ 0, i.e. num ≤ 0
+            // d.x ≤ p.x → p.x - c.x ≥ d.x - c.x, i.e. num ≥ den
+
+            // Show num ≤ 0: p.x ≤ c.x → 0 ≤ c.x - p.x → -(p.x - c.x) ≥ 0
+            lemma_le_implies_sub_nonneg::<T>(p.x, c.x);
+            // 0 ≤ c.x - p.x, negate: p.x - c.x ≤ 0
+            additive_group_lemmas::lemma_sub_antisymmetric::<T>(c.x, p.x);
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(T::zero(), c.x.sub(p.x));
+            // -(c.x-p.x) ≤ -0 ≡ 0
+            additive_group_lemmas::lemma_neg_zero::<T>();
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                c.x.sub(p.x).neg(), T::zero().neg(), T::zero(),
+            );
+            // c.x.sub(p.x).neg() ≡ p.x.sub(c.x): -(c.x-p.x) ≡ p.x-c.x
+            T::axiom_neg_congruence(c.x.sub(p.x), p.x.sub(c.x).neg());
+            additive_group_lemmas::lemma_neg_involution::<T>(p.x.sub(c.x));
+            T::axiom_eqv_transitive(c.x.sub(p.x).neg(), p.x.sub(c.x).neg().neg(), p.x.sub(c.x));
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                c.x.sub(p.x).neg(), num, T::zero(),
+            );
+            // num ≤ 0
+
+            // Show den ≤ num: d.x ≤ p.x → d.x - c.x ≤ p.x - c.x
+            ordered_ring_lemmas::lemma_le_sub_monotone::<T>(d.x, p.x, c.x);
+
+            // Show den < 0: d.x < c.x → d.x - c.x < 0
+            // ¬(c.x ≤ d.x) and le_total → d.x ≤ c.x; with !c.x.eqv(d.x) → d.x < c.x
+            if d.x.eqv(c.x) { T::axiom_eqv_symmetric(d.x, c.x); }
+            T::axiom_lt_iff_le_and_not_eqv(d.x, c.x);
+            // d.x < c.x → d.x - c.x < c.x - c.x
+            ordered_ring_lemmas::lemma_lt_sub_monotone::<T>(d.x, c.x, c.x);
+            // c.x - c.x ≡ 0
+            additive_group_lemmas::lemma_sub_self::<T>(c.x);
+            // den < c.x-c.x and c.x-c.x ≡ 0 → den < 0
+            T::axiom_lt_iff_le_and_not_eqv(den, c.x.sub(c.x));
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                den, c.x.sub(c.x), T::zero(),
+            );
+            if den.eqv(T::zero()) {
+                T::axiom_eqv_symmetric(c.x.sub(c.x), T::zero());
+                T::axiom_eqv_transitive(den, T::zero(), c.x.sub(c.x));
+            }
+            T::axiom_lt_iff_le_and_not_eqv(den, T::zero());
+            // den < 0
+
+            // Negate: num ≤ 0 → 0 ≤ -num
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(num, T::zero());
+            additive_group_lemmas::lemma_neg_zero::<T>();
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().neg(), T::zero(), num.neg(),
+            );
+
+            // den ≤ num → -num ≤ -den
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(den, num);
+
+            // 0 < -den (from den < 0), and -den ≢ 0
+            lemma_neg_of_neg_is_pos::<T>(den);
+            ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), den.neg());
+            if den.neg().eqv(T::zero()) {
+                T::axiom_eqv_symmetric(den.neg(), T::zero());
+            }
+
+            // 0 ≤ (-num) / (-den)
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(T::zero(), num.neg(), den.neg());
+            ring_lemmas::lemma_mul_zero_left::<T>(den.neg().recip());
+            T::axiom_div_is_mul_recip(T::zero(), den.neg());
+            T::axiom_eqv_transitive(
+                T::zero().div(den.neg()), T::zero().mul(den.neg().recip()), T::zero(),
+            );
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().div(den.neg()), T::zero(), num.neg().div(den.neg()),
+            );
+
+            // (-num)/(-den) ≤ (-den)/(-den) = 1
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(num.neg(), den.neg(), den.neg());
+            field_lemmas::lemma_div_self::<T>(den.neg());
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                num.neg().div(den.neg()), den.neg().div(den.neg()), T::one(),
+            );
+
+            // (-num)/(-den) ≡ num/den = s
+            field_lemmas::lemma_div_neg_numerator::<T>(num, den.neg());
+            field_lemmas::lemma_div_neg_denominator::<T>(num, den);
+            // num/(-den) ≡ -(num/den)
+            T::axiom_neg_congruence(num.div(den.neg()), num.div(den).neg());
+            additive_group_lemmas::lemma_neg_involution::<T>(num.div(den));
+            T::axiom_eqv_transitive(
+                num.div(den.neg()).neg(), num.div(den).neg().neg(), num.div(den),
+            );
+            T::axiom_eqv_transitive(
+                num.neg().div(den.neg()), num.div(den.neg()).neg(), num.div(den),
+            );
+
+            // Transfer: 0 ≤ (-num)/(-den) and (-num)/(-den) ≡ s → 0 ≤ s
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                T::zero(), num.neg().div(den.neg()), num.div(den),
+            );
+            // Transfer: (-num)/(-den) ≤ 1 and (-num)/(-den) ≡ s → s ≤ 1
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                num.neg().div(den.neg()), num.div(den), T::one(),
+            );
+        }
+    } else {
+        // Use y-axis: s = (p.y - c.y) / (d.y - c.y)
+        // c.x ≡ d.x, so !c.y ≡ d.y
+        let num = p.y.sub(c.y);
+        let den = d.y.sub(c.y);
+
+        // den ≢ 0
+        if den.eqv(T::zero()) {
+            additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.y, c.y);
+            T::axiom_eqv_symmetric(d.y, c.y);
+        }
+
+        T::axiom_le_total(c.y, d.y);
+
+        if c.y.le(d.y) {
+            // Same logic as x-axis case with c.y ≤ d.y
+            lemma_le_implies_sub_nonneg::<T>(c.y, p.y);
+            ordered_ring_lemmas::lemma_le_sub_monotone::<T>(p.y, d.y, c.y);
+            lemma_le_implies_sub_nonneg::<T>(c.y, d.y);
+            T::axiom_lt_iff_le_and_not_eqv(T::zero(), den);
+            if T::zero().eqv(den) { T::axiom_eqv_symmetric(T::zero(), den); }
+
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(T::zero(), num, den);
+            ring_lemmas::lemma_mul_zero_left::<T>(den.recip());
+            T::axiom_div_is_mul_recip(T::zero(), den);
+            T::axiom_eqv_transitive(
+                T::zero().div(den), T::zero().mul(den.recip()), T::zero(),
+            );
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().div(den), T::zero(), num.div(den),
+            );
+
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(num, den, den);
+            field_lemmas::lemma_div_self::<T>(den);
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                num.div(den), den.div(den), T::one(),
+            );
+        } else {
+            // d.y < c.y case — mirror of x-axis negative denominator case
+            // num ≤ 0, den < 0, den ≤ num
+            lemma_le_implies_sub_nonneg::<T>(p.y, c.y);
+            additive_group_lemmas::lemma_sub_antisymmetric::<T>(c.y, p.y);
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(T::zero(), c.y.sub(p.y));
+            additive_group_lemmas::lemma_neg_zero::<T>();
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                c.y.sub(p.y).neg(), T::zero().neg(), T::zero(),
+            );
+            T::axiom_neg_congruence(c.y.sub(p.y), p.y.sub(c.y).neg());
+            additive_group_lemmas::lemma_neg_involution::<T>(p.y.sub(c.y));
+            T::axiom_eqv_transitive(c.y.sub(p.y).neg(), p.y.sub(c.y).neg().neg(), p.y.sub(c.y));
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                c.y.sub(p.y).neg(), num, T::zero(),
+            );
+
+            ordered_ring_lemmas::lemma_le_sub_monotone::<T>(d.y, p.y, c.y);
+
+            if d.y.eqv(c.y) { T::axiom_eqv_symmetric(d.y, c.y); }
+            T::axiom_lt_iff_le_and_not_eqv(d.y, c.y);
+            ordered_ring_lemmas::lemma_lt_sub_monotone::<T>(d.y, c.y, c.y);
+            additive_group_lemmas::lemma_sub_self::<T>(c.y);
+            T::axiom_lt_iff_le_and_not_eqv(den, c.y.sub(c.y));
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                den, c.y.sub(c.y), T::zero(),
+            );
+            if den.eqv(T::zero()) {
+                T::axiom_eqv_symmetric(c.y.sub(c.y), T::zero());
+                T::axiom_eqv_transitive(den, T::zero(), c.y.sub(c.y));
+            }
+            T::axiom_lt_iff_le_and_not_eqv(den, T::zero());
+
+            // Negate: 0 ≤ -num, 0 < -den, -num ≤ -den
+            // num ≤ 0 → 0.neg() ≤ num.neg()
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(num, T::zero());
+            // 0.neg() ≡ 0
+            additive_group_lemmas::lemma_neg_zero::<T>();
+            // Transfer: 0 ≤ -num
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().neg(), T::zero(), num.neg(),
+            );
+            // den ≤ num → -num ≤ -den
+            ordered_ring_lemmas::lemma_le_neg_flip::<T>(den, num);
+            lemma_neg_of_neg_is_pos::<T>(den);
+            // -den ≢ 0
+            ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), den.neg());
+            if den.neg().eqv(T::zero()) {
+                T::axiom_eqv_symmetric(den.neg(), T::zero());
+            }
+
+            // 0 ≤ (-num)/(-den)
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(T::zero(), num.neg(), den.neg());
+            ring_lemmas::lemma_mul_zero_left::<T>(den.neg().recip());
+            T::axiom_div_is_mul_recip(T::zero(), den.neg());
+            T::axiom_eqv_transitive(
+                T::zero().div(den.neg()), T::zero().mul(den.neg().recip()), T::zero(),
+            );
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().div(den.neg()), T::zero(), num.neg().div(den.neg()),
+            );
+
+            // (-num)/(-den) ≤ 1
+            ordered_field_lemmas::lemma_le_div_monotone::<T>(num.neg(), den.neg(), den.neg());
+            field_lemmas::lemma_div_self::<T>(den.neg());
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                num.neg().div(den.neg()), den.neg().div(den.neg()), T::one(),
+            );
+
+            // (-num)/(-den) ≡ num/den
+            field_lemmas::lemma_div_neg_numerator::<T>(num, den.neg());
+            field_lemmas::lemma_div_neg_denominator::<T>(num, den);
+            T::axiom_neg_congruence(num.div(den.neg()), num.div(den).neg());
+            additive_group_lemmas::lemma_neg_involution::<T>(num.div(den));
+            T::axiom_eqv_transitive(
+                num.div(den.neg()).neg(), num.div(den).neg().neg(), num.div(den),
+            );
+            T::axiom_eqv_transitive(
+                num.neg().div(den.neg()), num.div(den.neg()).neg(), num.div(den),
+            );
+
+            // Transfer bounds
+            ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+                T::zero(), num.neg().div(den.neg()), num.div(den),
+            );
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                num.neg().div(den.neg()), num.div(den), T::one(),
+            );
+        }
+    }
+}
+
+// ---- Piece 5: p - c ≡ s*(d - c) componentwise ----
+
+/// If p is on segment [c, d] (non-degenerate), then p-c ≡ s*(d-c)
+/// where s = segment_parameter_of_point(p, c, d).
+proof fn lemma_point_is_affine_combination<T: OrderedField>(
+    p: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    requires
+        point_on_segment_inclusive_2d(p, c, d),
+        !c.x.eqv(d.x) || !c.y.eqv(d.y),
+    ensures ({
+        let s = segment_parameter_of_point(p, c, d);
+        let pc = sub2(p, c);
+        let dc = sub2(d, c);
+        pc.x.eqv(s.mul(dc.x)) && pc.y.eqv(s.mul(dc.y))
+    }),
+{
+    let s = segment_parameter_of_point(p, c, d);
+    let pc = sub2(p, c);
+    let dc = sub2(d, c);
+
+    if !c.x.eqv(d.x) {
+        // s = (p.x-c.x) / (d.x-c.x) = pc.x / dc.x
+        // x-component: pc.x ≡ s * dc.x by div_mul_cancel
+        // dc.x = d.x - c.x ≢ 0
+        if dc.x.eqv(T::zero()) {
+            additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.x, c.x);
+            T::axiom_eqv_symmetric(d.x, c.x);
+        }
+        field_lemmas::lemma_div_mul_cancel::<T>(pc.x, dc.x);
+        // pc.x.div(dc.x).mul(dc.x) ≡ pc.x
+        // s = pc.x / dc.x, so s * dc.x ≡ pc.x
+        T::axiom_eqv_symmetric(pc.x.div(dc.x).mul(dc.x), pc.x);
+
+        // y-component: from collinearity det2d(dc, pc) ≡ 0
+        // dc.x * pc.y - dc.y * pc.x ≡ 0
+        // → dc.x * pc.y ≡ dc.y * pc.x
+        // → pc.y ≡ dc.y * pc.x / dc.x = dc.y * s = s * dc.y
+        // orient2d(c, d, p) ≡ 0
+        // orient2d(c, d, p) = det2d(dc, pc) = dc.x*pc.y - dc.y*pc.x
+        lemma_sub_zero_implies_eqv::<T>(dc.x.mul(pc.y), dc.y.mul(pc.x));
+        // dc.x * pc.y ≡ dc.y * pc.x
+
+        // dc.y * pc.x ≡ dc.y * (s * dc.x) [congruence with pc.x ≡ s*dc.x]
+        T::axiom_eqv_symmetric(s.mul(dc.x), pc.x);
+        ring_lemmas::lemma_mul_congruence_right::<T>(dc.y, pc.x, s.mul(dc.x));
+        // dc.y * (s * dc.x) ≡ (dc.y * s) * dc.x [assoc]
+        T::axiom_mul_associative(dc.y, s, dc.x);
+        T::axiom_eqv_symmetric(dc.y.mul(s).mul(dc.x), dc.y.mul(s.mul(dc.x)));
+        T::axiom_eqv_transitive(
+            dc.y.mul(pc.x), dc.y.mul(s.mul(dc.x)), dc.y.mul(s).mul(dc.x),
+        );
+        // Chain: dc.x * pc.y ≡ dc.y * pc.x ≡ (dc.y * s) * dc.x
+        T::axiom_eqv_transitive(dc.x.mul(pc.y), dc.y.mul(pc.x), dc.y.mul(s).mul(dc.x));
+
+        // dc.x * pc.y also ≡ (dc.x * pc.y) [trivially]
+        // Want to show: pc.y ≡ dc.y * s = s * dc.y
+        // From dc.x * pc.y ≡ (dc.y * s) * dc.x, cancel dc.x
+        // (dc.y * s) * dc.x ≡ dc.x * (dc.y * s) [commutativity]
+        T::axiom_mul_commutative(dc.y.mul(s), dc.x);
+        T::axiom_eqv_transitive(
+            dc.x.mul(pc.y), dc.y.mul(s).mul(dc.x), dc.x.mul(dc.y.mul(s)),
+        );
+        // dc.x * pc.y ≡ dc.x * (dc.y * s) → cancel dc.x
+        field_lemmas::lemma_mul_cancel_left::<T>(pc.y, dc.y.mul(s), dc.x);
+        // pc.y ≡ dc.y * s
+        T::axiom_mul_commutative(dc.y, s);
+        T::axiom_eqv_transitive(pc.y, dc.y.mul(s), s.mul(dc.y));
+    } else {
+        // c.x ≡ d.x, so !c.y ≡ d.y
+        // s = (p.y-c.y) / (d.y-c.y) = pc.y / dc.y
+        if dc.y.eqv(T::zero()) {
+            additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.y, c.y);
+            T::axiom_eqv_symmetric(d.y, c.y);
+        }
+
+        // y-component: pc.y ≡ s * dc.y by div_mul_cancel
+        field_lemmas::lemma_div_mul_cancel::<T>(pc.y, dc.y);
+        T::axiom_eqv_symmetric(pc.y.div(dc.y).mul(dc.y), pc.y);
+
+        // x-component: dc.x ≡ 0 (from c.x ≡ d.x)
+        // c.x ≡ d.x → d.x ≡ c.x → d.x - c.x ≡ 0
+        T::axiom_eqv_symmetric(c.x, d.x);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(d.x, c.x);
+
+        // From collinearity: dc.x*pc.y ≡ dc.y*pc.x
+        lemma_sub_zero_implies_eqv::<T>(dc.x.mul(pc.y), dc.y.mul(pc.x));
+
+        // dc.x * pc.y ≡ 0 * pc.y ≡ 0
+        T::axiom_eqv_reflexive(pc.y);
+        ring_lemmas::lemma_mul_congruence::<T>(dc.x, T::zero(), pc.y, pc.y);
+        ring_lemmas::lemma_mul_zero_left::<T>(pc.y);
+        T::axiom_eqv_transitive(dc.x.mul(pc.y), T::zero().mul(pc.y), T::zero());
+
+        // dc.y * pc.x ≡ dc.x * pc.y ≡ 0
+        T::axiom_eqv_symmetric(dc.x.mul(pc.y), dc.y.mul(pc.x));
+        T::axiom_eqv_transitive(dc.y.mul(pc.x), dc.x.mul(pc.y), T::zero());
+        // dc.y * pc.x ≡ 0 ≡ dc.y * 0, cancel dc.y → pc.x ≡ 0
+        T::axiom_mul_zero_right(dc.y);
+        T::axiom_eqv_symmetric(dc.y.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(dc.y.mul(pc.x), T::zero(), dc.y.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(pc.x, T::zero(), dc.y);
+
+        // s * dc.x ≡ s * 0 ≡ 0
+        ring_lemmas::lemma_mul_congruence_right::<T>(s, dc.x, T::zero());
+        T::axiom_mul_zero_right(s);
+        T::axiom_eqv_transitive(s.mul(dc.x), s.mul(T::zero()), T::zero());
+
+        // pc.x ≡ 0 ≡ s * dc.x
+        T::axiom_eqv_symmetric(s.mul(dc.x), T::zero());
+        T::axiom_eqv_transitive(pc.x, T::zero(), s.mul(dc.x));
+    }
+}
+
+// ---- Piece 6: Orient2d interpolation on segment ----
+
+/// For p on segment [c, d] (non-degenerate):
+///   orient2d(a, b, p) ≡ o1 + s*(o2 - o1)
+/// where o1 = orient2d(a,b,c), o2 = orient2d(a,b,d), s = parameter.
+proof fn lemma_orient2d_interpolation_on_segment<T: OrderedField>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>, p: Point2<T>,
+)
+    requires
+        point_on_segment_inclusive_2d(p, c, d),
+        !c.x.eqv(d.x) || !c.y.eqv(d.y),
+    ensures ({
+        let s = segment_parameter_of_point(p, c, d);
+        let o1 = orient2d(a, b, c);
+        let o2 = orient2d(a, b, d);
+        orient2d(a, b, p).eqv(o1.add(s.mul(o2.sub(o1))))
+    }),
+{
+    let s = segment_parameter_of_point(p, c, d);
+    let o1 = orient2d(a, b, c);
+    let o2 = orient2d(a, b, d);
+    let ba = sub2(b, a);
+    let ca = sub2(c, a);
+    let da = sub2(d, a);
+    let pa = sub2(p, a);
+    let pc = sub2(p, c);
+    let dc = sub2(d, c);
+
+    // Piece 5: pc ≡ s * dc componentwise
+    lemma_point_is_affine_combination::<T>(p, c, d);
+
+    // Step 1: sub2(p, a) decomposed as ca + pc
+    // pa.x = p.x - a.x = (p.x - c.x) + (c.x - a.x) = pc.x + ca.x
+    additive_group_lemmas::lemma_sub_add_sub::<T>(p.x, c.x, a.x);
+    T::axiom_eqv_symmetric(pc.x.add(ca.x), pa.x);
+    T::axiom_add_commutative(pc.x, ca.x);
+    T::axiom_eqv_transitive(pa.x, pc.x.add(ca.x), ca.x.add(pc.x));
+    // Same for y
+    additive_group_lemmas::lemma_sub_add_sub::<T>(p.y, c.y, a.y);
+    T::axiom_eqv_symmetric(pc.y.add(ca.y), pa.y);
+    T::axiom_add_commutative(pc.y, ca.y);
+    T::axiom_eqv_transitive(pa.y, pc.y.add(ca.y), ca.y.add(pc.y));
+
+    // det2d(ba, pa) ≡ det2d(ba, ca+pc)
+    let ca_plus_pc = Vec2 { x: ca.x.add(pc.x), y: ca.y.add(pc.y) };
+    Vec2::<T>::axiom_eqv_reflexive(ba);
+    lemma_det2d_congruence::<T>(ba, ba, pa, ca_plus_pc);
+
+    // Step 2: det2d(ba, ca+pc) ≡ det2d(ba, ca) + det2d(ba, pc) = o1 + det2d(ba, pc)
+    lemma_det2d_add_right::<T>(ba, ca, pc);
+    T::axiom_eqv_transitive(
+        orient2d(a, b, p),
+        det2d(ba, ca_plus_pc),
+        det2d(ba, ca).add(det2d(ba, pc)),
+    );
+
+    // Step 3: pc ≡ scale(s, dc) componentwise, so det2d(ba, pc) ≡ det2d(ba, scale(s, dc))
+    let s_dc = Vec2 { x: s.mul(dc.x), y: s.mul(dc.y) };
+    lemma_det2d_congruence::<T>(ba, ba, pc, s_dc);
+
+    // det2d(ba, scale(s, dc)) ≡ s * det2d(ba, dc)
+    lemma_det2d_scale_right::<T>(s, ba, dc);
+    T::axiom_eqv_transitive(det2d(ba, pc), det2d(ba, s_dc), s.mul(det2d(ba, dc)));
+
+    // Step 4: det2d(ba, dc) ≡ o2 - o1
+    // dc = d-c = (d-a)-(c-a) componentwise
+    let da_minus_ca = Vec2 { x: da.x.sub(ca.x), y: da.y.sub(ca.y) };
+    lemma_sub_cancel_common::<T>(d.x, c.x, a.x);
+    lemma_sub_cancel_common::<T>(d.y, c.y, a.y);
+    T::axiom_eqv_symmetric(da.x.sub(ca.x), dc.x);
+    T::axiom_eqv_symmetric(da.y.sub(ca.y), dc.y);
+    lemma_det2d_congruence::<T>(ba, ba, dc, da_minus_ca);
+    lemma_det2d_sub_right::<T>(ba, da, ca);
+    T::axiom_eqv_transitive(
+        det2d(ba, dc), det2d(ba, da_minus_ca), o2.sub(o1),
+    );
+
+    // s * det2d(ba, dc) ≡ s * (o2 - o1)
+    ring_lemmas::lemma_mul_congruence_right::<T>(s, det2d(ba, dc), o2.sub(o1));
+    T::axiom_eqv_transitive(det2d(ba, pc), s.mul(det2d(ba, dc)), s.mul(o2.sub(o1)));
+
+    // Step 5: o1 + det2d(ba, pc) ≡ o1 + s*(o2 - o1)
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        o1, det2d(ba, pc), s.mul(o2.sub(o1)),
+    );
+    T::axiom_eqv_transitive(
+        orient2d(a, b, p),
+        o1.add(det2d(ba, pc)),
+        o1.add(s.mul(o2.sub(o1))),
+    );
+}
+
+// ---- Piece 7b: Parallelism is transitive (when reference vector is nonzero) ----
+
+/// If det2d(u,v) ≡ 0, det2d(u,w) ≡ 0, and u is nonzero, then det2d(v,w) ≡ 0.
+proof fn lemma_det2d_parallel_transitive<T: OrderedField>(
+    u: Vec2<T>, v: Vec2<T>, w: Vec2<T>,
+)
+    requires
+        det2d(u, v).eqv(T::zero()),
+        det2d(u, w).eqv(T::zero()),
+        !u.x.eqv(T::zero()) || !u.y.eqv(T::zero()),
+    ensures
+        det2d(v, w).eqv(T::zero()),
+{
+    // Unpack: u.x*v.y ≡ u.y*v.x and u.x*w.y ≡ u.y*w.x
+    additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(
+        u.x.mul(v.y), u.y.mul(v.x),
+    ); // (*)
+    additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(
+        u.x.mul(w.y), u.y.mul(w.x),
+    ); // (**)
+
+    if !u.x.eqv(T::zero()) {
+        // Show u.x*(v.x*w.y) ≡ u.x*(v.y*w.x), then cancel u.x.
+
+        // --- LHS: u.x*(v.x*w.y) ≡ u.y*(v.x*w.x) ---
+        // u.x*(v.x*w.y) → comm inner → u.x*(w.y*v.x)
+        T::axiom_mul_commutative(v.x, w.y);
+        ring_lemmas::lemma_mul_congruence_right::<T>(u.x, v.x.mul(w.y), w.y.mul(v.x));
+        // → assoc → (u.x*w.y)*v.x
+        T::axiom_mul_associative(u.x, w.y, v.x);
+        T::axiom_eqv_symmetric(u.x.mul(w.y).mul(v.x), u.x.mul(w.y.mul(v.x)));
+        T::axiom_eqv_transitive(
+            u.x.mul(v.x.mul(w.y)), u.x.mul(w.y.mul(v.x)), u.x.mul(w.y).mul(v.x),
+        );
+        // → by (**): (u.y*w.x)*v.x
+        T::axiom_mul_congruence_left(u.x.mul(w.y), u.y.mul(w.x), v.x);
+        T::axiom_eqv_transitive(
+            u.x.mul(v.x.mul(w.y)), u.x.mul(w.y).mul(v.x), u.y.mul(w.x).mul(v.x),
+        );
+        // → assoc → u.y*(w.x*v.x) → comm inner → u.y*(v.x*w.x)
+        T::axiom_mul_associative(u.y, w.x, v.x);
+        T::axiom_mul_commutative(w.x, v.x);
+        ring_lemmas::lemma_mul_congruence_right::<T>(u.y, w.x.mul(v.x), v.x.mul(w.x));
+        T::axiom_eqv_transitive(
+            u.y.mul(w.x).mul(v.x), u.y.mul(w.x.mul(v.x)), u.y.mul(v.x.mul(w.x)),
+        );
+        T::axiom_eqv_transitive(
+            u.x.mul(v.x.mul(w.y)), u.y.mul(w.x).mul(v.x), u.y.mul(v.x.mul(w.x)),
+        );
+
+        // --- RHS: u.x*(v.y*w.x) ≡ u.y*(v.x*w.x) ---
+        // → assoc → (u.x*v.y)*w.x
+        T::axiom_mul_associative(u.x, v.y, w.x);
+        T::axiom_eqv_symmetric(u.x.mul(v.y).mul(w.x), u.x.mul(v.y.mul(w.x)));
+        // → by (*): (u.y*v.x)*w.x
+        T::axiom_mul_congruence_left(u.x.mul(v.y), u.y.mul(v.x), w.x);
+        T::axiom_eqv_transitive(
+            u.x.mul(v.y.mul(w.x)), u.x.mul(v.y).mul(w.x), u.y.mul(v.x).mul(w.x),
+        );
+        // → assoc → u.y*(v.x*w.x)
+        T::axiom_mul_associative(u.y, v.x, w.x);
+        T::axiom_eqv_transitive(
+            u.x.mul(v.y.mul(w.x)), u.y.mul(v.x).mul(w.x), u.y.mul(v.x.mul(w.x)),
+        );
+
+        // LHS ≡ RHS: u.x*(v.x*w.y) ≡ u.y*(v.x*w.x) ≡ u.x*(v.y*w.x)
+        T::axiom_eqv_symmetric(u.x.mul(v.y.mul(w.x)), u.y.mul(v.x.mul(w.x)));
+        T::axiom_eqv_transitive(
+            u.x.mul(v.x.mul(w.y)), u.y.mul(v.x.mul(w.x)), u.x.mul(v.y.mul(w.x)),
+        );
+
+        // Cancel u.x: v.x*w.y ≡ v.y*w.x
+        field_lemmas::lemma_mul_cancel_left::<T>(v.x.mul(w.y), v.y.mul(w.x), u.x);
+
+        // v.x*w.y - v.y*w.x ≡ 0
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(
+            v.x.mul(w.y), v.y.mul(w.x),
+        );
+    } else {
+        // u.x ≡ 0, u.y ≢ 0
+        // From (*) and u.x ≡ 0: 0*v.y ≡ u.y*v.x → 0 ≡ u.y*v.x → v.x ≡ 0
+        T::axiom_mul_congruence_left(u.x, T::zero(), v.y);
+        ring_lemmas::lemma_mul_zero_left::<T>(v.y);
+        T::axiom_eqv_transitive(u.x.mul(v.y), T::zero().mul(v.y), T::zero());
+        T::axiom_eqv_symmetric(u.x.mul(v.y), u.y.mul(v.x));
+        T::axiom_eqv_transitive(u.y.mul(v.x), u.x.mul(v.y), T::zero());
+        T::axiom_mul_zero_right(u.y);
+        T::axiom_eqv_symmetric(u.y.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(u.y.mul(v.x), T::zero(), u.y.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(v.x, T::zero(), u.y);
+
+        // Similarly: w.x ≡ 0
+        T::axiom_mul_congruence_left(u.x, T::zero(), w.y);
+        ring_lemmas::lemma_mul_zero_left::<T>(w.y);
+        T::axiom_eqv_transitive(u.x.mul(w.y), T::zero().mul(w.y), T::zero());
+        T::axiom_eqv_symmetric(u.x.mul(w.y), u.y.mul(w.x));
+        T::axiom_eqv_transitive(u.y.mul(w.x), u.x.mul(w.y), T::zero());
+        T::axiom_mul_zero_right(u.y);
+        T::axiom_eqv_symmetric(u.y.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(u.y.mul(w.x), T::zero(), u.y.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(w.x, T::zero(), u.y);
+
+        // det2d(v,w) = v.x*w.y - v.y*w.x ≡ 0*w.y - v.y*0 ≡ 0 - 0 ≡ 0
+        ring_lemmas::lemma_mul_zero_left::<T>(w.y);
+        T::axiom_eqv_symmetric(T::zero().mul(w.y), T::zero());
+        T::axiom_mul_congruence_left(v.x, T::zero(), w.y);
+        T::axiom_eqv_transitive(v.x.mul(w.y), T::zero().mul(w.y), T::zero());
+
+        T::axiom_mul_zero_right(v.y);
+        ring_lemmas::lemma_mul_congruence_right::<T>(v.y, w.x, T::zero());
+        T::axiom_eqv_transitive(v.y.mul(w.x), v.y.mul(T::zero()), T::zero());
+
+        // 0 - 0 ≡ 0
+        additive_group_lemmas::lemma_sub_self::<T>(T::zero());
+        additive_group_lemmas::lemma_sub_congruence::<T>(
+            v.x.mul(w.y), T::zero(), v.y.mul(w.x), T::zero(),
+        );
+        T::axiom_eqv_transitive(
+            v.x.mul(w.y).sub(v.y.mul(w.x)),
+            T::zero().sub(T::zero()),
+            T::zero(),
+        );
+    }
+}
+
+// ---- Piece 7a: Helper — convex combination of same-sign values is nonzero ----
+
+/// If 0 < o1, 0 < o2, 0 ≤ s ≤ 1, then o1 + s*(o2-o1) is not zero.
+/// Uses weighted_average_bounds: min(o1,o2) ≤ val ≤ max(o1,o2).
+/// Since both > 0, min > 0, hence val > 0 ≢ 0.
+proof fn lemma_convex_combination_positive<T: OrderedField>(
+    o1: T, o2: T, s: T,
+)
+    requires
+        T::zero().lt(o1),
+        T::zero().lt(o2),
+        T::zero().le(s),
+        s.le(T::one()),
+    ensures
+        !o1.add(s.mul(o2.sub(o1))).eqv(T::zero()),
+{
+    let val = o1.add(s.mul(o2.sub(o1)));
+
+    // scalar_min(o1,o2) ≤ val
+    lemma_weighted_average_bounds::<T>(o1, o2, s);
+
+    // Determine which branch scalar_min takes
+    T::axiom_le_total(o1, o2);
+    // If o1.le(o2): scalar_min = o1, 0 < o1
+    // If !o1.le(o2): scalar_min = o2, 0 < o2
+    // Either way: 0 < scalar_min(o1,o2)
+    let min_val = scalar_min(o1, o2);
+
+    // 0 < min → 0 ≤ min and !0 ≡ min
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), min_val);
+
+    // 0 ≤ min ≤ val → 0 ≤ val
+    T::axiom_le_transitive(T::zero(), min_val, val);
+
+    // If val ≡ 0: min ≤ val ≡ 0, so min ≤ 0.
+    // Combined with 0 ≤ min → min ≡ 0, contradicts !0.eqv(min).
+    if val.eqv(T::zero()) {
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(min_val, val, T::zero());
+        T::axiom_le_antisymmetric(T::zero(), min_val);
+        T::axiom_eqv_symmetric(T::zero(), min_val);
+        // min_val.eqv(T::zero()) but !T::zero().eqv(min_val) — contradiction
+    }
+}
+
+/// Same as above but for negative o1, o2.
+/// Uses weighted_average_bounds: val ≤ max(o1,o2).
+/// Since both < 0, max < 0, hence val < 0 ≢ 0.
+proof fn lemma_convex_combination_negative<T: OrderedField>(
+    o1: T, o2: T, s: T,
+)
+    requires
+        o1.lt(T::zero()),
+        o2.lt(T::zero()),
+        T::zero().le(s),
+        s.le(T::one()),
+    ensures
+        !o1.add(s.mul(o2.sub(o1))).eqv(T::zero()),
+{
+    let val = o1.add(s.mul(o2.sub(o1)));
+
+    // val ≤ scalar_max(o1,o2)
+    lemma_weighted_average_bounds::<T>(o1, o2, s);
+
+    // Determine which branch scalar_max takes
+    T::axiom_le_total(o1, o2);
+    // If o1.le(o2): scalar_max = o2, o2 < 0
+    // If !o1.le(o2): scalar_max = o1, o1 < 0
+    // Either way: scalar_max(o1,o2) < 0
+    let max_val = scalar_max(o1, o2);
+
+    // max < 0 → max ≤ 0 and !max ≡ 0
+    T::axiom_lt_iff_le_and_not_eqv(max_val, T::zero());
+
+    // val ≤ max ≤ 0 → val ≤ 0
+    T::axiom_le_transitive(val, max_val, T::zero());
+
+    // If val ≡ 0: 0 ≡ val ≤ max, so 0 ≤ max.
+    // Combined with max ≤ 0 → max ≡ 0, contradicts !max.eqv(0).
+    if val.eqv(T::zero()) {
+        T::axiom_eqv_symmetric(val, T::zero());
+        ordered_ring_lemmas::lemma_le_congruence_left::<T>(val, T::zero(), max_val);
+        T::axiom_le_antisymmetric(max_val, T::zero());
+        // max_val.eqv(T::zero()) but !max_val.eqv(T::zero()) — contradiction
+    }
+}
+
+// ---- Piece 7d: Helper — endpoint is on its own segment ----
+
+/// c is always on segment [c, d].
+proof fn lemma_endpoint_on_own_segment<T: OrderedRing>(
+    c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        point_on_segment_inclusive_2d(c, c, d),
+{
+    // orient2d(c,d,c) ≡ 0 via cyclic + degenerate_bc
+    lemma_orient2d_cyclic::<T>(c, d, c);
+    lemma_orient2d_degenerate_bc::<T>(d, c);
+    T::axiom_eqv_transitive(orient2d(c, d, c), orient2d(d, c, c), T::zero());
+
+    // bbox: scalar_min(c.x,d.x) ≤ c.x ≤ scalar_max(c.x,d.x)
+    T::axiom_le_total(c.x, d.x);
+    T::axiom_le_reflexive(c.x);
+    T::axiom_le_total(c.y, d.y);
+    T::axiom_le_reflexive(c.y);
+}
+
+// ---- Piece 7e: Helper — segment membership transfers via point equivalence ----
+
+/// If p is on segment [a,b] and q ≡ p componentwise, then q is on [a,b].
+proof fn lemma_segment_membership_congruence<T: OrderedRing>(
+    p: Point2<T>, q: Point2<T>, a: Point2<T>, b: Point2<T>,
+)
+    requires
+        point_on_segment_inclusive_2d(p, a, b),
+        p.x.eqv(q.x),
+        p.y.eqv(q.y),
+    ensures
+        point_on_segment_inclusive_2d(q, a, b),
+{
+    // orient2d(a,b,q) ≡ 0: transfer via det2d congruence
+    let ba = sub2(b, a);
+    let pa = sub2(p, a);
+    let qa = sub2(q, a);
+    T::axiom_eqv_reflexive(a.x);
+    T::axiom_eqv_reflexive(a.y);
+    additive_group_lemmas::lemma_sub_congruence::<T>(p.x, q.x, a.x, a.x);
+    additive_group_lemmas::lemma_sub_congruence::<T>(p.y, q.y, a.y, a.y);
+    T::axiom_eqv_reflexive(ba.x);
+    T::axiom_eqv_reflexive(ba.y);
+    lemma_det2d_congruence::<T>(ba, ba, pa, qa);
+    T::axiom_eqv_symmetric(orient2d(a, b, p), T::zero());
+    T::axiom_eqv_transitive(T::zero(), orient2d(a, b, p), orient2d(a, b, q));
+    T::axiom_eqv_symmetric(T::zero(), orient2d(a, b, q));
+
+    // bbox transfer: 4 le_congruence calls
+    ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+        scalar_min(a.x, b.x), p.x, q.x,
+    );
+    ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+        p.x, q.x, scalar_max(a.x, b.x),
+    );
+    ordered_ring_lemmas::lemma_le_congruence_right::<T>(
+        scalar_min(a.y, b.y), p.y, q.y,
+    );
+    ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+        p.y, q.y, scalar_max(a.y, b.y),
+    );
+}
+
+// ---- Piece 7f: Helper — derive orient2d with swapped first pair ----
+
+/// orient2d(c,d,p) ≡ 0 implies orient2d(d,c,p) ≡ 0.
+proof fn lemma_orient2d_swap_ab_zero<T: Ring>(
+    c: Point2<T>, d: Point2<T>, p: Point2<T>,
+)
+    requires orient2d(c, d, p).eqv(T::zero()),
+    ensures orient2d(d, c, p).eqv(T::zero()),
+{
+    lemma_orient2d_cyclic::<T>(d, c, p);
+    // orient2d(d,c,p) ≡ orient2d(c,p,d)
+    lemma_orient2d_swap_bc::<T>(c, d, p);
+    // orient2d(c,p,d) ≡ -orient2d(c,d,p)
+    T::axiom_neg_congruence(orient2d(c, d, p), T::zero());
+    additive_group_lemmas::lemma_neg_zero::<T>();
+    T::axiom_eqv_transitive(orient2d(c, d, p).neg(), T::zero().neg(), T::zero());
+    T::axiom_eqv_transitive(orient2d(c, p, d), orient2d(c, d, p).neg(), T::zero());
+    T::axiom_eqv_transitive(orient2d(d, c, p), orient2d(c, p, d), T::zero());
+}
+
+// ---- Piece 7: Final assembly ----
+
+/// If a shared point p lies on both segments [a,b] and [c,d], the classification
+/// is NOT Disjoint.
+pub proof fn lemma_shared_point_implies_not_disjoint<T: OrderedField>(
+    p: Point2<T>,
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    requires
+        point_on_segment_inclusive_2d(p, a, b),
+        point_on_segment_inclusive_2d(p, c, d),
+    ensures
+        segment_intersection_kind_2d(a, b, c, d) != SegmentIntersection2dKind::Disjoint,
+{
+    // ---- Ensure collinear branch never returns Disjoint ----
+    // p is on both segments, so p's coordinates are in both intervals.
+    // This makes overlap_kind ≥ 0 regardless of axis choice.
+    let use_x = !a.x.eqv(b.x) || !c.x.eqv(d.x);
+    if use_x {
+        lemma_shared_point_implies_overlap_1d::<T>(p.x, a.x, b.x, c.x, d.x);
+    } else {
+        lemma_shared_point_implies_overlap_1d::<T>(p.y, a.y, b.y, c.y, d.y);
+    }
+
+    // Establish orientation sign meanings
+    lemma_orient2d_sign_matches::<T>(a, b, c);
+    lemma_orient2d_sign_matches::<T>(a, b, d);
+    lemma_orient2d_sign_matches::<T>(c, d, a);
+    lemma_orient2d_sign_matches::<T>(c, d, b);
+
+    let o1 = orient2d_sign(a, b, c);
+    let o2 = orient2d_sign(a, b, d);
+    let o3 = orient2d_sign(c, d, a);
+    let o4 = orient2d_sign(c, d, b);
+
+    // ---- Case: all zero → collinear, overlap_kind ≥ 0 (handled above) ----
+    if o1 == OrientationSign::Zero && o2 == OrientationSign::Zero
+        && o3 == OrientationSign::Zero && o4 == OrientationSign::Zero
+    {
+        return;
+    }
+
+    // ---- Case: a ≡ b (degenerate segment [a,b]) ----
+    if a.x.eqv(b.x) && a.y.eqv(b.y) {
+        // Derive p ≡ a from p in bbox of [a,a]
+        T::axiom_le_reflexive(a.x);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(a.x, a.x, b.x);
+        T::axiom_eqv_symmetric(a.x, b.x);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(p.x, b.x, a.x);
+        T::axiom_le_antisymmetric(a.x, p.x);
+        T::axiom_eqv_symmetric(a.x, p.x);
+        T::axiom_le_reflexive(a.y);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(a.y, a.y, b.y);
+        T::axiom_eqv_symmetric(a.y, b.y);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(p.y, b.y, a.y);
+        T::axiom_le_antisymmetric(a.y, p.y);
+        T::axiom_eqv_symmetric(a.y, p.y);
+        // p ≡ a → a on [c,d], a on [a,b] → touch3
+        lemma_segment_membership_congruence::<T>(p, a, c, d);
+        lemma_endpoint_on_own_segment::<T>(a, b);
+        return;
+    }
+
+    // ---- Case: c ≡ d (degenerate segment [c,d]) ----
+    if c.x.eqv(d.x) && c.y.eqv(d.y) {
+        // Derive p ≡ c from p in bbox of [c,c]
+        T::axiom_le_reflexive(c.x);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(c.x, c.x, d.x);
+        T::axiom_eqv_symmetric(c.x, d.x);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(p.x, d.x, c.x);
+        T::axiom_le_antisymmetric(c.x, p.x);
+        T::axiom_eqv_symmetric(c.x, p.x);
+        T::axiom_le_reflexive(c.y);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(c.y, c.y, d.y);
+        T::axiom_eqv_symmetric(c.y, d.y);
+        ordered_ring_lemmas::lemma_le_congruence_right::<T>(p.y, d.y, c.y);
+        T::axiom_le_antisymmetric(c.y, p.y);
+        T::axiom_eqv_symmetric(c.y, p.y);
+        // p ≡ c → c on [a,b], c on [c,d] → touch1
+        lemma_segment_membership_congruence::<T>(p, c, a, b);
+        lemma_endpoint_on_own_segment::<T>(c, d);
+        return;
+    }
+
+    // ---- Now: a ≢ b, c ≢ d, not all zero ----
+    // Show a touch holds (or derive contradiction) → not Disjoint
+
+    if o1 == OrientationSign::Zero {
+        if o2 == OrientationSign::Zero {
+            // o1=o2=Zero. Derive o3=Zero via parallel-transitive.
+            // ba nonzero (a ≢ b):
+            let ba = sub2(b, a);
+            if ba.x.eqv(T::zero()) && ba.y.eqv(T::zero()) {
+                additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(b.x, a.x);
+                T::axiom_eqv_symmetric(b.x, a.x);
+                additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(b.y, a.y);
+                T::axiom_eqv_symmetric(b.y, a.y);
+                // a ≡ b — contradiction with a ≢ b
+                return; // unreachable
+            }
+            let ca = sub2(c, a);
+            let da = sub2(d, a);
+            lemma_det2d_parallel_transitive::<T>(ba, ca, da);
+            // det2d(ca, da) ≡ 0 → orient2d(a,c,d) ≡ 0
+            // orient2d(c,d,a) ≡ orient2d(d,a,c) ≡ orient2d(a,c,d) = det2d(ca,da) ≡ 0
+            lemma_orient2d_cyclic::<T>(c, d, a);
+            lemma_orient2d_cyclic::<T>(d, a, c);
+            T::axiom_eqv_transitive(
+                orient2d(c, d, a), orient2d(d, a, c), orient2d(a, c, d),
+            );
+            T::axiom_eqv_transitive(orient2d(c, d, a), orient2d(a, c, d), T::zero());
+            // Now o3 = Zero. Not all zero → o4 ≠ Zero.
+            lemma_orient2d_sign_matches::<T>(c, d, a);
+            // Apply Piece 3 with (c,d,a,b,p) → p ≡ a
+            lemma_zero_orient_and_shared_point_implies_eqv::<T>(c, d, a, b, p);
+            // p ≡ a → a on [c,d], a on [a,b] → touch3
+            T::axiom_eqv_symmetric(p.x, a.x);
+            T::axiom_eqv_symmetric(p.y, a.y);
+            lemma_segment_membership_congruence::<T>(p, a, c, d);
+            lemma_endpoint_on_own_segment::<T>(a, b);
+        } else {
+            // o1=Zero, o2≠Zero → Piece 3(a,b,c,d,p) → p ≡ c → touch1
+            lemma_zero_orient_and_shared_point_implies_eqv::<T>(a, b, c, d, p);
+            T::axiom_eqv_symmetric(p.x, c.x);
+            T::axiom_eqv_symmetric(p.y, c.y);
+            lemma_segment_membership_congruence::<T>(p, c, a, b);
+            lemma_endpoint_on_own_segment::<T>(c, d);
+        }
+    } else if o2 == OrientationSign::Zero {
+        // o1≠Zero, o2=Zero → Piece 3(a,b,d,c,p) → p ≡ d → touch2
+        // Need orient2d(d,c,p) ≡ 0
+        lemma_orient2d_swap_ab_zero::<T>(c, d, p);
+        lemma_zero_orient_and_shared_point_implies_eqv::<T>(a, b, d, c, p);
+        T::axiom_eqv_symmetric(p.x, d.x);
+        T::axiom_eqv_symmetric(p.y, d.y);
+        lemma_segment_membership_congruence::<T>(p, d, a, b);
+        lemma_segment_membership_congruence::<T>(p, d, c, d);
+    } else if o3 == OrientationSign::Zero {
+        if o4 == OrientationSign::Zero {
+            // o3=o4=Zero, o1≠Zero. Derive o1=Zero → contradiction.
+            let dc = sub2(d, c);
+            if dc.x.eqv(T::zero()) && dc.y.eqv(T::zero()) {
+                additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.x, c.x);
+                T::axiom_eqv_symmetric(d.x, c.x);
+                additive_group_lemmas::lemma_sub_eqv_zero_implies_eqv::<T>(d.y, c.y);
+                T::axiom_eqv_symmetric(d.y, c.y);
+                return; // unreachable (c ≡ d already handled)
+            }
+            let ac = sub2(a, c);
+            let bc = sub2(b, c);
+            lemma_det2d_parallel_transitive::<T>(dc, ac, bc);
+            // orient2d(a,b,c) ≡ orient2d(b,c,a) ≡ orient2d(c,a,b) = det2d(ac,bc) ≡ 0
+            lemma_orient2d_cyclic::<T>(a, b, c);
+            lemma_orient2d_cyclic::<T>(b, c, a);
+            T::axiom_eqv_transitive(
+                orient2d(a, b, c), orient2d(b, c, a), orient2d(c, a, b),
+            );
+            T::axiom_eqv_transitive(orient2d(a, b, c), orient2d(c, a, b), T::zero());
+            // o1 = Zero. But o1 ≠ Zero. Contradiction.
+            lemma_orient2d_sign_matches::<T>(a, b, c);
+        } else {
+            // o3=Zero, o4≠Zero → Piece 3(c,d,a,b,p) → p ≡ a → touch3
+            lemma_zero_orient_and_shared_point_implies_eqv::<T>(c, d, a, b, p);
+            T::axiom_eqv_symmetric(p.x, a.x);
+            T::axiom_eqv_symmetric(p.y, a.y);
+            lemma_segment_membership_congruence::<T>(p, a, c, d);
+            lemma_endpoint_on_own_segment::<T>(a, b);
+        }
+    } else if o4 == OrientationSign::Zero {
+        // o3≠Zero, o4=Zero → Piece 3(c,d,b,a,p) → p ≡ b → touch4
+        // Need orient2d(b,a,p) ≡ 0
+        lemma_orient2d_swap_ab_zero::<T>(a, b, p);
+        lemma_zero_orient_and_shared_point_implies_eqv::<T>(c, d, b, a, p);
+        T::axiom_eqv_symmetric(p.x, b.x);
+        T::axiom_eqv_symmetric(p.y, b.y);
+        lemma_segment_membership_congruence::<T>(p, b, c, d);
+        lemma_segment_membership_congruence::<T>(p, b, a, b);
+    } else {
+        // All nonzero: o1≠Zero, o2≠Zero, o3≠Zero, o4≠Zero
+        if o1 == o2 {
+            // Same sign on AB → interpolation contradiction
+            // orient2d(a,b,p) ≡ o1_val + s*(o2_val - o1_val) via Piece 6
+            lemma_orient2d_interpolation_on_segment::<T>(a, b, c, d, p);
+            let s = segment_parameter_of_point(p, c, d);
+            let o1_val = orient2d(a, b, c);
+            let o2_val = orient2d(a, b, d);
+            let interp = o1_val.add(s.mul(o2_val.sub(o1_val)));
+
+            lemma_segment_parameter_bounds::<T>(p, c, d);
+
+            if o1 == OrientationSign::Positive {
+                // Both positive
+                lemma_convex_combination_positive::<T>(o1_val, o2_val, s);
+            } else {
+                // Both negative (can't be Zero since all nonzero)
+                lemma_convex_combination_negative::<T>(o1_val, o2_val, s);
+            }
+            // interp ≢ 0 but orient2d(a,b,p) ≡ interp ≡ 0 — contradiction
+            T::axiom_eqv_symmetric(orient2d(a, b, p), T::zero());
+            T::axiom_eqv_transitive(T::zero(), orient2d(a, b, p), interp);
+            T::axiom_eqv_symmetric(T::zero(), interp);
+        } else if o3 == o4 {
+            // Same sign on CD → interpolation contradiction
+            lemma_orient2d_interpolation_on_segment::<T>(c, d, a, b, p);
+            let t = segment_parameter_of_point(p, a, b);
+            let o3_val = orient2d(c, d, a);
+            let o4_val = orient2d(c, d, b);
+            let interp = o3_val.add(t.mul(o4_val.sub(o3_val)));
+
+            lemma_segment_parameter_bounds::<T>(p, a, b);
+
+            if o3 == OrientationSign::Positive {
+                lemma_convex_combination_positive::<T>(o3_val, o4_val, t);
+            } else {
+                lemma_convex_combination_negative::<T>(o3_val, o4_val, t);
+            }
+            T::axiom_eqv_symmetric(orient2d(c, d, p), T::zero());
+            T::axiom_eqv_transitive(T::zero(), orient2d(c, d, p), interp);
+            T::axiom_eqv_symmetric(T::zero(), interp);
+        }
+        // else: o1≠o2 && o3≠o4 && all nonzero → Proper → not Disjoint
+    }
+}
+
 } // verus!
