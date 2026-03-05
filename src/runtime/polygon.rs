@@ -36,7 +36,7 @@ impl RuntimePolygon2 {
     }
 
     pub open spec fn model(&self) -> Seq<Point2<RationalModel>> {
-        self.vertices@.map(|_i: int, v: RuntimePoint2| v@)
+        Seq::new(self.vertices@.len(), |i: int| self.vertices@[i]@)
     }
 
     pub fn len(&self) -> (out: usize)
@@ -118,12 +118,6 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec(
         let vi = polygon.get(i);
         let vj = polygon.get(j);
         let sign = orient2d_sign_exec(vi, vj, p);
-
-        proof {
-            // Establish that polygon.model()[i as int] == vi@ etc.
-            assert(polygon.model()[i as int] == polygon.vertices@[i as int]@);
-            assert(polygon.model()[j as int] == polygon.vertices@[j as int]@);
-        }
 
         let sp = is_positive(&sign);
         let sn = is_negative(&sign);
@@ -221,11 +215,6 @@ pub fn point_strictly_in_convex_polygon_exec(
         let vj = polygon.get(j);
         let sign = orient2d_sign_exec(vi, vj, p);
 
-        proof {
-            assert(polygon.model()[i as int] == polygon.vertices@[i as int]@);
-            assert(polygon.model()[j as int] == polygon.vertices@[j as int]@);
-        }
-
         let sp = is_positive(&sign);
         let sn = is_negative(&sign);
         let sz = is_zero(&sign);
@@ -311,8 +300,8 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             0 <= i <= n,
             polygon.wf_spec(),
             forall|ii: int, jj: int|
-                0 <= ii < i && 0 <= jj < polygon.model().len() ==> {
-                let next_ii = polygon_next_index(polygon.model().len() as int, ii);
+                0 <= ii < i && 0 <= jj < n as int ==> {
+                let next_ii = polygon_next_index(n as int, ii);
                 !orient2d_negative::<RationalModel>(
                     #[trigger] polygon.model()[ii], polygon.model()[next_ii],
                     #[trigger] polygon.model()[jj],
@@ -339,18 +328,9 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                 vnext.wf_spec(),
                 vi@ == polygon.model()[i as int],
                 vnext@ == polygon.model()[next_i as int],
-                // All previous outer iterations still hold
-                forall|ii: int, jj: int|
-                    0 <= ii < i && 0 <= jj < polygon.model().len() ==> {
-                    let next_ii = polygon_next_index(polygon.model().len() as int, ii);
-                    !orient2d_negative::<RationalModel>(
-                        #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                        #[trigger] polygon.model()[jj],
-                    )
-                },
                 // Current edge i: checked for vertices [0, j)
                 forall|jj: int| 0 <= jj < j ==> {
-                    let next_ii = polygon_next_index(polygon.model().len() as int, i as int);
+                    let next_ii = polygon_next_index(n as int, i as int);
                     !orient2d_negative::<RationalModel>(
                         polygon.model()[i as int], polygon.model()[next_ii],
                         #[trigger] polygon.model()[jj],
@@ -359,13 +339,6 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             decreases n - j,
         {
             let vj = polygon.get(j);
-
-            proof {
-                assert(polygon.model()[i as int] == polygon.vertices@[i as int]@);
-                assert(polygon.model()[next_i as int] == polygon.vertices@[next_i as int]@);
-                assert(polygon.model()[j as int] == polygon.vertices@[j as int]@);
-            }
-
             let sign = orient2d_sign_exec(vi, vnext, vj);
 
             proof {
@@ -389,8 +362,8 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
 
         // After inner loop: all vertices checked for edge i
         proof {
-            assert forall|jj: int| 0 <= jj < polygon.model().len() implies {
-                let next_ii = polygon_next_index(polygon.model().len() as int, i as int);
+            assert forall|jj: int| 0 <= jj < n as int implies {
+                let next_ii = polygon_next_index(n as int, i as int);
                 !orient2d_negative::<RationalModel>(
                     #[trigger] polygon.model()[i as int], polygon.model()[next_ii],
                     #[trigger] polygon.model()[jj],
@@ -426,8 +399,8 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             polygon.wf_spec(),
             // Convexity for edges [0, i): all vertices non-negative
             forall|ii: int, jj: int|
-                0 <= ii < i && 0 <= jj < polygon.model().len() ==> {
-                let next_ii = polygon_next_index(polygon.model().len() as int, ii);
+                0 <= ii < i && 0 <= jj < n as int ==> {
+                let next_ii = polygon_next_index(n as int, ii);
                 !orient2d_negative::<RationalModel>(
                     #[trigger] polygon.model()[ii], polygon.model()[next_ii],
                     #[trigger] polygon.model()[jj],
@@ -435,10 +408,10 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             },
             // Strict positivity for edges [0, i): non-adjacent vertices positive
             forall|ii: int, jj: int|
-                0 <= ii < i && 0 <= jj < polygon.model().len()
-                && jj != ii && jj != polygon_next_index(polygon.model().len() as int, ii)
+                0 <= ii < i && 0 <= jj < n as int
+                && jj != ii && jj != polygon_next_index(n as int, ii)
                 ==> {
-                let next_ii = polygon_next_index(polygon.model().len() as int, ii);
+                let next_ii = polygon_next_index(n as int, ii);
                 orient2d_positive::<RationalModel>(
                     #[trigger] polygon.model()[ii], polygon.model()[next_ii],
                     #[trigger] polygon.model()[jj],
@@ -550,8 +523,8 @@ pub fn is_locally_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             0 <= i <= n,
             polygon.wf_spec(),
             forall|k: int| 0 <= k < i ==> {
-                let j = polygon_next_index(polygon.model().len() as int, k);
-                let m = polygon_next_index(polygon.model().len() as int, j);
+                let j = polygon_next_index(n as int, k);
+                let m = polygon_next_index(n as int, j);
                 !orient2d_negative::<RationalModel>(
                     #[trigger] polygon.model()[k], polygon.model()[j], polygon.model()[m],
                 )
@@ -600,8 +573,8 @@ pub fn is_locally_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (ou
             0 <= i <= n,
             polygon.wf_spec(),
             forall|k: int| 0 <= k < i ==> {
-                let j = polygon_next_index(polygon.model().len() as int, k);
-                let m = polygon_next_index(polygon.model().len() as int, j);
+                let j = polygon_next_index(n as int, k);
+                let m = polygon_next_index(n as int, j);
                 orient2d_positive::<RationalModel>(
                     #[trigger] polygon.model()[k], polygon.model()[j], polygon.model()[m],
                 )

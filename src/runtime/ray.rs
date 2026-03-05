@@ -84,70 +84,64 @@ fn slab_t_far_exec(
 }
 
 // ---------------------------------------------------------------------------
-// 3D ray-AABB exec
+// 3D slab t_enter / t_exit helpers (extracted to reduce Z3 path explosion)
 // ---------------------------------------------------------------------------
 
-/// Ray-AABB intersection test (3D) at runtime.
-pub fn ray_hits_aabb3_exec(
+/// Compute t_enter = max(0, t_near for non-parallel axes) at runtime (3D).
+fn slab_t_enter_3d_exec(
     origin: &RuntimePoint3, dir: &RuntimePoint3,
     aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
-) -> (out: bool)
+) -> (out: RuntimeRational)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
-        out == ray_hits_aabb3::<RationalModel>(
+        out.wf_spec(),
+        out@ == slab_t_enter_3d::<RationalModel>(
             origin@,
             verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
             aabb_min@, aabb_max@,
         ),
 {
-    // Check parallel misses
-    if axis_parallel_miss_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x) {
-        return false;
-    }
-    if axis_parallel_miss_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y) {
-        return false;
-    }
-    if axis_parallel_miss_exec(&origin.z, &dir.z, &aabb_min.z, &aabb_max.z) {
-        return false;
-    }
-
-    // Compute t_enter = max(0, t_near for non-parallel axes)
     let zero = RuntimeRational::from_int(0);
-    let dir_x_zero = dir.x.eq(&zero);
-    let dir_y_zero = dir.y.eq(&zero);
-    let dir_z_zero = dir.z.eq(&zero);
-
-    // t_enter starts at 0
-    let mut t_enter = RuntimeRational::from_int(0);
-
-    if !dir_x_zero {
+    let mut t = RuntimeRational::from_int(0);
+    if !dir.x.eq(&zero) {
         let tn = slab_t_near_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
-        if !tn.le(&t_enter) {
-            t_enter = tn;
-        }
+        if !tn.le(&t) { t = tn; }
     }
-    if !dir_y_zero {
+    if !dir.y.eq(&zero) {
         let tn = slab_t_near_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
-        if !tn.le(&t_enter) {
-            t_enter = tn;
-        }
+        if !tn.le(&t) { t = tn; }
     }
-    if !dir_z_zero {
+    if !dir.z.eq(&zero) {
         let tn = slab_t_near_exec(&origin.z, &dir.z, &aabb_min.z, &aabb_max.z);
-        if !tn.le(&t_enter) {
-            t_enter = tn;
-        }
+        if !tn.le(&t) { t = tn; }
     }
+    t
+}
 
-    // t_exit = min(t_far for non-parallel axes)
-    // Need to handle: which axes are non-parallel?
-    let has_x = !dir_x_zero;
-    let has_y = !dir_y_zero;
-    let has_z = !dir_z_zero;
+/// Compute t_exit = min(t_far for non-parallel axes) at runtime (3D).
+fn slab_t_exit_3d_exec(
+    origin: &RuntimePoint3, dir: &RuntimePoint3,
+    aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
+) -> (out: RuntimeRational)
+    requires
+        origin.wf_spec(), dir.wf_spec(),
+        aabb_min.wf_spec(), aabb_max.wf_spec(),
+    ensures
+        out.wf_spec(),
+        out@ == slab_t_exit_3d::<RationalModel>(
+            origin@,
+            verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
+            aabb_min@, aabb_max@,
+        ),
+{
+    let zero = RuntimeRational::from_int(0);
+    let has_x = !dir.x.eq(&zero);
+    let has_y = !dir.y.eq(&zero);
+    let has_z = !dir.z.eq(&zero);
 
-    let t_exit = if has_x && has_y && has_z {
+    if has_x && has_y && has_z {
         let tf_x = slab_t_far_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
         let tf_y = slab_t_far_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
         let tf_z = slab_t_far_exec(&origin.z, &dir.z, &aabb_min.z, &aabb_max.z);
@@ -173,11 +167,108 @@ pub fn ray_hits_aabb3_exec(
     } else if has_z {
         slab_t_far_exec(&origin.z, &dir.z, &aabb_min.z, &aabb_max.z)
     } else {
-        // All parallel, origin in box → hit at t=0
         RuntimeRational::from_int(0)
-    };
+    }
+}
 
+// ---------------------------------------------------------------------------
+// 3D ray-AABB exec
+// ---------------------------------------------------------------------------
+
+/// Ray-AABB intersection test (3D) at runtime.
+pub fn ray_hits_aabb3_exec(
+    origin: &RuntimePoint3, dir: &RuntimePoint3,
+    aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
+) -> (out: bool)
+    requires
+        origin.wf_spec(), dir.wf_spec(),
+        aabb_min.wf_spec(), aabb_max.wf_spec(),
+    ensures
+        out == ray_hits_aabb3::<RationalModel>(
+            origin@,
+            verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
+            aabb_min@, aabb_max@,
+        ),
+{
+    if axis_parallel_miss_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x) {
+        return false;
+    }
+    if axis_parallel_miss_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y) {
+        return false;
+    }
+    if axis_parallel_miss_exec(&origin.z, &dir.z, &aabb_min.z, &aabb_max.z) {
+        return false;
+    }
+
+    let t_enter = slab_t_enter_3d_exec(origin, dir, aabb_min, aabb_max);
+    let t_exit = slab_t_exit_3d_exec(origin, dir, aabb_min, aabb_max);
     t_enter.le(&t_exit)
+}
+
+// ---------------------------------------------------------------------------
+// 2D slab t_enter / t_exit helpers
+// ---------------------------------------------------------------------------
+
+/// Compute t_enter = max(0, t_near for non-parallel axes) at runtime (2D).
+fn slab_t_enter_2d_exec(
+    origin: &RuntimePoint2, dir: &RuntimePoint2,
+    aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
+) -> (out: RuntimeRational)
+    requires
+        origin.wf_spec(), dir.wf_spec(),
+        aabb_min.wf_spec(), aabb_max.wf_spec(),
+    ensures
+        out.wf_spec(),
+        out@ == slab_t_enter_2d::<RationalModel>(
+            origin@,
+            verus_linalg::vec2::Vec2 { x: dir@.x, y: dir@.y },
+            aabb_min@, aabb_max@,
+        ),
+{
+    let zero = RuntimeRational::from_int(0);
+    let mut t = RuntimeRational::from_int(0);
+    if !dir.x.eq(&zero) {
+        let tn = slab_t_near_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
+        if !tn.le(&t) { t = tn; }
+    }
+    if !dir.y.eq(&zero) {
+        let tn = slab_t_near_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
+        if !tn.le(&t) { t = tn; }
+    }
+    t
+}
+
+/// Compute t_exit = min(t_far for non-parallel axes) at runtime (2D).
+fn slab_t_exit_2d_exec(
+    origin: &RuntimePoint2, dir: &RuntimePoint2,
+    aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
+) -> (out: RuntimeRational)
+    requires
+        origin.wf_spec(), dir.wf_spec(),
+        aabb_min.wf_spec(), aabb_max.wf_spec(),
+    ensures
+        out.wf_spec(),
+        out@ == slab_t_exit_2d::<RationalModel>(
+            origin@,
+            verus_linalg::vec2::Vec2 { x: dir@.x, y: dir@.y },
+            aabb_min@, aabb_max@,
+        ),
+{
+    let zero = RuntimeRational::from_int(0);
+    let has_x = !dir.x.eq(&zero);
+    let has_y = !dir.y.eq(&zero);
+
+    if has_x && has_y {
+        let tf_x = slab_t_far_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
+        let tf_y = slab_t_far_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
+        if tf_y.le(&tf_x) { tf_y } else { tf_x }
+    } else if has_x {
+        slab_t_far_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x)
+    } else if has_y {
+        slab_t_far_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y)
+    } else {
+        RuntimeRational::from_int(0)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -206,41 +297,8 @@ pub fn ray_hits_aabb2_exec(
         return false;
     }
 
-    let zero = RuntimeRational::from_int(0);
-    let dir_x_zero = dir.x.eq(&zero);
-    let dir_y_zero = dir.y.eq(&zero);
-
-    let has_x = !dir_x_zero;
-    let has_y = !dir_y_zero;
-
-    // t_enter = max(0, t_nears)
-    let mut t_enter = RuntimeRational::from_int(0);
-    if has_x {
-        let tn = slab_t_near_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
-        if !tn.le(&t_enter) {
-            t_enter = tn;
-        }
-    }
-    if has_y {
-        let tn = slab_t_near_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
-        if !tn.le(&t_enter) {
-            t_enter = tn;
-        }
-    }
-
-    // t_exit = min(t_fars)
-    let t_exit = if has_x && has_y {
-        let tf_x = slab_t_far_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x);
-        let tf_y = slab_t_far_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y);
-        if tf_y.le(&tf_x) { tf_y } else { tf_x }
-    } else if has_x {
-        slab_t_far_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x)
-    } else if has_y {
-        slab_t_far_exec(&origin.y, &dir.y, &aabb_min.y, &aabb_max.y)
-    } else {
-        RuntimeRational::from_int(0)
-    };
-
+    let t_enter = slab_t_enter_2d_exec(origin, dir, aabb_min, aabb_max);
+    let t_exit = slab_t_exit_2d_exec(origin, dir, aabb_min, aabb_max);
     t_enter.le(&t_exit)
 }
 
