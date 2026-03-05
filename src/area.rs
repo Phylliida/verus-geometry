@@ -1,6 +1,7 @@
 use vstd::prelude::*;
 use verus_algebra::traits::*;
 use verus_algebra::lemmas::additive_group_lemmas;
+use verus_algebra::lemmas::ordered_ring_lemmas;
 use verus_linalg::vec2::Vec2;
 use crate::point2::*;
 use crate::orient2d::*;
@@ -237,23 +238,23 @@ pub proof fn lemma_triangle_area_orient2d_sign<T: OrderedRing>(
     // 0 < sa <==> 0 < orient2d
     if z.lt(sa) {
         // a=z, c=z, b=sa, d=o: z<sa, z≡z, sa≡o → z<o
-        crate::intersection3d::lemma_lt_congruence_both::<T>(z, z, sa, o);
+        ordered_ring_lemmas::lemma_lt_congruence_both::<T>(z, z, sa, o);
     }
     if z.lt(o) {
         T::axiom_eqv_symmetric(sa, o);
         // a=z, c=z, b=o, d=sa: z<o, z≡z, o≡sa → z<sa
-        crate::intersection3d::lemma_lt_congruence_both::<T>(z, z, o, sa);
+        ordered_ring_lemmas::lemma_lt_congruence_both::<T>(z, z, o, sa);
     }
 
     // sa < 0 <==> orient2d < 0
     if sa.lt(z) {
         // a=sa, c=o, b=z, d=z: sa<z, sa≡o, z≡z → o<z
-        crate::intersection3d::lemma_lt_congruence_both::<T>(sa, o, z, z);
+        ordered_ring_lemmas::lemma_lt_congruence_both::<T>(sa, o, z, z);
     }
     if o.lt(z) {
         T::axiom_eqv_symmetric(sa, o);
         // a=o, c=sa, b=z, d=z: o<z, o≡sa, z≡z → sa<z
-        crate::intersection3d::lemma_lt_congruence_both::<T>(o, sa, z, z);
+        ordered_ring_lemmas::lemma_lt_congruence_both::<T>(o, sa, z, z);
     }
 }
 

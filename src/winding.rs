@@ -298,4 +298,49 @@ pub proof fn lemma_winding_zero_below<T: OrderedRing>(
     lemma_winding_prefix_zero_below::<T>(q, polygon, polygon.len() as int);
 }
 
+// ---------------------------------------------------------------------------
+// Winding number bounded
+// ---------------------------------------------------------------------------
+
+/// Each edge contributes -1, 0, or +1 to the winding number.
+pub proof fn lemma_winding_edge_bounded<T: OrderedRing>(
+    q: Point2<T>, p0: Point2<T>, p1: Point2<T>,
+)
+    ensures
+        -1 <= winding_edge(q, p0, p1) <= 1,
+{
+    // Direct from definition (three branches: 1, -1, 0)
+}
+
+/// The winding prefix sum is bounded: |prefix(k)| ≤ k.
+proof fn lemma_winding_prefix_bounded<T: OrderedRing>(
+    q: Point2<T>, polygon: Seq<Point2<T>>, k: int,
+)
+    requires
+        polygon.len() >= 3,
+        0 <= k <= polygon.len(),
+    ensures
+        -k <= winding_number_prefix(q, polygon, k) <= k,
+    decreases k,
+{
+    if k > 0 {
+        lemma_winding_prefix_bounded::<T>(q, polygon, k - 1);
+        let idx = k - 1;
+        let j = polygon_next_index(polygon.len() as int, idx);
+        lemma_winding_edge_bounded::<T>(q, polygon[idx], polygon[j]);
+    }
+}
+
+/// The winding number is bounded by the number of polygon edges.
+pub proof fn lemma_winding_number_bounded<T: OrderedRing>(
+    q: Point2<T>, polygon: Seq<Point2<T>>,
+)
+    requires
+        polygon.len() >= 3,
+    ensures
+        -(polygon.len() as int) <= winding_number(q, polygon) <= (polygon.len() as int),
+{
+    lemma_winding_prefix_bounded::<T>(q, polygon, polygon.len() as int);
+}
+
 } // verus!

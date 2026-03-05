@@ -1004,4 +1004,61 @@ pub proof fn lemma_incircle2d_sign_cyclic_cab<T: OrderedRing>(
     );
 }
 
+/// Swapping a and b reverses the incircle sign classification.
+pub proof fn lemma_incircle2d_sign_swap_ab<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d_sign(b, a, c, d) == match incircle2d_sign(a, b, c, d) {
+            OrientationSign::Positive => OrientationSign::Negative,
+            OrientationSign::Negative => OrientationSign::Positive,
+            OrientationSign::Zero => OrientationSign::Zero,
+        },
+{
+    lemma_incircle2d_swap_ab::<T>(a, b, c, d);
+    crate::orientation_sign::lemma_neg_flips_sign::<T>(
+        incircle2d(b, a, c, d), incircle2d(a, b, c, d),
+    );
+    lemma_incircle2d_sign_matches::<T>(a, b, c, d);
+    lemma_incircle2d_sign_matches::<T>(b, a, c, d);
+}
+
+/// Swapping b and c reverses the incircle sign classification.
+pub proof fn lemma_incircle2d_sign_swap_bc<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d_sign(a, c, b, d) == match incircle2d_sign(a, b, c, d) {
+            OrientationSign::Positive => OrientationSign::Negative,
+            OrientationSign::Negative => OrientationSign::Positive,
+            OrientationSign::Zero => OrientationSign::Zero,
+        },
+{
+    lemma_incircle2d_swap_bc::<T>(a, b, c, d);
+    crate::orientation_sign::lemma_neg_flips_sign::<T>(
+        incircle2d(a, c, b, d), incircle2d(a, b, c, d),
+    );
+    lemma_incircle2d_sign_matches::<T>(a, b, c, d);
+    lemma_incircle2d_sign_matches::<T>(a, c, b, d);
+}
+
+/// Swapping a and c reverses the incircle sign classification.
+pub proof fn lemma_incircle2d_sign_swap_ac<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d_sign(c, b, a, d) == match incircle2d_sign(a, b, c, d) {
+            OrientationSign::Positive => OrientationSign::Negative,
+            OrientationSign::Negative => OrientationSign::Positive,
+            OrientationSign::Zero => OrientationSign::Zero,
+        },
+{
+    lemma_incircle2d_swap_ac::<T>(a, b, c, d);
+    crate::orientation_sign::lemma_neg_flips_sign::<T>(
+        incircle2d(c, b, a, d), incircle2d(a, b, c, d),
+    );
+    lemma_incircle2d_sign_matches::<T>(a, b, c, d);
+    lemma_incircle2d_sign_matches::<T>(c, b, a, d);
+}
+
 } // verus!
