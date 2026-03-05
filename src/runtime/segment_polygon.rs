@@ -86,11 +86,6 @@ pub fn segment_overlaps_convex_polygon_exec(
         let vj = polygon.get(j);
         let kind = segment_intersection_kind_2d_exec(seg_start, seg_end, vi, vj);
 
-        proof {
-            assert(polygon.model()[i as int] == polygon.vertices@[i as int]@);
-            assert(polygon.model()[j as int] == polygon.vertices@[j as int]@);
-        }
-
         let not_disjoint = !is_disjoint(&kind);
         if not_disjoint {
             has_hit = true;
