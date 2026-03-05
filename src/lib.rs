@@ -46,4 +46,25 @@ pub mod barycentric;
 #[cfg(verus_keep_ghost)]
 pub mod segment_distance;
 
+#[cfg(verus_keep_ghost)]
+pub mod incircle;
+
+#[cfg(verus_keep_ghost)]
+pub mod area;
+
+#[cfg(verus_keep_ghost)]
+pub mod winding;
+
+#[cfg(verus_keep_ghost)]
+pub mod closest_point;
+
+#[cfg(verus_keep_ghost)]
+pub mod ray;
+
+#[cfg(verus_keep_ghost)]
+pub mod triangle_distance;
+
+#[cfg(verus_keep_ghost)]
+pub mod ray_triangle;
+
 pub mod runtime;

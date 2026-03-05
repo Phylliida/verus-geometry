@@ -612,6 +612,18 @@ pub proof fn lemma_orient2d_swap_bc<T: Ring>(a: Point2<T>, b: Point2<T>, c: Poin
     // So: orient2d(a,c,b) ≡ -orient2d(a,b,c) ✓
 }
 
+/// orient2d(b, a, c) ≡ -orient2d(a, b, c)
+pub proof fn lemma_orient2d_swap_ab<T: Ring>(a: Point2<T>, b: Point2<T>, c: Point2<T>)
+    ensures
+        orient2d(b, a, c).eqv(orient2d(a, b, c).neg()),
+{
+    // orient2d(b, a, c) ≡ orient2d(a, c, b) via cyclic(b, a, c)
+    lemma_orient2d_cyclic::<T>(b, a, c);
+    // orient2d(a, c, b) ≡ -orient2d(a, b, c) via swap_bc
+    lemma_orient2d_swap_bc::<T>(a, b, c);
+    T::axiom_eqv_transitive(orient2d(b, a, c), orient2d(a, c, b), orient2d(a, b, c).neg());
+}
+
 /// orient2d(a, a, c) ≡ 0
 pub proof fn lemma_orient2d_degenerate_ab<T: Ring>(a: Point2<T>, c: Point2<T>)
     ensures

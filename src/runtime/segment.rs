@@ -8,7 +8,7 @@ use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
 use super::RationalModel;
 #[cfg(verus_keep_ghost)]
-use super::point2::RuntimePoint2;
+use super::point2::{RuntimePoint2, RuntimeVec2, sub2_exec, add_vec2_exec};
 #[cfg(verus_keep_ghost)]
 use super::orient::orient2d_exec;
 #[cfg(verus_keep_ghost)]
@@ -203,6 +203,106 @@ pub fn segment_intersection_kind_2d_exec(
     } else {
         SegmentIntersection2dKind::Disjoint
     }
+}
+
+// ---------------------------------------------------------------------------
+// 2D segment intersection parameter & point (Proper case)
+// ---------------------------------------------------------------------------
+
+/// Intersection parameter t on AB: t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))
+pub fn segment_intersection_parameter_2d_exec(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: RuntimeRational)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+            == SegmentIntersection2dKind::Proper,
+    ensures
+        out.wf_spec(),
+        out@ == segment_intersection_parameter_2d::<RationalModel>(a@, b@, c@, d@),
+{
+    let o3 = orient2d_exec(c, d, a);
+    let o4 = orient2d_exec(c, d, b);
+    let neg_o4 = o4.neg();
+    let denom = o3.add(&neg_o4);
+    proof {
+        lemma_proper_denominator_nonzero_2d::<RationalModel>(a@, b@, c@, d@);
+    }
+    o3.div(&denom)
+}
+
+/// Intersection point on AB: a + t * (b - a)
+pub fn segment_intersection_point_2d_exec(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: RuntimePoint2)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+            == SegmentIntersection2dKind::Proper,
+    ensures
+        out.wf_spec(),
+        out@ == segment_intersection_point_2d::<RationalModel>(a@, b@, c@, d@),
+{
+    let t = segment_intersection_parameter_2d_exec(a, b, c, d);
+    let dir = sub2_exec(b, a);
+    let tv = RuntimeVec2::scale_exec(&t, &dir);
+    add_vec2_exec(a, &tv)
+}
+
+/// Intersection parameter s on CD: s = orient2d(a,b,c) / (orient2d(a,b,c) - orient2d(a,b,d))
+pub fn segment_intersection_parameter_cd_2d_exec(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: RuntimeRational)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+            == SegmentIntersection2dKind::Proper,
+    ensures
+        out.wf_spec(),
+        out@ == segment_intersection_parameter_cd_2d::<RationalModel>(a@, b@, c@, d@),
+{
+    let o1 = orient2d_exec(a, b, c);
+    let o2 = orient2d_exec(a, b, d);
+    let neg_o2 = o2.neg();
+    let denom = o1.add(&neg_o2);
+    proof {
+        lemma_proper_cd_denominator_nonzero_2d::<RationalModel>(a@, b@, c@, d@);
+    }
+    o1.div(&denom)
+}
+
+/// Intersection point on CD: c + s * (d - c)
+pub fn segment_intersection_point_cd_2d_exec(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: RuntimePoint2)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+            == SegmentIntersection2dKind::Proper,
+    ensures
+        out.wf_spec(),
+        out@ == segment_intersection_point_cd_2d::<RationalModel>(a@, b@, c@, d@),
+{
+    let s = segment_intersection_parameter_cd_2d_exec(a, b, c, d);
+    let dir = sub2_exec(d, c);
+    let sv = RuntimeVec2::scale_exec(&s, &dir);
+    add_vec2_exec(c, &sv)
 }
 
 } // verus!

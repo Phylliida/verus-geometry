@@ -418,6 +418,25 @@ pub proof fn lemma_orient2d_sign_swap_bc<T: OrderedRing>(
     lemma_orient2d_sign_matches::<T>(a, c, b);
 }
 
+/// Swapping a, b reverses the 2D orientation sign.
+pub proof fn lemma_orient2d_sign_swap_ab<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+)
+    ensures
+        orient2d_sign(b, a, c) == match orient2d_sign(a, b, c) {
+            OrientationSign::Positive => OrientationSign::Negative,
+            OrientationSign::Negative => OrientationSign::Positive,
+            OrientationSign::Zero => OrientationSign::Zero,
+        },
+{
+    lemma_orient2d_swap_ab::<T>(a, b, c);
+    let val = orient2d(a, b, c);
+    let swapped = orient2d(b, a, c);
+    lemma_neg_flips_sign::<T>(swapped, val);
+    lemma_orient2d_sign_matches::<T>(a, b, c);
+    lemma_orient2d_sign_matches::<T>(b, a, c);
+}
+
 /// Swapping c, d reverses the 3D orientation sign.
 pub proof fn lemma_orient3d_sign_swap_cd<T: OrderedRing>(
     a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>,

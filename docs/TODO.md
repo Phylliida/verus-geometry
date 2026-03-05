@@ -19,7 +19,7 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 
 ## What we have now
 
-262 verified items, 0 errors, 0 assumes/admits.
+291 verified items, 0 errors, 0 assumes/admits.
 
 | Module | Contents | Status |
 |---|---|---|
@@ -39,6 +39,9 @@ verus-algebra (Ring, OrderedRing, Field traits + lemmas)
 | `aabb.rs` | `point_in_aabb2/3`, `aabb2/3_separated` specs, separation-implies-no-common-point lemmas (2D & 3D) | Done |
 | `barycentric.rs` | Barycentric coordinate specs (unnormalized & normalized), orient2d repeated_ac, vertex-sum lemmas (a, b, c) | Done |
 | `segment_distance.rs` | Line-line closest approach specs + perpendicularity proof: `gram_entries`, `gram_determinant`, `closest_parameter_s/t`, `line_line_squared_distance`, `lemma_closest_points_perpendicular` | Done |
+| `incircle.rs` | Incircle2d predicate: `incircle2d`, `incircle2d_sign`, positive/negative/cocircular predicates, degenerate + trichotomy + sign lemmas | Done |
+| `area.rs` | Signed polygon area (shoelace): `cross_origin`, `signed_area_2x_prefix`, `signed_area_2x`, det2d bridge + prefix unfold lemmas | Done |
+| `winding.rs` | Winding number point-in-polygon: `winding_edge`, `winding_number`, `point_in_polygon`, prefix unfold lemma | Done |
 
 Everything is generic over `T: Ring` — no concrete numeric types.
 
@@ -409,3 +412,177 @@ Enforced by `--forbid-trusted-escapes` in CI.
 
 **M1 is needed first** — verus-topology's geometric validation layer depends
 on collinearity and coplanarity. **M3 is the big one** for boolean operations.
+
+---
+
+## Phase 9 — Next-generation predicates & proofs
+
+### 9.1 Runtime 2D segment intersection point (OrderedField)
+
+The spec `segment_intersection_point_2d` and `segment_intersection_parameter_2d` exist,
+but there is no exec function to compute them at runtime. Classification-only is
+insufficient for CSG/clipping — we need the actual intersection coordinates.
+
+- [x] `segment_intersection_parameter_2d_exec(a, b, c, d) -> RuntimeRational`
+      — ensures `out@ == segment_intersection_parameter_2d(a@, b@, c@, d@)`
+      — requires: proper intersection (denominator nonzero)
+- [x] `segment_intersection_point_2d_exec(a, b, c, d) -> RuntimePoint2`
+      — ensures `out@ == segment_intersection_point_2d(a@, b@, c@, d@)`
+      — computes `a + t * (b - a)` at runtime
+- [x] `segment_intersection_parameter_cd_2d_exec` — the CD-side parameter (needed for overlap queries)
+- [x] `segment_intersection_point_cd_2d_exec` — intersection point on CD
+
+### 9.2 Incircle predicate (2D Delaunay)
+
+The companion to orient2d for Delaunay triangulation. Tests whether point d lies
+inside the circumcircle of triangle (a, b, c). This is a 3×3 determinant of the
+"lifted" coordinates — no mat4x4 needed.
+
+```
+spec fn incircle2d<T: OrderedRing>(a, b, c, d: Point2<T>) -> T {
+    // | ax-dx  ay-dy  (ax-dx)²+(ay-dy)² |
+    // | bx-dx  by-dy  (bx-dx)²+(by-dy)² |
+    // | cx-dx  cy-dy  (cx-dx)²+(cy-dy)² |
+    det3_lifted(a - d, b - d, c - d)
+}
+```
+
+- [x] `incircle2d` spec (Ring-valued, sign gives inside/outside/on)
+- [x] `incircle2d_sign` spec (OrderedRing → OrientationSign)
+- [x] `incircle2d_positive/negative/cocircular` predicates
+- [x] Lemma: degenerate when d coincides with a, b, or c (gives zero)
+- [x] Lemma: trichotomy — exactly one of {positive, negative, cocircular} holds
+- [x] Lemma: sign classification matches predicates
+- [x] `incircle2d_sign_exec` — runtime sign classification
+- [x] `incircle2d_compute` — runtime determinant computation
+- [ ] Lemma: sign reverses under swap of any two of {a, b, c} (antisymmetry)
+- [ ] Lemma: sign invariance under uniform translation
+- [ ] Lemma: relation to orient2d — positive incircle when orient2d(a,b,c) > 0 means d is inside CCW circle
+
+### 9.3 Signed polygon area
+
+`signed_area(P) = (1/2) * Σ orient2d(origin, P[i], P[i+1])`. This is the fundamental
+area computation and links orientation to magnitude.
+
+For spec purposes we use the unnormalized (2×area) form to stay in Ring:
+
+```
+spec fn double_signed_area<T: Ring>(polygon: Seq<Point2<T>>) -> T {
+    // sum of orient2d(zero, polygon[i], polygon[next(i)]) for all i
+}
+```
+
+- [x] `cross_origin` spec — shoelace term for two points
+- [x] `signed_area_2x_prefix` spec — recursive prefix sum
+- [x] `signed_area_2x` spec (Ring — no division needed)
+- [x] `signed_area_2x_exec` for RuntimePolygon2
+- [x] `lemma_cross_origin_is_det2d` — relates cross_origin to det2d
+- [x] `lemma_prefix_unfold` — prefix sum step
+- [ ] Lemma: triangle area equals orient2d(a, b, c) (3-vertex special case — needs ~30 algebraic steps)
+- [ ] Lemma: reversing polygon negates area (orientation flip)
+- [ ] Lemma: area-orientation consistency — for a convex polygon,
+      `polygon_has_positive_sign ⟹ signed_area_2x positive` (and vice versa)
+- [ ] Lemma: translation invariance — translating all vertices preserves area
+
+### 9.4 General point-in-polygon (winding number)
+
+For non-convex polygons. The winding number approach counts signed crossings
+of a ray from p to infinity against polygon edges.
+
+```
+spec fn winding_number<T: OrderedRing>(p: Point2<T>, polygon: Seq<Point2<T>>) -> int
+spec fn point_in_polygon<T: OrderedRing>(p: Point2<T>, polygon: Seq<Point2<T>>) -> bool {
+    winding_number(p, polygon) != 0
+}
+```
+
+- [x] `winding_edge` spec — +1 if upward left-crossing, -1 if downward right-crossing, 0 otherwise
+- [x] `winding_number_prefix` spec — recursive prefix sum
+- [x] `winding_number` spec — sum of edge crossing signs
+- [x] `point_in_polygon` / `point_outside_polygon` specs — nonzero/zero winding number
+- [x] `lemma_winding_prefix_unfold` — prefix sum step
+- [x] `winding_edge_exec` — runtime edge contribution
+- [x] `winding_number_exec` — runtime winding number with overflow bounds
+- [x] `point_in_polygon_exec` — runtime point-in-polygon test
+- [ ] Lemma: for convex polygon, `point_in_polygon ⟺ point_in_convex_polygon_boundary_inclusive`
+      (connects general and convex-specific predicates)
+- [ ] Lemma: winding number is invariant under cyclic vertex permutation
+- [ ] Lemma: point outside AABB has winding number 0 (connects to broad-phase)
+
+### 9.5 Ray-AABB intersection
+
+BVH traversal primitive. Tests whether a ray from origin+direction intersects an AABB.
+Uses slab method (interval intersection per axis).
+
+- [ ] `ray_intersects_aabb2` spec (OrderedField — needs division for slab bounds)
+- [ ] `ray_intersects_aabb3` spec
+- [ ] Lemma: if AABB is separated from ray origin's AABB, result is consistent
+- [ ] `ray_intersects_aabb2_exec`, `ray_intersects_aabb3_exec`
+
+### 9.6 Point-segment distance (clamped)
+
+Closest point on a segment (not the infinite line). Needed for proximity queries.
+
+- [ ] `closest_point_on_segment_2d` spec (OrderedField — clamp parameter to [0,1])
+- [ ] `closest_point_on_segment_3d` spec
+- [ ] `squared_distance_point_segment_2d/3d` spec
+- [ ] Lemma: closest point lies on segment (parameter in [0,1])
+- [ ] Lemma: closest point minimizes distance (dot-product optimality condition)
+- [ ] Exec functions for 2D and 3D
+
+### 9.7 Point-triangle distance (3D) — Voronoi region classification
+
+Classifies the closest feature (vertex/edge/face) and computes squared distance.
+
+- [ ] `triangle_voronoi_region` spec — which region the projection falls in
+- [ ] `closest_point_on_triangle_3d` spec
+- [ ] `squared_distance_point_triangle_3d` spec
+- [ ] Lemma: closest point is on the triangle
+- [ ] Exec functions
+
+### 9.8 Ray-triangle intersection (Möller-Trumbore)
+
+Extends segment-triangle to rays. Critical for picking and visibility.
+
+- [ ] `ray_triangle_parameter` spec (OrderedField)
+- [ ] `ray_triangle_intersects` spec — parameter ≥ 0 and barycentric coords in-bounds
+- [ ] Lemma: intersection point lies on both ray and triangle plane
+- [ ] Lemma: barycentric coords of intersection are non-negative and sum to 1
+- [ ] Exec functions
+
+### 9.9 Triangle-triangle intersection (3D) — deferred until mat4x4 done
+
+Core primitive for mesh boolean operations. Uses orient3d to classify each
+triangle's vertices against the other's plane, then computes the intersection
+segment.
+
+- [ ] `triangle_triangle_intersects` spec
+- [ ] Lemma: if both triangles are on the same plane, reduce to 2D overlap
+- [ ] Lemma: general case — intersection is a segment (or empty/point)
+- [ ] Exec functions
+
+### 9.10 Insphere predicate (3D Delaunay) — deferred until mat4x4 done
+
+4×4 determinant testing whether point e lies inside the circumsphere of
+tetrahedron (a, b, c, d). Analogous to incircle but one dimension up.
+
+- [ ] `insphere3d` spec
+- [ ] Sign classification + antisymmetry lemmas
+- [ ] Exec function
+
+---
+
+## Priority order for Phase 9
+
+| Priority | Item | Effort | Unlocks |
+|---|---|---|---|
+| **P0** | 9.1 Runtime intersection point | Small | CSG, clipping, any intersection computation |
+| **P1** | 9.2 Incircle | Medium | Delaunay triangulation |
+| **P2** | 9.3 Signed area | Small-Medium | Polygon validity, orientation checks |
+| **P3** | 9.4 General point-in-polygon | Medium | Non-convex polygon workflows |
+| **P4** | 9.5 Ray-AABB | Small | BVH traversal |
+| **P5** | 9.6 Point-segment distance | Small-Medium | Proximity queries |
+| **P6** | 9.7 Point-triangle distance | Medium | Collision detection, mesh repair |
+| **P7** | 9.8 Ray-triangle | Medium | Picking, visibility |
+| **P8** | 9.9 Triangle-triangle | Hard | Mesh booleans (needs mat4x4) |
+| **P9** | 9.10 Insphere | Medium | 3D Delaunay (needs mat4x4) |
