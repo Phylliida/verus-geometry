@@ -458,4 +458,116 @@ pub proof fn lemma_incircle2d_sign_matches<T: OrderedRing>(
     }
 }
 
+// =========================================================================
+// Lift congruence helper
+// =========================================================================
+
+/// If p and q are component-wise equivalent, lift(p) ≡ lift(q).
+proof fn lemma_lift_congruence<T: Ring>(p: Vec2<T>, q: Vec2<T>)
+    requires
+        p.x.eqv(q.x),
+        p.y.eqv(q.y),
+    ensures
+        lift(p).eqv(lift(q)),
+{
+    // p.x*p.x ≡ q.x*q.x
+    ring_lemmas::lemma_mul_congruence::<T>(p.x, q.x, p.x, q.x);
+    // p.y*p.y ≡ q.y*q.y
+    ring_lemmas::lemma_mul_congruence::<T>(p.y, q.y, p.y, q.y);
+    // sum ≡ sum
+    T::axiom_add_congruence_left(p.x.mul(p.x), q.x.mul(q.x), p.y.mul(p.y));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        q.x.mul(q.x), p.y.mul(p.y), q.y.mul(q.y),
+    );
+    T::axiom_eqv_transitive(
+        p.x.mul(p.x).add(p.y.mul(p.y)),
+        q.x.mul(q.x).add(p.y.mul(p.y)),
+        q.x.mul(q.x).add(q.y.mul(q.y)),
+    );
+}
+
+// =========================================================================
+// Translation invariance
+// =========================================================================
+
+/// Incircle2d is invariant under uniform translation of all four points.
+///
+/// This follows because incircle2d only depends on pairwise differences
+/// sub2(a, d), sub2(b, d), sub2(c, d), and translation cancels in differences.
+pub proof fn lemma_incircle2d_translation<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+    v: Vec2<T>,
+)
+    ensures
+        incircle2d(add_vec2(a, v), add_vec2(b, v), add_vec2(c, v), add_vec2(d, v))
+            .eqv(incircle2d(a, b, c, d)),
+{
+    let a2 = add_vec2(a, v);
+    let b2 = add_vec2(b, v);
+    let c2 = add_vec2(c, v);
+    let d2 = add_vec2(d, v);
+
+    // Difference vectors are equivalent after translation
+    lemma_sub2_translation::<T>(d, a, v); // sub2(a+v, d+v) .eqv. sub2(a, d)
+    lemma_sub2_translation::<T>(d, b, v); // sub2(b+v, d+v) .eqv. sub2(b, d)
+    lemma_sub2_translation::<T>(d, c, v); // sub2(c+v, d+v) .eqv. sub2(c, d)
+
+    let p2 = sub2(a2, d2);
+    let q2 = sub2(b2, d2);
+    let r2 = sub2(c2, d2);
+    let p = sub2(a, d);
+    let q = sub2(b, d);
+    let r = sub2(c, d);
+
+    // Component-wise equivalences (from Vec2::eqv being component-wise)
+    // p2.eqv(p) means p2.x.eqv(p.x) && p2.y.eqv(p.y)
+
+    // Lift congruence
+    lemma_lift_congruence::<T>(p2, p);
+    lemma_lift_congruence::<T>(q2, q);
+    lemma_lift_congruence::<T>(r2, r);
+
+    let pw2 = lift(p2);
+    let qw2 = lift(q2);
+    let rw2 = lift(r2);
+    let pw = lift(p);
+    let qw = lift(q);
+    let rw = lift(r);
+
+    // Det2d congruence
+    lemma_det2d_congruence::<T>(q2, q, r2, r);  // det2d(q2,r2) ≡ det2d(q,r)
+    lemma_det2d_congruence::<T>(p2, p, r2, r);  // det2d(p2,r2) ≡ det2d(p,r)
+    lemma_det2d_congruence::<T>(p2, p, q2, q);  // det2d(p2,q2) ≡ det2d(p,q)
+
+    // Product congruence: pw2*det2d(q2,r2) ≡ pw*det2d(q,r)
+    ring_lemmas::lemma_mul_congruence::<T>(pw2, pw, det2d(q2, r2), det2d(q, r));
+    // qw2*det2d(p2,r2) ≡ qw*det2d(p,r)
+    ring_lemmas::lemma_mul_congruence::<T>(qw2, qw, det2d(p2, r2), det2d(p, r));
+    // rw2*det2d(p2,q2) ≡ rw*det2d(p,q)
+    ring_lemmas::lemma_mul_congruence::<T>(rw2, rw, det2d(p2, q2), det2d(p, q));
+
+    // Combine: (pw2*D1 - qw2*D2) ≡ (pw*D1 - qw*D2)
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        pw2.mul(det2d(q2, r2)), pw.mul(det2d(q, r)),
+        qw2.mul(det2d(p2, r2)), qw.mul(det2d(p, r)),
+    );
+
+    // Final: (...) + rw2*D3 ≡ (...) + rw*D3
+    T::axiom_add_congruence_left(
+        pw2.mul(det2d(q2, r2)).sub(qw2.mul(det2d(p2, r2))),
+        pw.mul(det2d(q, r)).sub(qw.mul(det2d(p, r))),
+        rw2.mul(det2d(p2, q2)),
+    );
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        pw.mul(det2d(q, r)).sub(qw.mul(det2d(p, r))),
+        rw2.mul(det2d(p2, q2)),
+        rw.mul(det2d(p, q)),
+    );
+    T::axiom_eqv_transitive(
+        pw2.mul(det2d(q2, r2)).sub(qw2.mul(det2d(p2, r2))).add(rw2.mul(det2d(p2, q2))),
+        pw.mul(det2d(q, r)).sub(qw.mul(det2d(p, r))).add(rw2.mul(det2d(p2, q2))),
+        pw.mul(det2d(q, r)).sub(qw.mul(det2d(p, r))).add(rw.mul(det2d(p, q))),
+    );
+}
+
 } // verus!
