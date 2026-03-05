@@ -465,26 +465,6 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                 vnext.wf_spec(),
                 vi@ == polygon.model()[i as int],
                 vnext@ == polygon.model()[next_i as int],
-                // Outer: edges [0, i) all vertices non-negative
-                forall|ii: int, jj: int|
-                    0 <= ii < i && 0 <= jj < polygon.model().len() ==> {
-                    let next_ii = polygon_next_index(polygon.model().len() as int, ii);
-                    !orient2d_negative::<RationalModel>(
-                        #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                        #[trigger] polygon.model()[jj],
-                    )
-                },
-                // Outer: edges [0, i) non-adjacent vertices strictly positive
-                forall|ii: int, jj: int|
-                    0 <= ii < i && 0 <= jj < polygon.model().len()
-                    && jj != ii && jj != polygon_next_index(polygon.model().len() as int, ii)
-                    ==> {
-                    let next_ii = polygon_next_index(polygon.model().len() as int, ii);
-                    orient2d_positive::<RationalModel>(
-                        #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                        #[trigger] polygon.model()[jj],
-                    )
-                },
                 // Current edge i: all vertices [0, j) non-negative
                 forall|jj: int| 0 <= jj < j ==> {
                     !orient2d_negative::<RationalModel>(

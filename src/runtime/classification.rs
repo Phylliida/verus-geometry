@@ -22,7 +22,11 @@ use crate::collinearity::collinear2d;
 #[cfg(verus_keep_ghost)]
 use crate::sidedness::*;
 #[cfg(verus_keep_ghost)]
+use crate::incircle::*;
+#[cfg(verus_keep_ghost)]
 use verus_rational::rational::Rational;
+#[cfg(verus_keep_ghost)]
+use verus_rational::RuntimeRational;
 
 #[cfg(verus_keep_ghost)]
 verus! {
@@ -301,6 +305,75 @@ pub fn faces_consistently_oriented_exec(
         out == crate::face_normal::faces_consistently_oriented::<RationalModel>(a@, b@, c@, d@),
 {
     point_above_plane_exec(d, a, b, c)
+}
+
+// ---------------------------------------------------------------------------
+// Incircle sign
+// ---------------------------------------------------------------------------
+
+/// Compute the incircle determinant at runtime.
+fn incircle2d_compute(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: RuntimeRational)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+    ensures
+        out.wf_spec(),
+        out@ == incircle2d::<RationalModel>(a@, b@, c@, d@),
+{
+    // p = a - d, q = b - d, r = c - d
+    let px = a.x.sub(&d.x);
+    let py = a.y.sub(&d.y);
+    let qx = b.x.sub(&d.x);
+    let qy = b.y.sub(&d.y);
+    let rx = c.x.sub(&d.x);
+    let ry = c.y.sub(&d.y);
+
+    // lift coords: pw = px² + py², qw = qx² + qy², rw = rx² + ry²
+    let pw = px.mul(&px).add(&py.mul(&py));
+    let qw = qx.mul(&qx).add(&qy.mul(&qy));
+    let rw = rx.mul(&rx).add(&ry.mul(&ry));
+
+    // det2d(q, r) = qx*ry - qy*rx
+    let det_qr = qx.mul(&ry).sub(&qy.mul(&rx));
+    // det2d(p, r) = px*ry - py*rx
+    let det_pr = px.mul(&ry).sub(&py.mul(&rx));
+    // det2d(p, q) = px*qy - py*qx
+    let det_pq = px.mul(&qy).sub(&py.mul(&qx));
+
+    // pw * det_qr - qw * det_pr + rw * det_pq
+    pw.mul(&det_qr).sub(&qw.mul(&det_pr)).add(&rw.mul(&det_pq))
+}
+
+/// Classify the incircle sign: Positive (inside), Negative (outside), Zero (cocircular).
+pub fn incircle2d_sign_exec(
+    a: &RuntimePoint2, b: &RuntimePoint2,
+    c: &RuntimePoint2, d: &RuntimePoint2,
+) -> (out: OrientationSign)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+    ensures
+        out == incircle2d_sign::<RationalModel>(a@, b@, c@, d@),
+{
+    let val = incircle2d_compute(a, b, c, d);
+    let s = val.signum();
+    proof {
+        lemma_signum_bridge(val@);
+    }
+    if s == 1i8 {
+        OrientationSign::Positive
+    } else if s == -1i8 {
+        OrientationSign::Negative
+    } else {
+        OrientationSign::Zero
+    }
 }
 
 } // verus!
