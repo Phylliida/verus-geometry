@@ -437,6 +437,18 @@ pub proof fn lemma_orient2d_sign_swap_ab<T: OrderedRing>(
     lemma_orient2d_sign_matches::<T>(b, a, c);
 }
 
+/// Cyclic permutation preserves the 2D orientation sign.
+pub proof fn lemma_orient2d_sign_cyclic<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+)
+    ensures
+        orient2d_sign(b, c, a) == orient2d_sign(a, b, c),
+{
+    lemma_orient2d_cyclic::<T>(a, b, c);
+    T::axiom_eqv_symmetric(orient2d(a, b, c), orient2d(b, c, a));
+    lemma_scalar_sign_congruence::<T>(orient2d(b, c, a), orient2d(a, b, c));
+}
+
 /// Swapping c, d reverses the 3D orientation sign.
 pub proof fn lemma_orient3d_sign_swap_cd<T: OrderedRing>(
     a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>,
@@ -554,6 +566,45 @@ pub proof fn lemma_orient3d_sign_pos_scale<T: OrderedField>(
         scalar_sign(s.mul(orient3d(a, b, c, d))) == orient3d_sign(a, b, c, d),
 {
     lemma_scalar_sign_pos_scale::<T>(s, orient3d(a, b, c, d));
+}
+
+/// Equivalent scalars have the same sign classification.
+pub proof fn lemma_scalar_sign_congruence<T: OrderedRing>(a: T, b: T)
+    requires
+        a.eqv(b),
+    ensures
+        scalar_sign(a) == scalar_sign(b),
+{
+    let z = T::zero();
+    T::axiom_eqv_reflexive(z);
+
+    // Unfold lt into le + not-eqv
+    T::axiom_lt_iff_le_and_not_eqv(z, a);
+    T::axiom_lt_iff_le_and_not_eqv(z, b);
+    T::axiom_lt_iff_le_and_not_eqv(a, z);
+    T::axiom_lt_iff_le_and_not_eqv(b, z);
+
+    // Transfer le: z ≤ a ↔ z ≤ b, a ≤ z ↔ b ≤ z
+    if z.le(a) { T::axiom_le_congruence(z, z, a, b); }
+    if a.le(z) { T::axiom_le_congruence(a, b, z, z); }
+    T::axiom_eqv_symmetric(a, b);
+    if z.le(b) { T::axiom_le_congruence(z, z, b, a); }
+    if b.le(z) { T::axiom_le_congruence(b, a, z, z); }
+    T::axiom_eqv_symmetric(b, a);
+
+    // Transfer eqv: z ≡ a ↔ z ≡ b, a ≡ z ↔ b ≡ z
+    if z.eqv(a) { T::axiom_eqv_transitive(z, a, b); }
+    T::axiom_eqv_symmetric(a, b);
+    if z.eqv(b) { T::axiom_eqv_transitive(z, b, a); }
+    T::axiom_eqv_symmetric(b, a);
+    if a.eqv(z) {
+        T::axiom_eqv_symmetric(a, z);
+        T::axiom_eqv_transitive(z, a, b);
+        T::axiom_eqv_symmetric(z, b);
+    }
+    if b.eqv(z) {
+        T::axiom_eqv_transitive(a, b, z);
+    }
 }
 
 } // verus!

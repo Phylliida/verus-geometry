@@ -215,4 +215,46 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
     T::axiom_eqv_transitive(sa, ab.add(bc).add(ca), orient2d(a, b, c));
 }
 
+/// For a triangle, signed area and orient2d have the same sign (both directions of lt).
+/// Follows from signed_area_2x ≡ orient2d + order congruence.
+pub proof fn lemma_triangle_area_orient2d_sign<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>,
+)
+    ensures
+        T::zero().lt(signed_area_2x(seq![a, b, c]))
+            == T::zero().lt(orient2d(a, b, c)),
+        signed_area_2x(seq![a, b, c]).lt(T::zero())
+            == orient2d(a, b, c).lt(T::zero()),
+{
+    lemma_triangle_area_is_orient2d::<T>(a, b, c);
+    let sa = signed_area_2x(seq![a, b, c]);
+    let o = orient2d(a, b, c);
+    let z = T::zero();
+    T::axiom_eqv_reflexive(z);
+
+    // lemma_lt_congruence_both(a, c, b, d): a<b, a≡c, b≡d → c<d
+
+    // 0 < sa <==> 0 < orient2d
+    if z.lt(sa) {
+        // a=z, c=z, b=sa, d=o: z<sa, z≡z, sa≡o → z<o
+        crate::intersection3d::lemma_lt_congruence_both::<T>(z, z, sa, o);
+    }
+    if z.lt(o) {
+        T::axiom_eqv_symmetric(sa, o);
+        // a=z, c=z, b=o, d=sa: z<o, z≡z, o≡sa → z<sa
+        crate::intersection3d::lemma_lt_congruence_both::<T>(z, z, o, sa);
+    }
+
+    // sa < 0 <==> orient2d < 0
+    if sa.lt(z) {
+        // a=sa, c=o, b=z, d=z: sa<z, sa≡o, z≡z → o<z
+        crate::intersection3d::lemma_lt_congruence_both::<T>(sa, o, z, z);
+    }
+    if o.lt(z) {
+        T::axiom_eqv_symmetric(sa, o);
+        // a=o, c=sa, b=z, d=z: o<z, o≡sa, z≡z → sa<z
+        crate::intersection3d::lemma_lt_congruence_both::<T>(o, sa, z, z);
+    }
+}
+
 } // verus!
