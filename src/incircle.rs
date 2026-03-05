@@ -923,4 +923,85 @@ pub proof fn lemma_incircle2d_swap_ac<T: Ring>(
     );
 }
 
+/// Cyclic permutation (a,b,c) → (b,c,a) preserves the incircle determinant.
+/// Derived from swap_ab then swap_bc (two transpositions = even permutation).
+pub proof fn lemma_incircle2d_cyclic_abc<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d(b, c, a, d).eqv(incircle2d(a, b, c, d)),
+{
+    // swap_ab: incircle2d(b, a, c, d) ≡ -incircle2d(a, b, c, d)
+    lemma_incircle2d_swap_ab::<T>(a, b, c, d);
+
+    // swap_bc on (b, a, c, d): incircle2d(b, c, a, d) ≡ -incircle2d(b, a, c, d)
+    lemma_incircle2d_swap_bc::<T>(b, a, c, d);
+
+    // Chain: incircle2d(b, c, a, d) ≡ -incircle2d(b, a, c, d) ≡ -(-incircle2d(a, b, c, d))
+    additive_group_lemmas::lemma_neg_congruence::<T>(
+        incircle2d(b, a, c, d), incircle2d(a, b, c, d).neg(),
+    );
+    T::axiom_eqv_transitive(
+        incircle2d(b, c, a, d),
+        incircle2d(b, a, c, d).neg(),
+        incircle2d(a, b, c, d).neg().neg(),
+    );
+
+    // Double negation: -(-x) ≡ x
+    additive_group_lemmas::lemma_neg_involution::<T>(incircle2d(a, b, c, d));
+    T::axiom_eqv_transitive(
+        incircle2d(b, c, a, d),
+        incircle2d(a, b, c, d).neg().neg(),
+        incircle2d(a, b, c, d),
+    );
+}
+
+/// Cyclic permutation (a,b,c) → (c,a,b) preserves the incircle determinant.
+/// This is the inverse cyclic permutation (two applications of the forward cycle).
+pub proof fn lemma_incircle2d_cyclic_cab<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d(c, a, b, d).eqv(incircle2d(a, b, c, d)),
+{
+    // (a,b,c) → (b,c,a) → (c,a,b)
+    lemma_incircle2d_cyclic_abc::<T>(a, b, c, d);
+    // incircle2d(b, c, a, d) ≡ incircle2d(a, b, c, d)
+
+    lemma_incircle2d_cyclic_abc::<T>(b, c, a, d);
+    // incircle2d(c, a, b, d) ≡ incircle2d(b, c, a, d)
+
+    T::axiom_eqv_transitive(
+        incircle2d(c, a, b, d),
+        incircle2d(b, c, a, d),
+        incircle2d(a, b, c, d),
+    );
+}
+
+/// Incircle sign classification is preserved under cyclic permutation (a,b,c) → (b,c,a).
+pub proof fn lemma_incircle2d_sign_cyclic_abc<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d_sign(b, c, a, d) == incircle2d_sign(a, b, c, d),
+{
+    lemma_incircle2d_cyclic_abc::<T>(a, b, c, d);
+    crate::orientation_sign::lemma_scalar_sign_congruence::<T>(
+        incircle2d(b, c, a, d), incircle2d(a, b, c, d),
+    );
+}
+
+/// Incircle sign classification is preserved under cyclic permutation (a,b,c) → (c,a,b).
+pub proof fn lemma_incircle2d_sign_cyclic_cab<T: OrderedRing>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d_sign(c, a, b, d) == incircle2d_sign(a, b, c, d),
+{
+    lemma_incircle2d_cyclic_cab::<T>(a, b, c, d);
+    crate::orientation_sign::lemma_scalar_sign_congruence::<T>(
+        incircle2d(c, a, b, d), incircle2d(a, b, c, d),
+    );
+}
+
 } // verus!
