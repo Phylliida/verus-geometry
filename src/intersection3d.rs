@@ -477,18 +477,7 @@ pub proof fn lemma_lt_congruence_both<T: OrderedRing>(a: T, c: T, b: T, d: T)
     ensures
         c.lt(d),
 {
-    T::axiom_lt_iff_le_and_not_eqv(a, b);
-    ordered_ring_lemmas::lemma_le_congruence_left::<T>(a, c, b);
-    ordered_ring_lemmas::lemma_le_congruence_right::<T>(c, b, d);
-    // c ≤ d. Need ¬(c ≡ d).
-    if c.eqv(d) {
-        // c ≡ d, a ≡ c, b ≡ d → a ≡ b. But a < b → ¬(a ≡ b). Contradiction.
-        T::axiom_eqv_symmetric(a, c);
-        T::axiom_eqv_transitive(a, c, d);
-        T::axiom_eqv_symmetric(b, d);
-        T::axiom_eqv_transitive(a, d, b);
-    }
-    T::axiom_lt_iff_le_and_not_eqv(c, d);
+    ordered_ring_lemmas::lemma_lt_congruence_both::<T>(a, c, b, d);
 }
 
 /// Show denom < 0 from od < 0 and oe.neg() < 0.
