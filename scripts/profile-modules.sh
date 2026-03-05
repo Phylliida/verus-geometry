@@ -114,7 +114,15 @@ top_n = int(sys.argv[2])
 wall = int(sys.argv[3])
 
 with open(json_path) as f:
-    data = json.load(f)
+    raw = f.read().strip()
+
+# The JSON object may be preceded/followed by compiler output lines.
+# Find the first '{' and use raw_decode to parse just the JSON object.
+json_start = raw.find('{')
+if json_start < 0:
+    print(f"error: no JSON object found in output. Raw output:\n{raw[:500]}", file=sys.stderr)
+    sys.exit(1)
+data, _ = json.JSONDecoder().raw_decode(raw, json_start)
 
 times = data.get("times-ms", {})
 smt = times.get("smt", {})
