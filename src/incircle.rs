@@ -570,4 +570,357 @@ pub proof fn lemma_incircle2d_translation<T: Ring>(
     );
 }
 
+// =========================================================================
+// Swap antisymmetry
+// =========================================================================
+
+/// Swapping a and b negates the incircle determinant.
+///
+/// incircle2d(b, a, c, d) ≡ -(incircle2d(a, b, c, d))
+pub proof fn lemma_incircle2d_swap_ab<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d(b, a, c, d).eqv(incircle2d(a, b, c, d).neg()),
+{
+    let p = sub2(a, d);
+    let q = sub2(b, d);
+    let r = sub2(c, d);
+    let pw = lift(p);
+    let qw = lift(q);
+    let rw = lift(r);
+
+    // Original = A - B + C  where A=pw*det(q,r), B=qw*det(p,r), C=rw*det(p,q)
+    // Swapped  = B - A + rw*det(q,p)
+    let a_term = pw.mul(det2d(q, r));
+    let b_term = qw.mul(det2d(p, r));
+    let c_term = rw.mul(det2d(p, q));
+
+    // Step 1: det2d(q, p) ≡ -det2d(p, q)
+    lemma_det2d_antisymmetric::<T>(p, q);
+    // gives det2d(p, q) ≡ det2d(q, p).neg()
+    // We need det2d(q, p) ≡ det2d(p, q).neg()
+    lemma_det2d_antisymmetric::<T>(q, p);
+    // gives det2d(q, p) ≡ det2d(p, q).neg()
+
+    // Step 2: rw * det2d(q,p) ≡ rw * (-det2d(p,q))
+    ring_lemmas::lemma_mul_congruence_right::<T>(rw, det2d(q, p), det2d(p, q).neg());
+
+    // Step 3: rw * (-det2d(p,q)) ≡ -(rw * det2d(p,q)) = -C
+    ring_lemmas::lemma_mul_neg_right::<T>(rw, det2d(p, q));
+
+    // Step 4: rw * det2d(q,p) ≡ -C
+    T::axiom_eqv_transitive(
+        rw.mul(det2d(q, p)),
+        rw.mul(det2d(p, q).neg()),
+        rw.mul(det2d(p, q)).neg(),
+    );
+
+    // Step 5: Swapped = B - A + rw*det(q,p) ≡ B - A + (-C)
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        b_term.sub(a_term),
+        rw.mul(det2d(q, p)),
+        c_term.neg(),
+    );
+
+    // Now show: -(A - B + C) ≡ B - A + (-C)
+
+    // Step 6: -(A - B + C) ≡ -(A-B) + (-C) by neg_add
+    additive_group_lemmas::lemma_neg_add::<T>(a_term.sub(b_term), c_term);
+
+    // Step 7: A.sub(B) ≡ B.sub(A).neg() by sub_antisymmetric
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a_term, b_term);
+    // gives a_term.sub(b_term).eqv(b_term.sub(a_term).neg())
+
+    // Step 8: -(A-B) = -(B-A).neg().neg() but easier:
+    // A-B ≡ -(B-A), so -(A-B) ≡ -(-(B-A)) ≡ B-A by neg_involution
+    additive_group_lemmas::lemma_neg_congruence::<T>(
+        a_term.sub(b_term), b_term.sub(a_term).neg(),
+    );
+    additive_group_lemmas::lemma_neg_involution::<T>(b_term.sub(a_term));
+    T::axiom_eqv_transitive(
+        a_term.sub(b_term).neg(),
+        b_term.sub(a_term).neg().neg(),
+        b_term.sub(a_term),
+    );
+
+    // Step 9: -(A-B) + (-C) ≡ (B-A) + (-C)
+    T::axiom_add_congruence_left(
+        a_term.sub(b_term).neg(),
+        b_term.sub(a_term),
+        c_term.neg(),
+    );
+
+    // Step 10: Chain: -(A-B+C) ≡ -(A-B)+(-C) ≡ (B-A)+(-C)
+    T::axiom_eqv_transitive(
+        a_term.sub(b_term).add(c_term).neg(),
+        a_term.sub(b_term).neg().add(c_term.neg()),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+
+    // Step 11: Swapped ≡ (B-A)+(-C) [from Step 5]
+    //          -(original) ≡ (B-A)+(-C) [from Step 10]
+    // So: Swapped ≡ -(original) by transitivity
+
+    // Need symmetry on the neg side:
+    T::axiom_eqv_symmetric(
+        a_term.sub(b_term).add(c_term).neg(),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+
+    T::axiom_eqv_transitive(
+        b_term.sub(a_term).add(rw.mul(det2d(q, p))),
+        b_term.sub(a_term).add(c_term.neg()),
+        a_term.sub(b_term).add(c_term).neg(),
+    );
+}
+
+/// Swapping b and c negates the incircle determinant.
+pub proof fn lemma_incircle2d_swap_bc<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d(a, c, b, d).eqv(incircle2d(a, b, c, d).neg()),
+{
+    let p = sub2(a, d);
+    let q = sub2(b, d);
+    let r = sub2(c, d);
+    let pw = lift(p);
+    let qw = lift(q);
+    let rw = lift(r);
+
+    // incircle2d(a, c, b, d) uses: p'=sub2(a,d)=p, q'=sub2(c,d)=r, r'=sub2(b,d)=q
+    // = lift(p)*det2d(r, q) - lift(r)*det2d(p, q) + lift(q)*det2d(p, r)
+
+    let a_term = pw.mul(det2d(q, r));  // A in original
+    let b_term = qw.mul(det2d(p, r));  // B in original
+    let c_term = rw.mul(det2d(p, q));  // C in original
+
+    // Swapped first term: pw*det2d(r, q) ≡ pw*(-det2d(q, r)) ≡ -A
+    lemma_det2d_antisymmetric::<T>(r, q);
+    ring_lemmas::lemma_mul_congruence_right::<T>(pw, det2d(r, q), det2d(q, r).neg());
+    ring_lemmas::lemma_mul_neg_right::<T>(pw, det2d(q, r));
+    T::axiom_eqv_transitive(
+        pw.mul(det2d(r, q)), pw.mul(det2d(q, r).neg()), a_term.neg(),
+    );
+
+    // Swapped = -A - C + B  (the second/third terms are just rearranged)
+    // Original = A - B + C
+    // Need: -A - C + B ≡ -(A - B + C)
+
+    // -A - C ≡ -(A + C)  by neg_add reversed
+    // -A - C + B = -(A+C) + B
+    // -(A - B + C) = -A + B - C = B - A - C = B + (-A - C)
+
+    // Step: swapped first term + second:
+    // pw*det2d(r,q) - rw*det2d(p,q)  ≡ -A - C
+
+    // sub congruence: pw*det2d(r,q).sub(rw*det2d(p,q)) ≡ (-A).sub(C)
+    T::axiom_eqv_reflexive(c_term);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        pw.mul(det2d(r, q)), a_term.neg(),
+        rw.mul(det2d(p, q)), c_term,
+    );
+
+    // -A - C + B is the swapped expression
+    // add congruence:
+    T::axiom_eqv_reflexive(b_term);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        pw.mul(det2d(r, q)).sub(rw.mul(det2d(p, q))),
+        a_term.neg().sub(c_term),
+        qw.mul(det2d(p, r)),
+        b_term,
+    );
+
+    // So swapped ≡ (-A).sub(C).add(B)
+
+    // Now show -(A - B + C) ≡ (-A).sub(C).add(B)
+    // -(A - B + C) ≡ -(A-B) + (-C) ≡ (B-A) + (-C)
+    additive_group_lemmas::lemma_neg_add::<T>(a_term.sub(b_term), c_term);
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a_term, b_term);
+    additive_group_lemmas::lemma_neg_congruence::<T>(
+        a_term.sub(b_term), b_term.sub(a_term).neg(),
+    );
+    additive_group_lemmas::lemma_neg_involution::<T>(b_term.sub(a_term));
+    T::axiom_eqv_transitive(
+        a_term.sub(b_term).neg(),
+        b_term.sub(a_term).neg().neg(),
+        b_term.sub(a_term),
+    );
+    T::axiom_add_congruence_left(
+        a_term.sub(b_term).neg(), b_term.sub(a_term), c_term.neg(),
+    );
+    T::axiom_eqv_transitive(
+        a_term.sub(b_term).add(c_term).neg(),
+        a_term.sub(b_term).neg().add(c_term.neg()),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+
+    // Need: (-A).sub(C).add(B) ≡ B.sub(A).add(C.neg())
+    // (-A).sub(C) ≡ (-A) + (-C) ≡ -(A) + -(C) which is (-A)+(-C)
+    // B.sub(A) + (-C) ≡ (B + (-A)) + (-C)
+    // (-A).sub(C).add(B) ≡ ((-A)+(-C)) + B
+    // We need: ((-A)+(-C))+B ≡ (B+(-A))+(-C)
+    // This is commutativity+associativity: x+y+z ≡ z+x+y where x=-A, y=-C, z=B
+
+    // Actually, let me use a simpler approach. Note that sub is add_neg:
+    // (-A).sub(C) = (-A) + (-C) [axiom_sub_is_add_neg]
+    T::axiom_sub_is_add_neg(a_term.neg(), c_term);
+    // (-A).sub(C).add(B) = ((-A)+(-C))+B
+
+    // B.sub(A) = B + (-A) [axiom_sub_is_add_neg]
+    T::axiom_sub_is_add_neg(b_term, a_term);
+    // B.sub(A) + (-C) = (B+(-A))+(-C)
+
+    // Need: ((-A)+(-C))+B ≡ (B+(-A))+(-C)
+    // = (-A + -C + B) ≡ (B + -A + -C)
+    // By commutativity of addition this should hold
+    // (-A)+(-C)+B = (-A)+((-C)+B) [assoc] = (-A)+(B+(-C)) [comm] = ((-A)+B)+(-C) [assoc]
+    // = (B+(-A))+(-C) [comm on first pair]
+
+    // Assoc: ((-A)+(-C))+B ≡ (-A)+((-C)+B)
+    T::axiom_add_associative(a_term.neg(), c_term.neg(), b_term);
+
+    // Comm: (-C)+B ≡ B+(-C)
+    T::axiom_add_commutative(c_term.neg(), b_term);
+
+    // Congr: (-A)+((-C)+B) ≡ (-A)+(B+(-C))
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a_term.neg(), c_term.neg().add(b_term), b_term.add(c_term.neg()),
+    );
+
+    // Chain: ((-A)+(-C))+B ≡ (-A)+((-C)+B) ≡ (-A)+(B+(-C))
+    T::axiom_eqv_transitive(
+        a_term.neg().add(c_term.neg()).add(b_term),
+        a_term.neg().add(c_term.neg().add(b_term)),
+        a_term.neg().add(b_term.add(c_term.neg())),
+    );
+
+    // Assoc back: (-A)+(B+(-C)) ≡ ((-A)+B)+(-C)
+    T::axiom_add_associative(a_term.neg(), b_term, c_term.neg());
+    T::axiom_eqv_symmetric(
+        a_term.neg().add(b_term).add(c_term.neg()),
+        a_term.neg().add(b_term.add(c_term.neg())),
+    );
+
+    // Chain: (...)+B ≡ (-A)+(B+(-C)) ≡ ((-A)+B)+(-C)
+    T::axiom_eqv_transitive(
+        a_term.neg().add(c_term.neg()).add(b_term),
+        a_term.neg().add(b_term.add(c_term.neg())),
+        a_term.neg().add(b_term).add(c_term.neg()),
+    );
+
+    // Comm: (-A)+B ≡ B+(-A)
+    T::axiom_add_commutative(a_term.neg(), b_term);
+    T::axiom_add_congruence_left(
+        a_term.neg().add(b_term), b_term.add(a_term.neg()), c_term.neg(),
+    );
+
+    // Chain: ((-A)+(-C))+B ≡ ((-A)+B)+(-C) ≡ (B+(-A))+(-C)
+    T::axiom_eqv_transitive(
+        a_term.neg().add(c_term.neg()).add(b_term),
+        a_term.neg().add(b_term).add(c_term.neg()),
+        b_term.add(a_term.neg()).add(c_term.neg()),
+    );
+
+    // Now fold back using sub_is_add_neg: B+(-A) ≡ B.sub(A), and +(-C) stays
+    T::axiom_eqv_symmetric(b_term.sub(a_term), b_term.add(a_term.neg()));
+    T::axiom_add_congruence_left(
+        b_term.add(a_term.neg()), b_term.sub(a_term), c_term.neg(),
+    );
+    T::axiom_eqv_transitive(
+        a_term.neg().add(c_term.neg()).add(b_term),
+        b_term.add(a_term.neg()).add(c_term.neg()),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+
+    // Similarly fold (-A).sub(C) ≡ (-A)+(-C) [already established]
+    T::axiom_eqv_symmetric(a_term.neg().sub(c_term), a_term.neg().add(c_term.neg()));
+    T::axiom_add_congruence_left(
+        a_term.neg().add(c_term.neg()), a_term.neg().sub(c_term), b_term,
+    );
+    T::axiom_eqv_symmetric(
+        a_term.neg().add(c_term.neg()).add(b_term),
+        a_term.neg().sub(c_term).add(b_term),
+    );
+    T::axiom_eqv_transitive(
+        a_term.neg().sub(c_term).add(b_term),
+        a_term.neg().add(c_term.neg()).add(b_term),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+
+    // Now: swapped ≡ (-A).sub(C).add(B) ≡ B.sub(A).add(C.neg()) ≡ -(original)
+    T::axiom_eqv_symmetric(
+        a_term.sub(b_term).add(c_term).neg(),
+        b_term.sub(a_term).add(c_term.neg()),
+    );
+    T::axiom_eqv_transitive(
+        a_term.neg().sub(c_term).add(b_term),
+        b_term.sub(a_term).add(c_term.neg()),
+        a_term.sub(b_term).add(c_term).neg(),
+    );
+
+    // Final: swapped ≡ (-A).sub(C).add(B) ≡ -(original)
+    T::axiom_eqv_transitive(
+        pw.mul(det2d(r, q)).sub(rw.mul(det2d(p, q))).add(qw.mul(det2d(p, r))),
+        a_term.neg().sub(c_term).add(b_term),
+        a_term.sub(b_term).add(c_term).neg(),
+    );
+}
+
+/// Swapping a and c negates the incircle determinant.
+/// Derived from swap_ab ∘ swap_bc ∘ swap_ab = swap_ac and
+/// three negations = one negation.
+pub proof fn lemma_incircle2d_swap_ac<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+        incircle2d(c, b, a, d).eqv(incircle2d(a, b, c, d).neg()),
+{
+    // swap(b,c) on (a,b,c,d) gives -(a,b,c,d)
+    lemma_incircle2d_swap_bc::<T>(a, b, c, d);
+    // incircle2d(a, c, b, d) ≡ -incircle2d(a, b, c, d)
+
+    // swap(a,b) on (a,c,b,d) gives -(a,c,b,d)
+    lemma_incircle2d_swap_ab::<T>(a, c, b, d);
+    // incircle2d(c, a, b, d) ≡ -incircle2d(a, c, b, d)
+
+    // Chain: incircle2d(c,a,b,d) ≡ -(-incircle2d(a,b,c,d)) ≡ incircle2d(a,b,c,d)
+    additive_group_lemmas::lemma_neg_congruence::<T>(
+        incircle2d(a, c, b, d), incircle2d(a, b, c, d).neg(),
+    );
+    additive_group_lemmas::lemma_neg_involution::<T>(incircle2d(a, b, c, d));
+    T::axiom_eqv_transitive(
+        incircle2d(c, a, b, d),
+        incircle2d(a, c, b, d).neg(),
+        incircle2d(a, b, c, d).neg().neg(),
+    );
+    T::axiom_eqv_transitive(
+        incircle2d(c, a, b, d),
+        incircle2d(a, b, c, d).neg().neg(),
+        incircle2d(a, b, c, d),
+    );
+    // So incircle2d(c, a, b, d) ≡ incircle2d(a, b, c, d) [double swap = identity]
+
+    // Now swap(a,b) on (c,a,b,d) gives -(c,a,b,d) = -(a,b,c,d)
+    lemma_incircle2d_swap_ab::<T>(c, a, b, d);
+    // incircle2d(a, c, b, d)... wait, that gives us swap_ab on (c,a,b,d) → (a,c,b,d)
+    // That's not right. Let me redo this.
+
+    // Actually: swap(b,c) on (c,a,b,d) gives (c,b,a,d)
+    lemma_incircle2d_swap_bc::<T>(c, a, b, d);
+    // incircle2d(c, b, a, d) ≡ -incircle2d(c, a, b, d)
+
+    // incircle2d(c, a, b, d) ≡ incircle2d(a, b, c, d) [proved above]
+    // So: incircle2d(c, b, a, d) ≡ -incircle2d(c, a, b, d) ≡ -incircle2d(a, b, c, d)
+    additive_group_lemmas::lemma_neg_congruence::<T>(
+        incircle2d(c, a, b, d), incircle2d(a, b, c, d),
+    );
+    T::axiom_eqv_transitive(
+        incircle2d(c, b, a, d),
+        incircle2d(c, a, b, d).neg(),
+        incircle2d(a, b, c, d).neg(),
+    );
+}
+
 } // verus!
