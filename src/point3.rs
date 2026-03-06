@@ -133,4 +133,41 @@ pub proof fn lemma_sub_add_cancel_component<T: Ring>(a: T, b: T, t: T)
     );
 }
 
+/// sub3(d, a).add(sub3(e, d)) ≡ sub3(e, a)  (telescope cancellation)
+pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3<T>)
+    ensures
+        sub3(d, a).add(sub3(e, d)).eqv(sub3(e, a)),
+{
+    // Componentwise: (d.x-a.x) + (e.x-d.x) = e.x-a.x
+    // Using lemma_sub_add_sub(e, d, a): e.sub(d).add(d.sub(a)) ≡ e.sub(a)
+    // Then add_commutative to swap summands.
+
+    // x component
+    T::axiom_add_commutative(d.x.sub(a.x), e.x.sub(d.x));
+    additive_group_lemmas::lemma_sub_add_sub::<T>(e.x, d.x, a.x);
+    T::axiom_eqv_transitive(
+        d.x.sub(a.x).add(e.x.sub(d.x)),
+        e.x.sub(d.x).add(d.x.sub(a.x)),
+        e.x.sub(a.x),
+    );
+
+    // y component
+    T::axiom_add_commutative(d.y.sub(a.y), e.y.sub(d.y));
+    additive_group_lemmas::lemma_sub_add_sub::<T>(e.y, d.y, a.y);
+    T::axiom_eqv_transitive(
+        d.y.sub(a.y).add(e.y.sub(d.y)),
+        e.y.sub(d.y).add(d.y.sub(a.y)),
+        e.y.sub(a.y),
+    );
+
+    // z component
+    T::axiom_add_commutative(d.z.sub(a.z), e.z.sub(d.z));
+    additive_group_lemmas::lemma_sub_add_sub::<T>(e.z, d.z, a.z);
+    T::axiom_eqv_transitive(
+        d.z.sub(a.z).add(e.z.sub(d.z)),
+        e.z.sub(d.z).add(d.z.sub(a.z)),
+        e.z.sub(a.z),
+    );
+}
+
 } // verus!

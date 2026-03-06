@@ -20,3 +20,4 @@ pub mod closest_point;
 pub mod ray;
 pub mod triangle_distance;
 pub mod ray_triangle;
+pub mod triangle_intersection;

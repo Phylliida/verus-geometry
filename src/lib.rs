@@ -67,4 +67,7 @@ pub mod triangle_distance;
 #[cfg(verus_keep_ghost)]
 pub mod ray_triangle;
 
+#[cfg(verus_keep_ghost)]
+pub mod triangle_intersection;
+
 pub mod runtime;

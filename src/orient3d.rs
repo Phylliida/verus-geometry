@@ -182,6 +182,312 @@ pub proof fn lemma_orient3d_translation<T: Ring>(
 }
 
 // ---------------------------------------------------------------------------
+// Degenerate: d coincides with a or b
+// ---------------------------------------------------------------------------
+
+/// orient3d(a, b, c, a) ≡ 0  (degenerate: d = a)
+pub proof fn lemma_orient3d_degenerate_da<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    ensures
+        orient3d(a, b, c, a).eqv(T::zero()),
+{
+    // Route: permute to a known degenerate, then undo the sign.
+    // orient3d(a, a, c, b) ≡ 0                       [degenerate_ab]
+    // orient3d(a, a, c, b) ≡ orient3d(a, b, a, c)    [cycle_bcd]
+    // orient3d(a, b, a, c) ≡ orient3d(a, b, c, a).neg()  [swap_cd]
+    // Chain: orient3d(a, b, c, a).neg() ≡ 0, so orient3d(a, b, c, a) ≡ 0.
+
+    // Step 1: orient3d(a, b, a, c) ≡ 0
+    lemma_orient3d_degenerate_ab::<T>(a, c, b);
+    lemma_orient3d_cycle_bcd::<T>(a, b, a, c);
+    // cycle_bcd: orient3d(a, a, c, b) ≡ orient3d(a, b, a, c)
+    T::axiom_eqv_symmetric(orient3d(a, a, c, b), orient3d(a, b, a, c));
+    T::axiom_eqv_transitive(orient3d(a, b, a, c), orient3d(a, a, c, b), T::zero());
+
+    // Step 2: orient3d(a, b, c, a).neg() ≡ 0
+    lemma_orient3d_swap_cd::<T>(a, b, c, a);
+    // swap_cd: orient3d(a, b, a, c) ≡ orient3d(a, b, c, a).neg()
+    T::axiom_eqv_symmetric(orient3d(a, b, a, c), orient3d(a, b, c, a).neg());
+    T::axiom_eqv_transitive(orient3d(a, b, c, a).neg(), orient3d(a, b, a, c), T::zero());
+
+    // Step 3: x.neg() ≡ 0 → x ≡ 0
+    // neg_involution: x.neg().neg() ≡ x, flip to get x ≡ x.neg().neg()
+    additive_group_lemmas::lemma_neg_involution::<T>(orient3d(a, b, c, a));
+    T::axiom_eqv_symmetric(orient3d(a, b, c, a).neg().neg(), orient3d(a, b, c, a));
+    // neg_congruence on (x.neg() ≡ 0): x.neg().neg() ≡ 0.neg()
+    additive_group_lemmas::lemma_neg_congruence::<T>(orient3d(a, b, c, a).neg(), T::zero());
+    // neg_zero: 0.neg() ≡ 0
+    additive_group_lemmas::lemma_neg_zero::<T>();
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, a),
+        orient3d(a, b, c, a).neg().neg(),
+        T::zero().neg(),
+    );
+    T::axiom_eqv_transitive(orient3d(a, b, c, a), T::zero().neg(), T::zero());
+}
+
+/// orient3d(a, b, c, b) ≡ 0  (degenerate: d = b)
+pub proof fn lemma_orient3d_degenerate_bd<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    ensures
+        orient3d(a, b, c, b).eqv(T::zero()),
+{
+    // orient3d(a,b,c,b) = triple(sub3(b,a), sub3(c,a), sub3(b,a))
+    // First and third arguments are identical → triple(v, w, v) ≡ 0
+    lemma_triple_self_zero_13::<T>(sub3(b, a), sub3(c, a));
+}
+
+// ---------------------------------------------------------------------------
+// Linearity of orient3d in the last argument
+// ---------------------------------------------------------------------------
+
+/// orient3d is additive in the last argument (shifted by a vector):
+/// orient3d(a, b, c, add_vec3(d, w)) ≡ orient3d(a, b, c, d) + triple(b-a, c-a, w)
+pub proof fn lemma_orient3d_linear_last<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>, w: Vec3<T>,
+)
+    ensures
+        orient3d(a, b, c, add_vec3(d, w)).eqv(
+            orient3d(a, b, c, d).add(triple(sub3(b, a), sub3(c, a), w))
+        ),
+{
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+
+    // sub3(add_vec3(d, w), a) ≡ sub3(d, a).add(w)
+    crate::intersection3d::lemma_sub3_add_vec3::<T>(d, w, a);
+
+    // orient3d(a,b,c, add_vec3(d,w)) = triple(ba, ca, sub3(add_vec3(d,w), a))
+    //                                ≡ triple(ba, ca, sub3(d,a).add(w))
+    lemma_triple_congruence_third::<T>(ba, ca, sub3(add_vec3(d, w), a), sub3(d, a).add(w));
+
+    // triple(ba, ca, sub3(d,a).add(w)) ≡ triple(ba, ca, sub3(d,a)) + triple(ba, ca, w)
+    lemma_triple_linear_third::<T>(ba, ca, sub3(d, a), w);
+
+    // Chain: orient3d(a,b,c, add_vec3(d,w))
+    //      ≡ triple(ba, ca, sub3(d,a).add(w))
+    //      ≡ triple(ba, ca, sub3(d,a)) + triple(ba, ca, w)
+    //      = orient3d(a,b,c,d) + triple(ba, ca, w)
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, add_vec3(d, w)),
+        triple(ba, ca, sub3(d, a).add(w)),
+        triple(ba, ca, sub3(d, a)).add(triple(ba, ca, w)),
+    );
+}
+
+/// orient3d scales linearly when interpolating from a toward d:
+/// orient3d(a, b, c, add_vec3(a, scale(t, sub3(d, a)))) ≡ t * orient3d(a, b, c, d)
+///
+/// This is the key affine-linearity property. It says orient3d(a,b,c,·)
+/// is a linear function of the displacement from a.
+pub proof fn lemma_orient3d_scale_last<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>, t: T,
+)
+    ensures
+        orient3d(a, b, c, add_vec3(a, scale(t, sub3(d, a)))).eqv(
+            t.mul(orient3d(a, b, c, d))
+        ),
+{
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    let da = sub3(d, a);
+    let w = scale(t, da);
+
+    // By linear_last with d=a, w=scale(t, da):
+    // orient3d(a, b, c, add_vec3(a, w)) ≡ orient3d(a,b,c,a) + triple(ba, ca, w)
+    lemma_orient3d_linear_last::<T>(a, b, c, a, w);
+
+    // orient3d(a, b, c, a) ≡ 0
+    lemma_orient3d_degenerate_da::<T>(a, b, c);
+
+    // 0 + triple(ba, ca, w) ≡ triple(ba, ca, w)
+    T::axiom_eqv_reflexive(triple(ba, ca, w));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        orient3d(a, b, c, a), T::zero(),
+        triple(ba, ca, w), triple(ba, ca, w),
+    );
+    additive_group_lemmas::lemma_add_zero_left::<T>(triple(ba, ca, w));
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, a).add(triple(ba, ca, w)),
+        T::zero().add(triple(ba, ca, w)),
+        triple(ba, ca, w),
+    );
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, add_vec3(a, w)),
+        orient3d(a, b, c, a).add(triple(ba, ca, w)),
+        triple(ba, ca, w),
+    );
+
+    // triple(ba, ca, scale(t, da)) ≡ t * triple(ba, ca, da) = t * orient3d(a,b,c,d)
+    lemma_triple_scale_third::<T>(t, ba, ca, da);
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, add_vec3(a, w)),
+        triple(ba, ca, w),
+        t.mul(triple(ba, ca, da)),
+    );
+}
+
+/// orient3d evaluated at add_vec3(d, sub3(e, d)) equals orient3d at e.
+///
+/// Algebraically, add_vec3(d, sub3(e, d)) = d + (e - d) = e. This lemma
+/// establishes that orient3d agrees, bridging the algebraic identity through
+/// the vector/point operations.
+pub proof fn lemma_orient3d_shift_endpoint<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    d: Point3<T>, e: Point3<T>,
+)
+    ensures
+        orient3d(a, b, c, add_vec3(d, sub3(e, d))).eqv(orient3d(a, b, c, e)),
+{
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+
+    // sub3(add_vec3(d, sub3(e,d)), a) ≡ sub3(d, a).add(sub3(e, d))
+    crate::intersection3d::lemma_sub3_add_vec3::<T>(d, sub3(e, d), a);
+
+    // sub3(d, a).add(sub3(e, d)) ≡ sub3(e, a)  [telescope]
+    lemma_sub3_telescope::<T>(d, e, a);
+
+    // Chain: sub3(add_vec3(d, sub3(e,d)), a) ≡ sub3(e, a)
+    Vec3::<T>::axiom_eqv_transitive(
+        sub3(add_vec3(d, sub3(e, d)), a),
+        sub3(d, a).add(sub3(e, d)),
+        sub3(e, a),
+    );
+
+    // By triple_congruence_third:
+    // orient3d(a,b,c, add_vec3(d, sub3(e,d)))
+    //   = triple(ba, ca, sub3(add_vec3(d, sub3(e,d)), a))
+    //   ≡ triple(ba, ca, sub3(e, a))
+    //   = orient3d(a,b,c,e)
+    lemma_triple_congruence_third::<T>(
+        ba, ca,
+        sub3(add_vec3(d, sub3(e, d)), a),
+        sub3(e, a),
+    );
+}
+
+/// If orient3d(a,b,c,d) ≡ 0 and orient3d(a,b,c,e) ≡ 0, then any point
+/// on the segment from d to e is also on the plane:
+/// orient3d(a, b, c, add_vec3(d, scale(t, sub3(e, d)))) ≡ 0
+///
+/// This is the key application of affine linearity: if the plane function
+/// is zero at both endpoints of a segment, it's zero everywhere on the segment.
+/// Used to prove that points on edges of a triangle lie on the triangle's plane.
+pub proof fn lemma_orient3d_zero_interpolation<T: Ring>(
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    d: Point3<T>, e: Point3<T>, t: T,
+)
+    requires
+        orient3d(a, b, c, d).eqv(T::zero()),
+        orient3d(a, b, c, e).eqv(T::zero()),
+    ensures
+        orient3d(a, b, c, add_vec3(d, scale(t, sub3(e, d)))).eqv(T::zero()),
+{
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    let w = scale(t, sub3(e, d));
+
+    // By linear_last: orient3d(a,b,c, add_vec3(d, w))
+    //   ≡ orient3d(a,b,c,d) + triple(ba, ca, w)
+    lemma_orient3d_linear_last::<T>(a, b, c, d, w);
+
+    // orient3d(a,b,c,d) ≡ 0
+    // triple(ba, ca, scale(t, sub3(e,d))) ≡ t * triple(ba, ca, sub3(e,d))
+    lemma_triple_scale_third::<T>(t, ba, ca, sub3(e, d));
+
+    // triple(ba, ca, sub3(e, d)) ≡ orient3d(a,b,c,e) - orient3d(a,b,c,d)
+    // via: linear_last gives orient3d(a,b,c, add_vec3(d, sub3(e,d)))
+    //   ≡ orient3d(a,b,c,d) + triple(ba, ca, sub3(e,d))
+    // and shift_endpoint gives orient3d(a,b,c, add_vec3(d, sub3(e,d)))
+    //   ≡ orient3d(a,b,c,e)
+    // So orient3d(a,b,c,e) ≡ orient3d(a,b,c,d) + triple(ba, ca, sub3(e,d))
+    lemma_orient3d_linear_last::<T>(a, b, c, d, sub3(e, d));
+    // linear_last: orient3d(..., add_vec3(d, sub3(e,d))) ≡ orient3d(...,d) + triple(...)
+    // Need the reverse direction:
+    T::axiom_eqv_symmetric(
+        orient3d(a, b, c, add_vec3(d, sub3(e, d))),
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+    );
+    lemma_orient3d_shift_endpoint::<T>(a, b, c, d, e);
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+        orient3d(a, b, c, add_vec3(d, sub3(e, d))),
+        orient3d(a, b, c, e),
+    );
+    // orient3d(a,b,c,d) + triple(ba, ca, sub3(e,d)) ≡ orient3d(a,b,c,e) ≡ 0
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+        orient3d(a, b, c, e),
+        T::zero(),
+    );
+    // So: 0 + triple(ba, ca, sub3(e,d)) ≡ 0
+    // hence: triple(ba, ca, sub3(e,d)) ≡ 0
+    T::axiom_eqv_reflexive(triple(ba, ca, sub3(e, d)));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        orient3d(a, b, c, d), T::zero(),
+        triple(ba, ca, sub3(e, d)), triple(ba, ca, sub3(e, d)),
+    );
+    additive_group_lemmas::lemma_add_zero_left::<T>(triple(ba, ca, sub3(e, d)));
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+        T::zero().add(triple(ba, ca, sub3(e, d))),
+        triple(ba, ca, sub3(e, d)),
+    );
+    // triple(ba, ca, sub3(e,d)) ≡ 0
+    T::axiom_eqv_symmetric(
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+        triple(ba, ca, sub3(e, d)),
+    );
+    T::axiom_eqv_transitive(
+        triple(ba, ca, sub3(e, d)),
+        orient3d(a, b, c, d).add(triple(ba, ca, sub3(e, d))),
+        T::zero(),
+    );
+
+    // t * triple(ba, ca, sub3(e,d)) ≡ t * 0 ≡ 0
+    T::axiom_eqv_reflexive(t);
+    ring_lemmas::lemma_mul_congruence::<T>(
+        t, t,
+        triple(ba, ca, sub3(e, d)), T::zero(),
+    );
+    T::axiom_mul_zero_right(t);
+    T::axiom_eqv_transitive(
+        t.mul(triple(ba, ca, sub3(e, d))),
+        t.mul(T::zero()),
+        T::zero(),
+    );
+
+    // triple(ba, ca, w) ≡ t * triple(ba, ca, sub3(e,d)) ≡ 0
+    T::axiom_eqv_transitive(
+        triple(ba, ca, w),
+        t.mul(triple(ba, ca, sub3(e, d))),
+        T::zero(),
+    );
+
+    // orient3d(a,b,c,d) + triple(ba, ca, w) ≡ 0 + 0 ≡ 0
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        orient3d(a, b, c, d), T::zero(),
+        triple(ba, ca, w), T::zero(),
+    );
+    T::axiom_add_zero_right(T::zero());
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, d).add(triple(ba, ca, w)),
+        T::zero().add(T::zero()),
+        T::zero(),
+    );
+
+    // orient3d(a,b,c, add_vec3(d, w)) ≡ orient3d(a,b,c,d) + triple(ba, ca, w) ≡ 0
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, add_vec3(d, w)),
+        orient3d(a, b, c, d).add(triple(ba, ca, w)),
+        T::zero(),
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Helpers for even-permutation lemma
 // ---------------------------------------------------------------------------
 
@@ -488,6 +794,96 @@ pub proof fn lemma_orient3d_even_perm_dcba<T: Ring>(
         triple(u, v, w),
     );
     // triple(u, v, w) = orient3d(a, b, c, d). QED.
+}
+
+// ---------------------------------------------------------------------------
+// Affine combination linearity
+// ---------------------------------------------------------------------------
+
+/// orient3d is affine-linear in the last argument over 3-point combinations:
+/// orient3d(x,y,z, a + α(b−a) + β(c−a))
+///   ≡ orient3d(x,y,z,a) + α·triple(y−x, z−x, b−a) + β·triple(y−x, z−x, c−a)
+///
+/// This decomposes orient3d of an affine combination into the base value
+/// plus weighted contributions from each displacement direction.
+pub proof fn lemma_orient3d_affine_combination<T: Ring>(
+    x: Point3<T>, y: Point3<T>, z: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    alpha: T, beta: T,
+)
+    ensures
+        orient3d(x, y, z, add_vec3(a, scale(alpha, sub3(b, a)).add(scale(beta, sub3(c, a)))))
+            .eqv(
+                orient3d(x, y, z, a)
+                    .add(alpha.mul(triple(sub3(y, x), sub3(z, x), sub3(b, a))))
+                    .add(beta.mul(triple(sub3(y, x), sub3(z, x), sub3(c, a))))
+            ),
+{
+    let yx = sub3(y, x);
+    let zx = sub3(z, x);
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    let w = scale(alpha, ba).add(scale(beta, ca));
+
+    // Step 1: linear_last
+    // orient3d(x,y,z, add_vec3(a, w)) ≡ orient3d(x,y,z,a) + triple(yx, zx, w)
+    lemma_orient3d_linear_last::<T>(x, y, z, a, w);
+
+    // Step 2: triple_linear_third
+    // triple(yx, zx, scale(α,ba) + scale(β,ca))
+    //   ≡ triple(yx, zx, scale(α,ba)) + triple(yx, zx, scale(β,ca))
+    lemma_triple_linear_third::<T>(yx, zx, scale(alpha, ba), scale(beta, ca));
+
+    // Step 3: triple_scale_third (both terms)
+    // triple(yx, zx, scale(α,ba)) ≡ α * triple(yx, zx, ba)
+    lemma_triple_scale_third::<T>(alpha, yx, zx, ba);
+    // triple(yx, zx, scale(β,ca)) ≡ β * triple(yx, zx, ca)
+    lemma_triple_scale_third::<T>(beta, yx, zx, ca);
+
+    // Step 4: Combine steps 3 via add_congruence
+    // triple(yx,zx,scale(α,ba)) + triple(yx,zx,scale(β,ca))
+    //   ≡ α*triple(yx,zx,ba) + β*triple(yx,zx,ca)
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        triple(yx, zx, scale(alpha, ba)), alpha.mul(triple(yx, zx, ba)),
+        triple(yx, zx, scale(beta, ca)), beta.mul(triple(yx, zx, ca)),
+    );
+    // Chain with step 2:
+    // triple(yx, zx, w) ≡ α*triple(yx,zx,ba) + β*triple(yx,zx,ca)
+    T::axiom_eqv_transitive(
+        triple(yx, zx, w),
+        triple(yx, zx, scale(alpha, ba)).add(triple(yx, zx, scale(beta, ca))),
+        alpha.mul(triple(yx, zx, ba)).add(beta.mul(triple(yx, zx, ca))),
+    );
+
+    // Step 5: Add orient3d(x,y,z,a) to both sides via add_congruence
+    T::axiom_eqv_reflexive(orient3d(x, y, z, a));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        orient3d(x, y, z, a), orient3d(x, y, z, a),
+        triple(yx, zx, w), alpha.mul(triple(yx, zx, ba)).add(beta.mul(triple(yx, zx, ca))),
+    );
+    // orient3d(x,y,z,a) + triple(yx,zx,w)
+    //   ≡ orient3d(x,y,z,a) + (α*triple(yx,zx,ba) + β*triple(yx,zx,ca))
+    T::axiom_eqv_transitive(
+        orient3d(x, y, z, add_vec3(a, w)),
+        orient3d(x, y, z, a).add(triple(yx, zx, w)),
+        orient3d(x, y, z, a).add(alpha.mul(triple(yx, zx, ba)).add(beta.mul(triple(yx, zx, ca)))),
+    );
+
+    // Step 6: Reassociate: a + (b + c) → (a + b) + c
+    T::axiom_add_associative(
+        orient3d(x, y, z, a),
+        alpha.mul(triple(yx, zx, ba)),
+        beta.mul(triple(yx, zx, ca)),
+    );
+    T::axiom_eqv_symmetric(
+        orient3d(x, y, z, a).add(alpha.mul(triple(yx, zx, ba))).add(beta.mul(triple(yx, zx, ca))),
+        orient3d(x, y, z, a).add(alpha.mul(triple(yx, zx, ba)).add(beta.mul(triple(yx, zx, ca)))),
+    );
+    T::axiom_eqv_transitive(
+        orient3d(x, y, z, add_vec3(a, w)),
+        orient3d(x, y, z, a).add(alpha.mul(triple(yx, zx, ba)).add(beta.mul(triple(yx, zx, ca)))),
+        orient3d(x, y, z, a).add(alpha.mul(triple(yx, zx, ba))).add(beta.mul(triple(yx, zx, ca))),
+    );
 }
 
 } // verus!
