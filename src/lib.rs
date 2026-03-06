@@ -50,6 +50,9 @@ pub mod segment_distance;
 pub mod incircle;
 
 #[cfg(verus_keep_ghost)]
+pub mod insphere;
+
+#[cfg(verus_keep_ghost)]
 pub mod area;
 
 #[cfg(verus_keep_ghost)]
@@ -69,5 +72,14 @@ pub mod ray_triangle;
 
 #[cfg(verus_keep_ghost)]
 pub mod triangle_intersection;
+
+#[cfg(verus_keep_ghost)]
+pub mod delaunay;
+
+#[cfg(verus_keep_ghost)]
+pub mod convex_hull_3d;
+
+#[cfg(verus_keep_ghost)]
+pub mod voronoi;
 
 pub mod runtime;
