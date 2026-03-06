@@ -18,7 +18,7 @@ use crate::orient2d::orient2d;
 #[cfg(verus_keep_ghost)]
 use crate::orient3d::orient3d;
 #[cfg(verus_keep_ghost)]
-use crate::collinearity::collinear2d;
+use crate::collinearity::{collinear2d, collinear3d, coplanar};
 #[cfg(verus_keep_ghost)]
 use crate::sidedness::*;
 #[cfg(verus_keep_ghost)]
@@ -146,6 +146,41 @@ pub fn collinear2d_exec(
         // orient2d(a@,b@,c@).eqv(RationalModel::zero()) = val@.eqv_spec(from_int_spec(0)) = z
     }
     z
+}
+
+/// Test 3D collinearity: cross(b-a, c-a) ≡ Vec3::zero()
+pub fn collinear3d_exec(
+    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
+) -> (out: bool)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+    ensures
+        out == collinear3d::<RationalModel>(a@, b@, c@),
+{
+    use super::point3::{sub3_exec, cross_exec};
+    let ba = sub3_exec(b, a);
+    let ca = sub3_exec(c, a);
+    let cr = cross_exec(&ba, &ca);
+    cr.x.is_zero() && cr.y.is_zero() && cr.z.is_zero()
+}
+
+/// Test coplanarity: orient3d(a,b,c,d) ≡ 0
+pub fn coplanar_exec(
+    a: &RuntimePoint3, b: &RuntimePoint3,
+    c: &RuntimePoint3, d: &RuntimePoint3,
+) -> (out: bool)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+    ensures
+        out == coplanar::<RationalModel>(a@, b@, c@, d@),
+{
+    let val = orient3d_exec(a, b, c, d);
+    val.is_zero()
 }
 
 /// Point is strictly left of line a→b
