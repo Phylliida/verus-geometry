@@ -24,6 +24,8 @@ use crate::sidedness::*;
 #[cfg(verus_keep_ghost)]
 use crate::incircle::*;
 #[cfg(verus_keep_ghost)]
+use crate::insphere::*;
+#[cfg(verus_keep_ghost)]
 use verus_rational::rational::Rational;
 #[cfg(verus_keep_ghost)]
 use verus_rational::RuntimeRational;
@@ -363,6 +365,78 @@ pub fn incircle2d_sign_exec(
         out == incircle2d_sign::<RationalModel>(a@, b@, c@, d@),
 {
     let val = incircle2d_compute(a, b, c, d);
+    let s = val.signum();
+    proof {
+        lemma_signum_bridge(val@);
+    }
+    if s == 1i8 {
+        OrientationSign::Positive
+    } else if s == -1i8 {
+        OrientationSign::Negative
+    } else {
+        OrientationSign::Zero
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Insphere sign
+// ---------------------------------------------------------------------------
+
+/// Compute the insphere determinant at runtime.
+fn insphere3d_compute(
+    a: &RuntimePoint3, b: &RuntimePoint3,
+    c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
+) -> (out: RuntimeRational)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        e.wf_spec(),
+    ensures
+        out.wf_spec(),
+        out@ == insphere3d::<RationalModel>(a@, b@, c@, d@, e@),
+{
+    use super::point3::sub3_exec;
+    use verus_linalg::runtime::vec3::RuntimeVec3;
+
+    // p = a - e, q = b - e, r = c - e, s = d - e
+    let p = sub3_exec(a, e);
+    let q = sub3_exec(b, e);
+    let r = sub3_exec(c, e);
+    let s = sub3_exec(d, e);
+
+    // lift coords
+    let pw = p.norm_sq_exec();
+    let qw = q.norm_sq_exec();
+    let rw = r.norm_sq_exec();
+    let sw = s.norm_sq_exec();
+
+    // triple products
+    let t_qrs = q.triple_exec(&r, &s);
+    let t_prs = p.triple_exec(&r, &s);
+    let t_pqs = p.triple_exec(&q, &s);
+    let t_pqr = p.triple_exec(&q, &r);
+
+    // pw * t_qrs - qw * t_prs + rw * t_pqs - sw * t_pqr
+    pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
+}
+
+/// Classify the insphere sign: Positive (inside), Negative (outside), Zero (cospherical).
+pub fn insphere3d_sign_exec(
+    a: &RuntimePoint3, b: &RuntimePoint3,
+    c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
+) -> (out: OrientationSign)
+    requires
+        a.wf_spec(),
+        b.wf_spec(),
+        c.wf_spec(),
+        d.wf_spec(),
+        e.wf_spec(),
+    ensures
+        out == insphere3d_sign::<RationalModel>(a@, b@, c@, d@, e@),
+{
+    let val = insphere3d_compute(a, b, c, d, e);
     let s = val.signum();
     proof {
         lemma_signum_bridge(val@);

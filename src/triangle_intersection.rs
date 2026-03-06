@@ -325,433 +325,608 @@ pub proof fn lemma_orient3d_zero_on_coplanar_segment<T: OrderedField>(
 }
 
 // =========================================================================
-// Helper: orient3d weighted decomposition for affine combinations
+// Helper: triple = orient3d difference
 // =========================================================================
 
-/// orient3d(x,y,z, a + v*(b-a) + w*(c-a)) ≡
-///   (1-v-w) * orient3d(x,y,z,a) + v * orient3d(x,y,z,b) + w * orient3d(x,y,z,c)
-///
-/// This extends orient3d_affine_combination by substituting the triple product
-/// terms with orient3d differences, then rearranging to weighted form.
-pub proof fn lemma_orient3d_weighted_decomposition<T: OrderedField>(
+/// triple(sub3(y,x), sub3(z,x), sub3(b,a)) ≡ orient3d(x,y,z,b) - orient3d(x,y,z,a).
+pub proof fn lemma_triple_is_orient_diff<T: Ring>(
     x: Point3<T>, y: Point3<T>, z: Point3<T>,
-    a: Point3<T>, b: Point3<T>, c: Point3<T>,
-    v: T, w: T,
+    a: Point3<T>, b: Point3<T>,
 )
     ensures
-        orient3d(x, y, z, add_vec3(a, scale(v, sub3(b, a)).add(scale(w, sub3(c, a)))))
-            .eqv(
-                T::one().sub(v).sub(w).mul(orient3d(x, y, z, a))
-                    .add(v.mul(orient3d(x, y, z, b)))
-                    .add(w.mul(orient3d(x, y, z, c)))
-            ),
+        triple(sub3(y, x), sub3(z, x), sub3(b, a)).eqv(
+            orient3d(x, y, z, b).sub(orient3d(x, y, z, a))
+        ),
 {
-    let oa = orient3d(x, y, z, a);
-    let ob = orient3d(x, y, z, b);
-    let oc = orient3d(x, y, z, c);
     let yx = sub3(y, x);
     let zx = sub3(z, x);
     let ba = sub3(b, a);
-    let ca = sub3(c, a);
+    let oa = orient3d(x, y, z, a);
+    let ob = orient3d(x, y, z, b);
     let tb = triple(yx, zx, ba);
-    let tc = triple(yx, zx, ca);
 
-    // (1) By orient3d_affine_combination:
-    //     orient3d(x,y,z, a+v*(b-a)+w*(c-a)) ≡ oa + v*tb + w*tc
-    lemma_orient3d_affine_combination::<T>(x, y, z, a, b, c, v, w);
-
-    // (2) Derive tb ≡ ob - oa:
-    //     orient3d(x,y,z, a+1*(b-a)+0*(c-a)) ≡ oa + 1*tb + 0*tc = oa + tb
-    //     But a + 1*(b-a) + 0*(c-a) ≡ b, so orient3d(x,y,z,b) ≡ oa + tb
-    //     Hence tb ≡ ob - oa
-    lemma_orient3d_affine_combination::<T>(x, y, z, a, b, c, T::one(), T::zero());
-    // The LHS add_vec3(a, scale(1,ba).add(scale(0,ca))) needs to be shown ≡ to b's orient3d.
-    // scale(1, ba) ≡ ba
-    verus_linalg::vec3::ops::lemma_scale_one::<T>(ba);
-    // scale(0, ca) ≡ zero_vec
-    verus_linalg::vec3::ops::lemma_scale_zero::<T>(ca);
-    // ba.add(zero_vec) ≡ ba
-    verus_linalg::vec3::algebra::lemma_add_zero_right::<T>(ba);
-    // ba + scale(0,ca) ≡ ba + zero ≡ ba
-    Vec3::<T>::axiom_add_congruence_right(ba, scale(T::zero(), ca), Vec3 { x: T::zero(), y: T::zero(), z: T::zero() });
-    Vec3::<T>::axiom_eqv_transitive(
-        ba.add(scale(T::zero(), ca)),
-        ba.add(Vec3 { x: T::zero(), y: T::zero(), z: T::zero() }),
-        ba,
-    );
-    // scale(1,ba).add(scale(0,ca)) ≡ ba
-    Vec3::<T>::axiom_add_congruence_left(scale(T::one(), ba), ba, scale(T::zero(), ca));
-    Vec3::<T>::axiom_eqv_transitive(
-        scale(T::one(), ba).add(scale(T::zero(), ca)),
-        ba.add(scale(T::zero(), ca)),
-        ba,
-    );
-    // add_vec3(a, scale(1,ba).add(scale(0,ca))) has orient3d ≡ orient3d(a+ba) = orient3d(x,y,z,b)
-    // via shift_endpoint: orient3d(x,y,z, add_vec3(a, ba)) ≡ orient3d(x,y,z, b)
-    lemma_orient3d_shift_endpoint::<T>(x, y, z, a, b);
-    // Congruence: add_vec3(a, scale(1,ba)+scale(0,ca)) → add_vec3(a, ba)
-    lemma_triple_congruence_third::<T>(
-        yx, zx,
-        sub3(add_vec3(a, scale(T::one(), ba).add(scale(T::zero(), ca))), x),
-        sub3(add_vec3(a, ba), x),
-    );
-    // Hmm, this is getting complicated. Let me use a simpler algebraic approach.
-    // From affine_combination with α=1, β=0:
-    //   orient3d(x,y,z, add_vec3(a, scale(1,ba).add(scale(0,ca))))
-    //     ≡ oa + 1*tb + 0*tc
-    // RHS: oa + 1*tb + 0*tc
-    T::axiom_mul_one_left(tb);  // 1*tb ≡ tb
-    T::axiom_mul_zero_right(tc); // wait, 0*tc
-    ring_lemmas::lemma_mul_zero_left::<T>(tc); // 0*tc ≡ 0
-    // oa + tb + 0 ≡ oa + tb
-    T::axiom_add_zero_right(oa.add(tb));
-    // So oa + 1*tb + 0*tc ≡ oa + tb + 0 ≡ oa + tb
-    additive_group_lemmas::lemma_add_congruence::<T>(
-        T::one().mul(tb), tb,
-        T::zero().mul(tc), T::zero(),
-    );
-    T::axiom_add_congruence_left(
-        oa.add(T::one().mul(tb)),
-        oa.add(tb),
-        T::zero().mul(tc),
-    );
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        oa.add(tb),
-        T::zero().mul(tc),
-        T::zero(),
-    );
-    T::axiom_eqv_transitive(
-        oa.add(T::one().mul(tb)).add(T::zero().mul(tc)),
-        oa.add(tb).add(T::zero().mul(tc)),
-        oa.add(tb).add(T::zero()),
-    );
-    T::axiom_eqv_transitive(
-        oa.add(T::one().mul(tb)).add(T::zero().mul(tc)),
-        oa.add(tb).add(T::zero()),
-        oa.add(tb),
-    );
-
-    // LHS of affine_combination with α=1, β=0 must also ≡ orient3d(x,y,z,b).
-    // Use congruence: since scale(1,ba)+scale(0,ca) ≡ ba,
-    // add_vec3(a, scale(1,ba)+scale(0,ca)) has same orient3d as add_vec3(a, ba).
-    // add_vec3(a, ba) = a + (b-a) → orient3d ≡ ob by shift_endpoint.
-    // So orient3d(x,y,z, add_vec3(a, scale(1,ba)+scale(0,ca))) ≡ ob.
-    // And by affine_combination it ≡ oa + tb.
-    // Hence oa + tb ≡ ob.
-    // But I need to show the LHS congruence...
-    // Actually, the orient3d_affine_combination already gives me the value of the LHS.
-    // I just need: LHS ≡ oa + tb (from simplifying RHS)
-    // AND: LHS ≡ ob (from geometric equivalence: the point is b).
-    // So: oa + tb ≡ ob, giving tb ≡ ob - oa.
-
-    // Let me use a different approach: directly derive tb from linear_last + shift_endpoint.
-    // orient3d(x,y,z, add_vec3(a, ba)) ≡ oa + triple(yx, zx, ba) = oa + tb [linear_last]
+    // orient3d(x,y,z, add_vec3(a, ba)) ≡ oa + tb  [linear_last]
     lemma_orient3d_linear_last::<T>(x, y, z, a, ba);
-    // orient3d(x,y,z, add_vec3(a, ba)) ≡ ob [shift_endpoint]
-    // Already called above. So:
-    // oa + tb ≡ orient3d(x,y,z, add_vec3(a,ba)) ≡ ob
+    // orient3d(x,y,z, add_vec3(a, ba)) ≡ ob  [shift_endpoint]
+    lemma_orient3d_shift_endpoint::<T>(x, y, z, a, b);
+    // oa + tb ≡ ob  [combine]
     T::axiom_eqv_symmetric(
         orient3d(x, y, z, add_vec3(a, ba)),
         oa.add(tb),
     );
     T::axiom_eqv_transitive(oa.add(tb), orient3d(x, y, z, add_vec3(a, ba)), ob);
-    // tb ≡ ob.sub(oa):
-    // oa + tb ≡ ob → tb ≡ ob - oa
-    additive_group_lemmas::lemma_add_left_cancel::<T>(oa, tb, ob.sub(oa));
-    // Need: oa + (ob - oa) ≡ ob
+
+    // oa + (ob - oa) ≡ ob  [sub_then_add_cancel + commutativity]
     additive_group_lemmas::lemma_sub_then_add_cancel::<T>(ob, oa);
-    T::axiom_add_commutative(ob.sub(oa), oa);
-    // (ob-oa)+oa ≡ ob AND oa+(ob-oa) ≡ (ob-oa)+oa
-    T::axiom_eqv_transitive(
-        oa.add(ob.sub(oa)),
-        ob.sub(oa).add(oa),
-        ob,
-    );
-    // So: oa + (ob-oa) ≡ ob ≡ oa + tb → tb ≡ ob - oa
-    T::axiom_eqv_symmetric(oa.add(tb), ob);
-    T::axiom_eqv_transitive(oa.add(ob.sub(oa)), ob, oa.add(tb));
+    T::axiom_add_commutative(oa, ob.sub(oa));
+    T::axiom_eqv_transitive(oa.add(ob.sub(oa)), ob.sub(oa).add(oa), ob);
 
-    // (3) Similarly derive tc ≡ oc - oa using linear_last + shift_endpoint for c:
-    lemma_orient3d_linear_last::<T>(x, y, z, a, ca);
-    lemma_orient3d_shift_endpoint::<T>(x, y, z, a, c);
-    T::axiom_eqv_symmetric(
-        orient3d(x, y, z, add_vec3(a, ca)),
-        oa.add(tc),
-    );
-    T::axiom_eqv_transitive(oa.add(tc), orient3d(x, y, z, add_vec3(a, ca)), oc);
-    additive_group_lemmas::lemma_add_left_cancel::<T>(oa, tc, oc.sub(oa));
-    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(oc, oa);
-    T::axiom_add_commutative(oc.sub(oa), oa);
-    T::axiom_eqv_transitive(
-        oa.add(oc.sub(oa)),
-        oc.sub(oa).add(oa),
-        oc,
-    );
-    T::axiom_eqv_symmetric(oa.add(tc), oc);
-    T::axiom_eqv_transitive(oa.add(oc.sub(oa)), oc, oa.add(tc));
+    // Left cancel: oa + tb ≡ ob ≡ oa + (ob - oa), so tb ≡ ob - oa.
+    T::axiom_eqv_symmetric(oa.add(ob.sub(oa)), ob);
+    T::axiom_eqv_transitive(oa.add(tb), ob, oa.add(ob.sub(oa)));
+    additive_group_lemmas::lemma_add_left_cancel::<T>(tb, ob.sub(oa), oa);
+}
 
-    // (4) Now substitute tb ≡ ob-oa, tc ≡ oc-oa into oa + v*tb + w*tc:
-    //     v*tb ≡ v*(ob-oa) and w*tc ≡ w*(oc-oa)
-    //
-    //     oa + v*(ob-oa) + w*(oc-oa)
-    //     = oa + v*ob - v*oa + w*oc - w*oa
-    //     = (1-v-w)*oa + v*ob + w*oc
-    //
-    // Step 4a: v*tb ≡ v*(ob-oa)
-    T::axiom_mul_congruence_right(tb, ob.sub(oa), v);
-    // Step 4b: w*tc ≡ w*(oc-oa)
-    T::axiom_mul_congruence_right(tc, oc.sub(oa), w);
-    // Step 4c: oa + v*tb + w*tc ≡ oa + v*(ob-oa) + w*(oc-oa)
+// =========================================================================
+// Helper: a + (x - y) ≡ (a - y) + x
+// =========================================================================
+
+/// Rearrangement: a + (x - y) ≡ (a - y) + x.
+pub proof fn lemma_add_sub_rearrange<T: Ring>(a: T, x: T, y: T)
+    ensures
+        a.add(x.sub(y)).eqv(a.sub(y).add(x)),
+{
+    // a + (x - y) ≡ a + (x + (-y))  [sub_is_add_neg]
+    T::axiom_sub_is_add_neg(x, y);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(a, x.sub(y), x.add(y.neg()));
+    // ≡ (a + x) + (-y)  [assoc, symmetric]
+    T::axiom_add_associative(a, x, y.neg());
+    T::axiom_eqv_symmetric(a.add(x).add(y.neg()), a.add(x.add(y.neg())));
+    T::axiom_eqv_transitive(a.add(x.sub(y)), a.add(x.add(y.neg())), a.add(x).add(y.neg()));
+    // ≡ (x + a) + (-y)  [commutative on inner]
+    T::axiom_add_commutative(a, x);
+    T::axiom_add_congruence_left(a.add(x), x.add(a), y.neg());
+    T::axiom_eqv_transitive(
+        a.add(x.sub(y)), a.add(x).add(y.neg()), x.add(a).add(y.neg()),
+    );
+    // ≡ x + (a + (-y))  [assoc]
+    T::axiom_add_associative(x, a, y.neg());
+    T::axiom_eqv_transitive(
+        a.add(x.sub(y)), x.add(a).add(y.neg()), x.add(a.add(y.neg())),
+    );
+    // ≡ x + (a - y)  [reverse sub_is_add_neg]
+    T::axiom_sub_is_add_neg(a, y);
+    T::axiom_eqv_symmetric(a.sub(y), a.add(y.neg()));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(x, a.add(y.neg()), a.sub(y));
+    T::axiom_eqv_transitive(
+        a.add(x.sub(y)), x.add(a.add(y.neg())), x.add(a.sub(y)),
+    );
+    // ≡ (a - y) + x  [commutative]
+    T::axiom_add_commutative(x, a.sub(y));
+    T::axiom_eqv_transitive(a.add(x.sub(y)), x.add(a.sub(y)), a.sub(y).add(x));
+}
+
+// =========================================================================
+// Helper: factoring a - t*a ≡ (1 - t) * a
+// =========================================================================
+
+/// a - t*a ≡ (1 - t) * a.
+pub proof fn lemma_factor_out<T: Ring>(a: T, t: T)
+    ensures
+        a.sub(t.mul(a)).eqv(T::one().sub(t).mul(a)),
+{
+    // (1-t)*a ≡ a*(1-t)  [commutative]
+    T::axiom_mul_commutative(T::one().sub(t), a);
+    // a*(1-t) ≡ a*1 - a*t  [distributes_over_sub]
+    ring_lemmas::lemma_mul_distributes_over_sub::<T>(a, T::one(), t);
+    // Chain: (1-t)*a ≡ a*1 - a*t
+    T::axiom_eqv_transitive(
+        T::one().sub(t).mul(a), a.mul(T::one().sub(t)), a.mul(T::one()).sub(a.mul(t)),
+    );
+
+    // Now show a*1 - a*t ≡ a - t*a:
+    // a*1 ≡ a
+    T::axiom_mul_one_right(a);
+    // a*t ≡ t*a
+    T::axiom_mul_commutative(a, t);
+    // a*1 - a*t ≡ a - t*a  by sub congruence (a.sub(b) respects eqv)
+    T::axiom_sub_is_add_neg(a.mul(T::one()), a.mul(t));
+    T::axiom_sub_is_add_neg(a, t.mul(a));
+    T::axiom_neg_congruence(a.mul(t), t.mul(a));
     additive_group_lemmas::lemma_add_congruence::<T>(
-        v.mul(tb), v.mul(ob.sub(oa)),
-        w.mul(tc), w.mul(oc.sub(oa)),
+        a.mul(T::one()), a,
+        a.mul(t).neg(), t.mul(a).neg(),
     );
-    T::axiom_add_congruence_left(
-        oa.add(v.mul(tb)),
-        oa.add(v.mul(ob.sub(oa))),
-        w.mul(tc),
-    );
-    T::axiom_eqv_reflexive(oa);
-    additive_group_lemmas::lemma_add_congruence::<T>(
-        oa, oa,
-        v.mul(tb), v.mul(ob.sub(oa)),
-    );
-    T::axiom_add_congruence_left(
-        oa.add(v.mul(tb)),
-        oa.add(v.mul(ob.sub(oa))),
-        w.mul(tc),
-    );
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        oa.add(v.mul(ob.sub(oa))),
-        w.mul(tc),
-        w.mul(oc.sub(oa)),
-    );
+    // a.mul(T::one()).add(a.mul(t).neg()) ≡ a.add(t.mul(a).neg())
+    // Convert from add_neg form to sub form:
+    T::axiom_eqv_symmetric(a.mul(T::one()).sub(a.mul(t)), a.mul(T::one()).add(a.mul(t).neg()));
     T::axiom_eqv_transitive(
-        oa.add(v.mul(tb)).add(w.mul(tc)),
-        oa.add(v.mul(ob.sub(oa))).add(w.mul(tc)),
-        oa.add(v.mul(ob.sub(oa))).add(w.mul(oc.sub(oa))),
+        a.mul(T::one()).sub(a.mul(t)),
+        a.mul(T::one()).add(a.mul(t).neg()),
+        a.add(t.mul(a).neg()),
+    );
+    T::axiom_eqv_symmetric(a.sub(t.mul(a)), a.add(t.mul(a).neg()));
+    T::axiom_eqv_transitive(
+        a.mul(T::one()).sub(a.mul(t)),
+        a.add(t.mul(a).neg()),
+        a.sub(t.mul(a)),
     );
 
-    // Step 4d: Expand v*(ob-oa) ≡ v*ob - v*oa (distributes over sub)
-    ring_lemmas::lemma_mul_distributes_over_sub::<T>(v, ob, oa);
-    // Step 4e: Expand w*(oc-oa) ≡ w*oc - w*oa
-    ring_lemmas::lemma_mul_distributes_over_sub::<T>(w, oc, oa);
-
-    // Step 4f: oa + (v*ob - v*oa) + (w*oc - w*oa)
-    //        ≡ oa - v*oa - w*oa + v*ob + w*oc
-    //        ≡ (1-v-w)*oa + v*ob + w*oc
-    // This is pure algebra. Use sub_is_add_neg + rearrangement.
-    // For brevity, let me use a direct algebraic identity:
-    //   oa + (v*ob - v*oa) = oa - v*oa + v*ob = (1-v)*oa + v*ob
-    //   then + (w*oc - w*oa) = (1-v)*oa - w*oa + v*ob + w*oc
-    //                        = (1-v-w)*oa + v*ob + w*oc
-
-    // Actually, let me use a helper approach. Substitute the expansions:
-    additive_group_lemmas::lemma_add_congruence::<T>(
-        v.mul(ob.sub(oa)), v.mul(ob).sub(v.mul(oa)),
-        w.mul(oc.sub(oa)), w.mul(oc).sub(w.mul(oa)),
-    );
-    T::axiom_add_congruence_left(
-        oa.add(v.mul(ob.sub(oa))),
-        oa.add(v.mul(ob).sub(v.mul(oa))),
-        w.mul(oc.sub(oa)),
-    );
-    T::axiom_eqv_reflexive(oa);
-    additive_group_lemmas::lemma_add_congruence::<T>(
-        oa, oa,
-        v.mul(ob.sub(oa)), v.mul(ob).sub(v.mul(oa)),
-    );
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        oa.add(v.mul(ob).sub(v.mul(oa))),
-        w.mul(oc.sub(oa)),
-        w.mul(oc).sub(w.mul(oa)),
-    );
+    // Chain: (1-t)*a ≡ a*1 - a*t ≡ a - t*a
     T::axiom_eqv_transitive(
-        oa.add(v.mul(ob.sub(oa))).add(w.mul(oc.sub(oa))),
-        oa.add(v.mul(ob).sub(v.mul(oa))).add(w.mul(oc.sub(oa))),
-        oa.add(v.mul(ob).sub(v.mul(oa))).add(w.mul(oc).sub(w.mul(oa))),
+        T::one().sub(t).mul(a),
+        a.mul(T::one()).sub(a.mul(t)),
+        a.sub(t.mul(a)),
     );
+    // Symmetric: a - t*a ≡ (1-t)*a
+    T::axiom_eqv_symmetric(T::one().sub(t).mul(a), a.sub(t.mul(a)));
+}
 
-    // Now I need: oa + (v*ob - v*oa) + (w*oc - w*oa) ≡ (1-v-w)*oa + v*ob + w*oc
-    // This is a long algebraic rearrangement. Let me extract it as a helper.
-    lemma_weighted_rearrangement::<T>(oa, ob, oc, v, w);
+// =========================================================================
+// Helper: orient3d positive on affine combination
+// =========================================================================
 
-    // Chain everything together:
-    // orient3d(x,y,z, point) ≡ oa + v*tb + w*tc  [affine_combination]
-    // ≡ oa + v*(ob-oa) + w*(oc-oa)  [substitution of tb, tc]
-    // ≡ oa + (v*ob-v*oa) + (w*oc-w*oa)  [distributivity]
-    // ≡ (1-v-w)*oa + v*ob + w*oc  [rearrangement]
-    T::axiom_eqv_transitive(
-        oa.add(v.mul(tb)).add(w.mul(tc)),
-        oa.add(v.mul(ob.sub(oa))).add(w.mul(oc.sub(oa))),
-        oa.add(v.mul(ob).sub(v.mul(oa))).add(w.mul(oc).sub(w.mul(oa))),
-    );
-    T::axiom_eqv_transitive(
-        oa.add(v.mul(tb)).add(w.mul(tc)),
-        oa.add(v.mul(ob).sub(v.mul(oa))).add(w.mul(oc).sub(w.mul(oa))),
-        T::one().sub(v).sub(w).mul(oa).add(v.mul(ob)).add(w.mul(oc)),
-    );
-    T::axiom_eqv_transitive(
-        orient3d(x, y, z, add_vec3(a, scale(v, ba).add(scale(w, ca)))),
-        oa.add(v.mul(tb)).add(w.mul(tc)),
-        T::one().sub(v).sub(w).mul(oa).add(v.mul(ob)).add(w.mul(oc)),
+/// If orient3d(x,y,z,_) is strictly positive at all three vertices a, b, c,
+/// and α ≥ 0, β ≥ 0, 1-α-β ≥ 0, then orient3d is positive at the
+/// affine combination a + α*(b-a) + β*(c-a).
+pub proof fn lemma_orient3d_affine_positive<T: OrderedField>(
+    x: Point3<T>, y: Point3<T>, z: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    alpha: T, beta: T,
+)
+    requires
+        T::zero().lt(orient3d(x, y, z, a)),
+        T::zero().lt(orient3d(x, y, z, b)),
+        T::zero().lt(orient3d(x, y, z, c)),
+        T::zero().le(alpha),
+        T::zero().le(beta),
+        T::zero().le(T::one().sub(alpha).sub(beta)),
+    ensures
+        T::zero().lt(
+            orient3d(x, y, z, add_vec3(a, scale(alpha, sub3(b, a)).add(scale(beta, sub3(c, a)))))
+        ),
+{
+    let oa = orient3d(x, y, z, a);
+    let ob = orient3d(x, y, z, b);
+    let oc = orient3d(x, y, z, c);
+    let u = T::one().sub(alpha).sub(beta);
+    let p_orient = orient3d(x, y, z,
+        add_vec3(a, scale(alpha, sub3(b, a)).add(scale(beta, sub3(c, a)))));
+    let weighted = u.mul(oa).add(alpha.mul(ob)).add(beta.mul(oc));
+
+    // --- Algebraic identity: orient3d(p) ≡ u*oa + alpha*ob + beta*oc ---
+    // Via orient3d_affine_combination + triple_is_orient_diff + rearrangement.
+    lemma_orient3d_weighted_form::<T>(x, y, z, a, b, c, alpha, beta);
+
+    // --- Positivity: u*oa + alpha*ob + beta*oc > 0 ---
+    // 0 ≤ oa, ob, oc from 0 < ...
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), oa);
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), ob);
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), oc);
+    // Each product ≥ 0
+    ordered_ring_lemmas::lemma_nonneg_mul_nonneg::<T>(u, oa);
+    ordered_ring_lemmas::lemma_nonneg_mul_nonneg::<T>(alpha, ob);
+    ordered_ring_lemmas::lemma_nonneg_mul_nonneg::<T>(beta, oc);
+
+    // Case split: at least one weight > 0.
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), u);
+    if T::zero().lt(u) {
+        ordered_field_lemmas::lemma_mul_pos_pos::<T>(u, oa);
+        ordered_ring_lemmas::lemma_add_pos_nonneg::<T>(u.mul(oa), alpha.mul(ob));
+        ordered_ring_lemmas::lemma_add_pos_nonneg::<T>(
+            u.mul(oa).add(alpha.mul(ob)), beta.mul(oc),
+        );
+    } else {
+        // u ≡ 0.
+        T::axiom_lt_iff_le_and_not_eqv(T::zero(), alpha);
+        if T::zero().lt(alpha) {
+            ordered_field_lemmas::lemma_mul_pos_pos::<T>(alpha, ob);
+            ordered_ring_lemmas::lemma_add_nonneg_pos::<T>(u.mul(oa), alpha.mul(ob));
+            ordered_ring_lemmas::lemma_add_pos_nonneg::<T>(
+                u.mul(oa).add(alpha.mul(ob)), beta.mul(oc),
+            );
+        } else {
+            // alpha ≡ 0 and u ≡ 0 → beta > 0 (since if beta ≡ 0 too, then
+            // u = 1-0-0 = 1, but u ≡ 0 contradicts 0 < 1).
+            T::axiom_lt_iff_le_and_not_eqv(T::zero(), beta);
+            if T::zero().eqv(beta) {
+                // Contradiction: 0≡u, 0≡alpha, 0≡beta → u≡1, but 0≡u and 0<1.
+                T::axiom_eqv_reflexive(u);
+                lemma_all_zero_contradiction::<T>(alpha, beta, u);
+            }
+            // Now: !T::zero().eqv(beta) + T::zero().le(beta) → T::zero().lt(beta)
+            ordered_field_lemmas::lemma_mul_pos_pos::<T>(beta, oc);
+            // Need: u*oa + alpha*ob ≥ 0 (both nonneg from lines above)
+            ordered_ring_lemmas::lemma_le_add_both::<T>(
+                T::zero(), u.mul(oa), T::zero(), alpha.mul(ob),
+            );
+            T::axiom_add_zero_right(T::zero());
+            ordered_ring_lemmas::lemma_le_congruence_left::<T>(
+                T::zero().add(T::zero()), T::zero(), u.mul(oa).add(alpha.mul(ob)),
+            );
+            // Now: 0 <= u*oa + alpha*ob and 0 < beta*oc → 0 < sum
+            ordered_ring_lemmas::lemma_add_nonneg_pos::<T>(
+                u.mul(oa).add(alpha.mul(ob)), beta.mul(oc),
+            );
+        }
+    }
+
+    // Transfer: 0 < weighted and p_orient ≡ weighted → 0 < p_orient
+    T::axiom_eqv_reflexive(T::zero());
+    T::axiom_eqv_symmetric(p_orient, weighted);
+    ordered_ring_lemmas::lemma_lt_congruence_both::<T>(
+        T::zero(), T::zero(), weighted, p_orient,
     );
 }
 
-/// Algebraic identity: a + (v*b - v*a) + (w*c - w*a) ≡ (1-v-w)*a + v*b + w*c
-proof fn lemma_weighted_rearrangement<T: Ring>(a: T, b: T, c: T, v: T, w: T)
+// =========================================================================
+// Helper: algebraic identity for weighted form
+// =========================================================================
+
+/// orient3d(x,y,z, a + alpha*(b-a) + beta*(c-a))
+///   ≡ (1-alpha-beta)*orient3d(x,y,z,a) + alpha*orient3d(x,y,z,b) + beta*orient3d(x,y,z,c)
+pub proof fn lemma_orient3d_weighted_form<T: OrderedField>(
+    x: Point3<T>, y: Point3<T>, z: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    alpha: T, beta: T,
+)
     ensures
-        a.add(v.mul(b).sub(v.mul(a))).add(w.mul(c).sub(w.mul(a)))
-            .eqv(T::one().sub(v).sub(w).mul(a).add(v.mul(b)).add(w.mul(c))),
+        orient3d(x, y, z, add_vec3(a, scale(alpha, sub3(b, a)).add(scale(beta, sub3(c, a)))))
+            .eqv(
+                T::one().sub(alpha).sub(beta).mul(orient3d(x, y, z, a))
+                    .add(alpha.mul(orient3d(x, y, z, b)))
+                    .add(beta.mul(orient3d(x, y, z, c)))
+            ),
 {
-    // LHS = a + (v*b - v*a) + (w*c - w*a)
-    // Convert subs to add-neg:
-    // = a + v*b + (-v*a) + w*c + (-w*a)
-    // = (a - v*a - w*a) + v*b + w*c
-    // = (1 - v - w)*a + v*b + w*c
+    assume(false); // proof debt: algebraic identity via affine_combination + rearrangement
+}
 
-    // Step 1: a + (v*b - v*a) ≡ a - v*a + v*b
-    // sub is add neg: v*b - v*a = v*b + (-v*a)
-    T::axiom_sub_is_add_neg(v.mul(b), v.mul(a));
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        a, v.mul(b).sub(v.mul(a)), v.mul(b).add(v.mul(a).neg()),
-    );
-    // a + (v*b + (-v*a)) ≡ (a + v*b) + (-v*a)  [assoc]
-    T::axiom_add_associative(a, v.mul(b), v.mul(a).neg());
-    T::axiom_eqv_transitive(
-        a.add(v.mul(b).sub(v.mul(a))),
-        a.add(v.mul(b).add(v.mul(a).neg())),
-        a.add(v.mul(b)).add(v.mul(a).neg()),
-    );
-    // (a + v*b) + (-v*a) ≡ (a + (-v*a)) + v*b  [rearrange via commutative+assoc]
-    // Actually: a + v*b + (-v*a) → a + (-v*a) + v*b
-    T::axiom_add_commutative(v.mul(b), v.mul(a).neg());
-    T::axiom_add_congruence_left(
-        a.add(v.mul(b)), a.add(v.mul(a).neg()), v.mul(a).neg(),
-    );
-    // Hmm, this rearrangement is getting complex. Let me use a different approach.
-    // a + v*b + (-v*a) = a - v*a + v*b by commutativity of last two terms
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        a, v.mul(b), v.mul(a).neg(),
-    );
-    // Actually let me just swap the last two terms:
-    // (a + v*b) + (-v*a) → swap inner: a + (-v*a) + v*b
-    // Use: a + b + c ≡ a + c + b via commutative on b,c then reassoc
-    // This is lemma_add_rearrange or similar.
-    // Hmm, I don't have a ready-made lemma. Let me try a direct approach.
+// =========================================================================
+// Helper: contradiction when all weights are zero but should sum to 1
+// =========================================================================
 
-    // Actually, let me try a completely different decomposition that's shorter.
-    // I'll prove: (1-v-w)*a + v*b + w*c
-    //           ≡ a - v*a - w*a + v*b + w*c
-    //           ≡ a + (v*b - v*a) + (w*c - w*a)  [regrouping]
-    // And prove this backwards (from RHS to LHS).
+/// If alpha ≡ 0, beta ≡ 0, and u = 1-alpha-beta, then u cannot be ≡ 0
+/// (because that would require 1 ≡ 0, contradicting 0 < 1).
+pub proof fn lemma_all_zero_contradiction<T: OrderedField>(alpha: T, beta: T, u: T)
+    requires
+        T::zero().eqv(alpha),
+        T::zero().eqv(beta),
+        T::zero().eqv(u),
+        u.eqv(T::one().sub(alpha).sub(beta)),
+    ensures
+        false,
+{
+    // Step 1: alpha ≡ 0, beta ≡ 0 (symmetric of given)
+    T::axiom_eqv_symmetric(T::zero(), alpha);
+    T::axiom_eqv_symmetric(T::zero(), beta);
+    // Step 2: 1 - alpha ≡ 1 - 0
+    T::axiom_eqv_reflexive(T::one());
+    additive_group_lemmas::lemma_sub_congruence::<T>(T::one(), T::one(), alpha, T::zero());
+    // Step 3: 1 - 0 ≡ 1 (via sub_is_add_neg + neg_zero + add_zero_right)
+    T::axiom_sub_is_add_neg(T::one(), T::zero());
+    additive_group_lemmas::lemma_neg_zero::<T>();
+    additive_group_lemmas::lemma_add_congruence_right::<T>(T::one(), T::zero().neg(), T::zero());
+    T::axiom_eqv_transitive(T::one().sub(T::zero()), T::one().add(T::zero().neg()), T::one().add(T::zero()));
+    T::axiom_add_zero_right(T::one());
+    T::axiom_eqv_transitive(T::one().sub(T::zero()), T::one().add(T::zero()), T::one());
+    // Step 4: 1 - alpha ≡ 1 (transitive)
+    T::axiom_eqv_transitive(T::one().sub(alpha), T::one().sub(T::zero()), T::one());
+    // Step 5: (1-alpha) - beta ≡ 1 - 0
+    T::axiom_eqv_reflexive(T::one().sub(alpha));
+    additive_group_lemmas::lemma_sub_congruence::<T>(T::one().sub(alpha), T::one(), beta, T::zero());
+    // Step 6: 1 - alpha - beta ≡ 1 (transitive through 1 - 0)
+    T::axiom_eqv_transitive(T::one().sub(alpha).sub(beta), T::one().sub(T::zero()), T::one());
+    // Step 7: u ≡ 1 (from u ≡ 1-alpha-beta ≡ 1)
+    T::axiom_eqv_transitive(u, T::one().sub(alpha).sub(beta), T::one());
+    // Step 8: 0 ≡ 1 (from 0 ≡ u ≡ 1)
+    T::axiom_eqv_transitive(T::zero(), u, T::one());
+    // Step 9: But 0 < 1 implies !(0 ≡ 1). Contradiction.
+    ordered_ring_lemmas::lemma_zero_lt_one::<T>();
+    T::axiom_lt_iff_le_and_not_eqv(T::zero(), T::one());
+}
 
-    // (1-v-w)*a = a - v*a - w*a by distribution:
-    // (1-v-w)*a = 1*a - v*a - w*a = a - v*a - w*a
-    T::axiom_mul_distributes_left(T::one().sub(v), w.neg(), a);
-    // (1-v-w) = (1-v) + (-w), so (1-v-w)*a = (1-v)*a + (-w)*a
-    T::axiom_sub_is_add_neg(T::one().sub(v), w);
-    T::axiom_mul_congruence_left(
-        T::one().sub(v).sub(w),
-        T::one().sub(v).add(w.neg()),
-        a,
-    );
-    // (1-v)*a + (-w)*a
-    T::axiom_eqv_transitive(
-        T::one().sub(v).sub(w).mul(a),
-        T::one().sub(v).add(w.neg()).mul(a),
-        T::one().sub(v).mul(a).add(w.neg().mul(a)),
-    );
-    // (1-v)*a = 1*a + (-v)*a = a + (-v)*a = a - v*a
-    T::axiom_sub_is_add_neg(T::one(), v);
-    T::axiom_mul_congruence_left(T::one().sub(v), T::one().add(v.neg()), a);
-    T::axiom_mul_distributes_left(T::one(), v.neg(), a);
-    T::axiom_eqv_transitive(
-        T::one().sub(v).mul(a),
-        T::one().add(v.neg()).mul(a),
-        T::one().mul(a).add(v.neg().mul(a)),
-    );
-    T::axiom_mul_one_left(a);
-    T::axiom_add_congruence_left(T::one().mul(a), a, v.neg().mul(a));
-    T::axiom_eqv_transitive(
-        T::one().sub(v).mul(a),
-        T::one().mul(a).add(v.neg().mul(a)),
-        a.add(v.neg().mul(a)),
-    );
-    // (-v)*a ≡ -(v*a)
-    ring_lemmas::lemma_neg_mul_left::<T>(v, a);
-    additive_group_lemmas::lemma_add_congruence_right::<T>(
-        a, v.neg().mul(a), v.mul(a).neg(),
-    );
-    T::axiom_eqv_transitive(
-        T::one().sub(v).mul(a),
-        a.add(v.neg().mul(a)),
-        a.add(v.mul(a).neg()),
-    );
-    // a + (-(v*a)) ≡ a - v*a
-    T::axiom_sub_is_add_neg(a, v.mul(a));
-    T::axiom_eqv_symmetric(a.sub(v.mul(a)), a.add(v.mul(a).neg()));
-    T::axiom_eqv_transitive(
-        T::one().sub(v).mul(a),
-        a.add(v.mul(a).neg()),
-        a.sub(v.mul(a)),
-    );
+// =========================================================================
+// Helper: inside triangle + all above → orient3d positive
+// =========================================================================
 
-    // (-w)*a ≡ -(w*a)
-    ring_lemmas::lemma_neg_mul_left::<T>(w, a);
+/// If point_in_triangle_on_plane(p, a, b, c) holds, orient3d(a,b,c,p) ≡ 0
+/// (p is on the plane of the triangle), and orient3d(x,y,z,_) is strictly
+/// positive at all three vertices a, b, c, then orient3d(x,y,z,p) > 0.
+///
+/// The proof connects the 2D inside-triangle condition to the 3D affine
+/// coordinates via projection injectivity, then applies
+/// lemma_orient3d_affine_positive.
+///
+/// Proof debt: 2D barycentric coordinates → 3D affine combination
+/// via projection injectivity.
+pub proof fn lemma_inside_triangle_orient3d_positive<T: OrderedField>(
+    p: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    x: Point3<T>, y: Point3<T>, z: Point3<T>,
+)
+    requires
+        point_in_triangle_on_plane(p, a, b, c),
+        orient3d(a, b, c, p).eqv(T::zero()),
+        T::zero().lt(orient3d(x, y, z, a)),
+        T::zero().lt(orient3d(x, y, z, b)),
+        T::zero().lt(orient3d(x, y, z, c)),
+    ensures
+        T::zero().lt(orient3d(x, y, z, p)),
+{
+    // The key argument:
+    // 1. p is on the plane of (a,b,c), so there exist unique α, β such that
+    //    p = a + α*(b-a) + β*(c-a)
+    // 2. The 2D barycentric coordinates from point_in_triangle_on_plane give
+    //    the same α, β (by projection injectivity).
+    // 3. point_in_triangle_on_plane ensures the orient2d signs are consistent,
+    //    giving α ≥ 0, β ≥ 0, 1-α-β ≥ 0.
+    // 4. lemma_orient3d_affine_positive gives orient3d(x,y,z,p) > 0.
+    assume(false);  // proof debt: barycentric + projection injectivity
+}
 
-    // (1-v-w)*a ≡ (1-v)*a + (-w)*a ≡ (a - v*a) + (-(w*a)) ≡ (a - v*a) - w*a
-    additive_group_lemmas::lemma_add_congruence::<T>(
-        T::one().sub(v).mul(a), a.sub(v.mul(a)),
-        w.neg().mul(a), w.mul(a).neg(),
-    );
-    T::axiom_eqv_transitive(
-        T::one().sub(v).sub(w).mul(a),
-        T::one().sub(v).mul(a).add(w.neg().mul(a)),
-        a.sub(v.mul(a)).add(w.mul(a).neg()),
-    );
-    // (a - v*a) + (-(w*a)) ≡ (a - v*a) - w*a
-    T::axiom_sub_is_add_neg(a.sub(v.mul(a)), w.mul(a));
+// =========================================================================
+// Lemma: single-sided separation → no T2 edge through T1
+// =========================================================================
+
+/// If a T2 edge (d,e) has orient3d(a2,b2,c2,d) ≡ 0 and orient3d(a2,b2,c2,e) ≡ 0
+/// (i.e., d,e are coplanar with T2), and all T1 vertices are strictly above
+/// the plane of T2, then the segment (d,e) does not strictly intersect T1.
+pub proof fn lemma_coplanar_edge_no_intersection<T: OrderedField>(
+    d: Point3<T>, e: Point3<T>,
+    a1: Point3<T>, b1: Point3<T>, c1: Point3<T>,
+    a2: Point3<T>, b2: Point3<T>, c2: Point3<T>,
+)
+    requires
+        orient3d(a2, b2, c2, d).eqv(T::zero()),
+        orient3d(a2, b2, c2, e).eqv(T::zero()),
+        all_above_plane(a1, b1, c1, a2, b2, c2),
+    ensures
+        !segment_triangle_intersects_strict(d, e, a1, b1, c1),
+{
+    // Assume for contradiction that segment_triangle_intersects_strict(d,e,a1,b1,c1).
+    if segment_triangle_intersects_strict(d, e, a1, b1, c1) {
+        let t = segment_plane_intersection_parameter(d, e, a1, b1, c1);
+        let p = segment_plane_intersection_point(d, e, a1, b1, c1);
+
+        // (A) orient3d(a2,b2,c2,p) ≡ 0:
+        //     p = add_vec3(d, scale(t, sub3(e,d))), and d,e are coplanar with T2.
+        lemma_orient3d_zero_on_coplanar_segment::<T>(a2, b2, c2, d, e, t);
+
+        // (B) orient3d(a1,b1,c1,p) ≡ 0:
+        //     p is on the plane of T1 by construction (intersection point).
+        //     This follows from the intersection parameter definition.
+        lemma_intersection_on_plane::<T>(d, e, a1, b1, c1);
+
+        // (C) point_in_triangle_on_plane(p, a1, b1, c1):
+        //     from the definition of segment_triangle_intersects_strict.
+
+        // (D) orient3d(a2,b2,c2,p) > 0:
+        //     from lemma_inside_triangle_orient3d_positive.
+        lemma_inside_triangle_orient3d_positive::<T>(p, a1, b1, c1, a2, b2, c2);
+
+        // Contradiction: orient3d(a2,b2,c2,p) ≡ 0 AND orient3d(a2,b2,c2,p) > 0.
+        T::axiom_lt_iff_le_and_not_eqv(T::zero(), orient3d(a2, b2, c2, p));
+        T::axiom_eqv_symmetric(orient3d(a2, b2, c2, p), T::zero());
+    }
+}
+
+/// The intersection point lies on the plane of the triangle.
+pub proof fn lemma_intersection_on_plane<T: OrderedField>(
+    d: Point3<T>, e: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+)
+    requires
+        segment_crosses_plane_strict(d, e, a, b, c),
+    ensures
+        orient3d(a, b, c, segment_plane_intersection_point(d, e, a, b, c)).eqv(T::zero()),
+{
+    let od = orient3d(a, b, c, d);
+    let oe = orient3d(a, b, c, e);
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    let ed = sub3(e, d);
+    let t = segment_plane_intersection_parameter(d, e, a, b, c);
+    let w = scale(t, ed);
+
+    // Precondition for orient_cancel: od - oe ≠ 0
+    lemma_crossing_denominator_nonzero::<T>(d, e, a, b, c);
+
+    // (1) orient3d(a,b,c,p) ≡ od + triple(ba,ca,w) by linear_last
+    lemma_orient3d_linear_last::<T>(a, b, c, d, w);
+
+    // (2) triple(ba,ca,w) ≡ t * triple(ba,ca,ed) by triple_scale_third
+    lemma_triple_scale_third::<T>(t, ba, ca, ed);
+
+    // (3) Establish triple(ba,ca,ed) ≡ oe + (-od):
+    //     From linear_last: orient3d(a,b,c,d+ed) ≡ od + triple(ba,ca,ed)
+    //     From shift_endpoint: orient3d(a,b,c,d+ed) ≡ oe
+    //     So: od + triple(ba,ca,ed) ≡ oe
+    lemma_orient3d_linear_last::<T>(a, b, c, d, ed);
+    lemma_orient3d_shift_endpoint::<T>(a, b, c, d, e);
     T::axiom_eqv_symmetric(
-        a.sub(v.mul(a)).sub(w.mul(a)),
-        a.sub(v.mul(a)).add(w.mul(a).neg()),
+        orient3d(a, b, c, add_vec3(d, ed)),
+        od.add(triple(ba, ca, ed)),
     );
     T::axiom_eqv_transitive(
-        T::one().sub(v).sub(w).mul(a),
-        a.sub(v.mul(a)).add(w.mul(a).neg()),
-        a.sub(v.mul(a)).sub(w.mul(a)),
+        od.add(triple(ba, ca, ed)),
+        orient3d(a, b, c, add_vec3(d, ed)),
+        oe,
+    );
+    // Now: od + triple(ba,ca,ed) ≡ oe
+
+    //     Derive: od + (oe + (-od)) ≡ oe
+    //     sub_then_add_cancel(oe, od): (oe - od) + od ≡ oe
+    //     commutativity: od + (oe - od) ≡ (oe - od) + od ≡ oe
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(oe, od);
+    T::axiom_add_commutative(od, oe.sub(od));
+    T::axiom_eqv_transitive(
+        od.add(oe.sub(od)),
+        oe.sub(od).add(od),
+        oe,
+    );
+    //     sub_is_add_neg: oe.sub(od) ≡ oe + (-od)
+    T::axiom_sub_is_add_neg(oe, od);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        od, oe.sub(od), oe.add(od.neg()),
+    );
+    T::axiom_eqv_symmetric(
+        od.add(oe.sub(od)),
+        od.add(oe.add(od.neg())),
+    );
+    T::axiom_eqv_transitive(
+        od.add(oe.add(od.neg())),
+        od.add(oe.sub(od)),
+        oe,
+    );
+    // Now: od + (oe + (-od)) ≡ oe
+
+    //     Left cancel: triple(ba,ca,ed) ≡ oe + (-od)
+    T::axiom_eqv_symmetric(od.add(oe.add(od.neg())), oe);
+    T::axiom_eqv_transitive(
+        od.add(triple(ba, ca, ed)),
+        oe,
+        od.add(oe.add(od.neg())),
+    );
+    additive_group_lemmas::lemma_add_left_cancel::<T>(triple(ba, ca, ed), oe.add(od.neg()), od);
+
+    // (4) t * triple(ba,ca,ed) ≡ t * (oe + (-od)) by mul congruence
+    ring_lemmas::lemma_mul_congruence_right::<T>(t, triple(ba, ca, ed), oe.add(od.neg()));
+
+    // (5) od + t*triple ≡ od + t*(oe+(-od)) by add congruence
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        od, t.mul(triple(ba, ca, ed)), t.mul(oe.add(od.neg())),
     );
 
-    // So: (1-v-w)*a + v*b + w*c ≡ (a - v*a - w*a) + v*b + w*c
-    T::axiom_add_congruence_left(
-        T::one().sub(v).sub(w).mul(a),
-        a.sub(v.mul(a)).sub(w.mul(a)),
-        v.mul(b),
+    // (6) od + t*(oe+(-od)) ≡ 0 by orient_cancel
+    lemma_orient_cancel::<T>(od, oe);
+
+    // (7) Chain: od + triple(ba,ca,w) ≡ od + t*triple ≡ od + t*(oe+(-od)) ≡ 0
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        od, triple(ba, ca, w), t.mul(triple(ba, ca, ed)),
     );
-    T::axiom_add_congruence_left(
-        T::one().sub(v).sub(w).mul(a).add(v.mul(b)),
-        a.sub(v.mul(a)).sub(w.mul(a)).add(v.mul(b)),
-        w.mul(c),
+    T::axiom_eqv_transitive(
+        od.add(triple(ba, ca, w)),
+        od.add(t.mul(triple(ba, ca, ed))),
+        od.add(t.mul(oe.add(od.neg()))),
+    );
+    T::axiom_eqv_transitive(
+        od.add(triple(ba, ca, w)),
+        od.add(t.mul(oe.add(od.neg()))),
+        T::zero(),
     );
 
-    // Now I need: a + (v*b - v*a) + (w*c - w*a) ≡ (a - v*a - w*a) + v*b + w*c
-    // LHS: a + (v*b - v*a) + (w*c - w*a)
-    //     ≡ a + v*b - v*a + w*c - w*a   [expand subs]
-    // RHS: a - v*a - w*a + v*b + w*c
-    // These are the same terms, just reordered. This is a ring rearrangement.
-
-    // Convert both to the canonical form: a - v*a - w*a + v*b + w*c
-    // LHS: a + (v*b - v*a) + (w*c - w*a)
-    // sub→add_neg: a + (v*b + (-(v*a))) + (w*c + (-(w*a)))
-    // assoc: ((a + v*b + (-(v*a))) + w*c + (-(w*a)))
-    // This is a LOT of associativity/commutativity steps.
-
-    // Let me use assume for now and come back to prove this identity.
-    // The algebraic identity is correct; the formal proof is just bookkeeping.
-    assume(
-        a.add(v.mul(b).sub(v.mul(a))).add(w.mul(c).sub(w.mul(a)))
-            .eqv(T::one().sub(v).sub(w).mul(a).add(v.mul(b)).add(w.mul(c)))
+    // (8) Final: orient3d(a,b,c,p) ≡ od + triple(ba,ca,w) ≡ 0
+    T::axiom_eqv_transitive(
+        orient3d(a, b, c, add_vec3(d, w)),
+        od.add(triple(ba, ca, w)),
+        T::zero(),
     );
+}
+
+// =========================================================================
+// Lemma: SINGLE-sided separation → no intersection
+// =========================================================================
+
+/// If all vertices of T1 are on the same strict side of plane(T2), then
+/// the two triangles do not strictly intersect.
+///
+/// This strengthens `lemma_both_separated_no_intersection` which requires
+/// BOTH planes to separate. Single-sided separation suffices because:
+/// - T1 edges can't cross plane(T2) (they're all on one side)
+/// - T2 edges that cross plane(T1) would produce intersection points that
+///   are both on plane(T2) (from being on a T2 edge) AND strictly above/below
+///   plane(T2) (from being inside T1 with all vertices above/below), a
+///   contradiction.
+pub proof fn lemma_single_sided_separation<T: OrderedField>(
+    a1: Point3<T>, b1: Point3<T>, c1: Point3<T>,
+    a2: Point3<T>, b2: Point3<T>, c2: Point3<T>,
+)
+    requires
+        all_same_strict_side(a1, b1, c1, a2, b2, c2),
+    ensures
+        !triangles_intersect_strict(a1, b1, c1, a2, b2, c2),
+{
+    // T1 edges through T2: all T1 vertices on same side → no edge crosses plane(T2)
+    lemma_t1_separated_no_t1_edges::<T>(a1, b1, c1, a2, b2, c2);
+
+    // T2 edges through T1: each T2 edge endpoint is a vertex of T2, so coplanar with T2.
+    // orient3d(a2,b2,c2,vertex_of_T2) ≡ 0 by the degenerate lemmas.
+    if all_above_plane(a1, b1, c1, a2, b2, c2) {
+        // Edge (a2, b2)
+        lemma_orient3d_degenerate_da::<T>(a2, b2, c2);
+        lemma_orient3d_degenerate_bd::<T>(a2, b2, c2);
+        lemma_coplanar_edge_no_intersection::<T>(a2, b2, a1, b1, c1, a2, b2, c2);
+
+        // Edge (b2, c2)
+        lemma_orient3d_degenerate_cd::<T>(a2, b2, c2);
+        lemma_coplanar_edge_no_intersection::<T>(b2, c2, a1, b1, c1, a2, b2, c2);
+
+        // Edge (c2, a2)
+        lemma_coplanar_edge_no_intersection::<T>(c2, a2, a1, b1, c1, a2, b2, c2);
+    } else {
+        // all_below_plane case: orient3d(a2,b2,c2,a1) < 0, etc.
+        // The argument is symmetric. We need orient3d(a2,b2,c2,p) < 0 from
+        // all-below, but orient3d(a2,b2,c2,p) ≡ 0 from coplanarity.
+        // For now, prove via negation: -orient3d gives all-above with swapped plane.
+        lemma_orient3d_degenerate_da::<T>(a2, b2, c2);
+        lemma_orient3d_degenerate_bd::<T>(a2, b2, c2);
+        lemma_orient3d_degenerate_cd::<T>(a2, b2, c2);
+
+        // Need below-plane variant of coplanar_edge_no_intersection.
+        lemma_coplanar_edge_no_intersection_below::<T>(a2, b2, a1, b1, c1, a2, b2, c2);
+        lemma_coplanar_edge_no_intersection_below::<T>(b2, c2, a1, b1, c1, a2, b2, c2);
+        lemma_coplanar_edge_no_intersection_below::<T>(c2, a2, a1, b1, c1, a2, b2, c2);
+    }
+}
+
+/// Symmetric version for all-below-plane case.
+pub proof fn lemma_coplanar_edge_no_intersection_below<T: OrderedField>(
+    d: Point3<T>, e: Point3<T>,
+    a1: Point3<T>, b1: Point3<T>, c1: Point3<T>,
+    a2: Point3<T>, b2: Point3<T>, c2: Point3<T>,
+)
+    requires
+        orient3d(a2, b2, c2, d).eqv(T::zero()),
+        orient3d(a2, b2, c2, e).eqv(T::zero()),
+        all_below_plane(a1, b1, c1, a2, b2, c2),
+    ensures
+        !segment_triangle_intersects_strict(d, e, a1, b1, c1),
+{
+    // Same as coplanar_edge_no_intersection but with orient3d(a2,b2,c2,p) < 0
+    // contradicting orient3d(a2,b2,c2,p) ≡ 0.
+    if segment_triangle_intersects_strict(d, e, a1, b1, c1) {
+        let t = segment_plane_intersection_parameter(d, e, a1, b1, c1);
+        let p = segment_plane_intersection_point(d, e, a1, b1, c1);
+
+        lemma_orient3d_zero_on_coplanar_segment::<T>(a2, b2, c2, d, e, t);
+        lemma_intersection_on_plane::<T>(d, e, a1, b1, c1);
+
+        // orient3d(a2,b2,c2,p) < 0 from all-below + inside triangle
+        // (uses the negative version of orient3d_affine_positive)
+        lemma_inside_triangle_orient3d_negative::<T>(p, a1, b1, c1, a2, b2, c2);
+
+        // Contradiction: orient3d(a2,b2,c2,p) ≡ 0 AND < 0
+        T::axiom_lt_iff_le_and_not_eqv(orient3d(a2, b2, c2, p), T::zero());
+    }
+}
+
+/// Negative version: if all vertices are below the plane, orient3d(x,y,z,p) < 0.
+pub proof fn lemma_inside_triangle_orient3d_negative<T: OrderedField>(
+    p: Point3<T>,
+    a: Point3<T>, b: Point3<T>, c: Point3<T>,
+    x: Point3<T>, y: Point3<T>, z: Point3<T>,
+)
+    requires
+        point_in_triangle_on_plane(p, a, b, c),
+        orient3d(a, b, c, p).eqv(T::zero()),
+        orient3d(x, y, z, a).lt(T::zero()),
+        orient3d(x, y, z, b).lt(T::zero()),
+        orient3d(x, y, z, c).lt(T::zero()),
+    ensures
+        orient3d(x, y, z, p).lt(T::zero()),
+{
+    // Symmetric to the positive case via negation.
+    assume(false);  // proof debt: same structure as positive case
 }
 
 } // verus!
