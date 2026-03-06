@@ -1745,6 +1745,265 @@ proof fn lemma_neg_sub<T: Ring>(a: T, b: T)
     T::axiom_eqv_transitive(a.sub(b).neg(), a.neg().add(b), b.sub(a));
 }
 
+/// Helper: two() * a ≡ a + a
+proof fn lemma_two_is_add<T: Ring>(a: T)
+    ensures verus_algebra::convex::two::<T>().mul(a).eqv(a.add(a))
+{
+    ring_lemmas::lemma_mul_distributes_right::<T>(T::one(), T::one(), a);
+    ring_lemmas::lemma_mul_one_left::<T>(a);
+    T::axiom_eqv_reflexive(a);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        T::one().mul(a), a, T::one().mul(a), a,
+    );
+    T::axiom_eqv_transitive(
+        verus_algebra::convex::two::<T>().mul(a),
+        T::one().mul(a).add(T::one().mul(a)),
+        a.add(a),
+    );
+}
+
+/// dpr coefficient cancel: (dp_q - lp) + ((lq - d) + lp) ≡ lq - dp_q
+/// when d ≡ dp_q + dp_q
+proof fn lemma_dpr_coeff_cancel<T: Ring>(dp_q: T, lp: T, lq: T, d: T)
+    requires d.eqv(dp_q.add(dp_q))
+    ensures dp_q.sub(lp).add(lq.sub(d).add(lp)).eqv(lq.sub(dp_q))
+{
+    // Commute inner: (lq-d)+lp ≡ lp+(lq-d)
+    T::axiom_add_commutative(lq.sub(d), lp);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        dp_q.sub(lp), lq.sub(d).add(lp), lp.add(lq.sub(d)),
+    );
+    // Assoc reverse: (dp_q-lp)+(lp+(lq-d)) → ((dp_q-lp)+lp)+(lq-d)
+    T::axiom_add_associative(dp_q.sub(lp), lp, lq.sub(d));
+    T::axiom_eqv_symmetric(
+        dp_q.sub(lp).add(lp).add(lq.sub(d)),
+        dp_q.sub(lp).add(lp.add(lq.sub(d))),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.sub(lp).add(lp.add(lq.sub(d))),
+        dp_q.sub(lp).add(lp).add(lq.sub(d)),
+    );
+    // Cancel: (dp_q-lp)+lp ≡ dp_q
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(dp_q, lp);
+    T::axiom_eqv_reflexive(lq.sub(d));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        dp_q.sub(lp).add(lp), dp_q, lq.sub(d), lq.sub(d),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.sub(lp).add(lp).add(lq.sub(d)),
+        dp_q.add(lq.sub(d)),
+    );
+    // Substitute d ≡ dp_q+dp_q
+    T::axiom_eqv_reflexive(lq);
+    additive_group_lemmas::lemma_sub_congruence::<T>(lq, lq, d, dp_q.add(dp_q));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        dp_q, lq.sub(d), lq.sub(dp_q.add(dp_q)),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.add(lq.sub(d)),
+        dp_q.add(lq.sub(dp_q.add(dp_q))),
+    );
+    // Convert dp_q+(lq-(dp_q+dp_q)) to (dp_q+lq)-(dp_q+dp_q)
+    crate::triangle_intersection::lemma_add_sub_rearrange::<T>(
+        dp_q, lq, dp_q.add(dp_q),
+    );
+    crate::segment_distance::lemma_add_sub_rearrange::<T>(
+        dp_q, lq, dp_q.add(dp_q),
+    );
+    T::axiom_eqv_symmetric(
+        dp_q.add(lq).sub(dp_q.add(dp_q)),
+        dp_q.sub(dp_q.add(dp_q)).add(lq),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.add(lq.sub(dp_q.add(dp_q))),
+        dp_q.sub(dp_q.add(dp_q)).add(lq),
+        dp_q.add(lq).sub(dp_q.add(dp_q)),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.add(lq.sub(dp_q.add(dp_q))),
+        dp_q.add(lq).sub(dp_q.add(dp_q)),
+    );
+    // sub_add_rearrange: (dp_q+lq)-(dp_q+dp_q) ≡ (dp_q-dp_q)+(lq-dp_q)
+    verus_linalg::quat::ops::lemma_sub_add_rearrange::<T>(dp_q, lq, dp_q, dp_q);
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.add(lq).sub(dp_q.add(dp_q)),
+        dp_q.sub(dp_q).add(lq.sub(dp_q)),
+    );
+    // sub_self + add_zero_left
+    additive_group_lemmas::lemma_sub_self::<T>(dp_q);
+    T::axiom_eqv_reflexive(lq.sub(dp_q));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        dp_q.sub(dp_q), T::zero(), lq.sub(dp_q), lq.sub(dp_q),
+    );
+    additive_group_lemmas::lemma_add_zero_left::<T>(lq.sub(dp_q));
+    T::axiom_eqv_transitive(
+        dp_q.sub(dp_q).add(lq.sub(dp_q)),
+        T::zero().add(lq.sub(dp_q)),
+        lq.sub(dp_q),
+    );
+    T::axiom_eqv_transitive(
+        dp_q.sub(lp).add(lq.sub(d).add(lp)),
+        dp_q.sub(dp_q).add(lq.sub(dp_q)),
+        lq.sub(dp_q),
+    );
+}
+
+/// dpq coefficient cancel: (lp - dp_r) - ((lr - d) + lp) ≡ dp_r - lr
+/// when d ≡ dp_r + dp_r
+proof fn lemma_dpq_coeff_cancel<T: Ring>(lp: T, dp_r: T, lr: T, d: T)
+    requires d.eqv(dp_r.add(dp_r))
+    ensures lp.sub(dp_r).sub(lr.sub(d).add(lp)).eqv(dp_r.sub(lr))
+{
+    // Step A: Commute subtrahend + convert to add forms
+    T::axiom_add_commutative(lr.sub(d), lp);
+    T::axiom_sub_is_add_neg(lp, dp_r);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        lp.sub(dp_r), lp.add(dp_r.neg()),
+        lr.sub(d).add(lp), lp.add(lr.sub(d)),
+    );
+    // (lp-dp_r)-((lr-d)+lp) ≡ (lp+(-dp_r))-(lp+(lr-d))
+
+    // Step B: sub_add_rearrange: (a+b)-(c+d) ≡ (a-c)+(b-d)
+    verus_linalg::quat::ops::lemma_sub_add_rearrange::<T>(
+        lp, dp_r.neg(), lp, lr.sub(d),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        lp.add(dp_r.neg()).sub(lp.add(lr.sub(d))),
+        lp.sub(lp).add(dp_r.neg().sub(lr.sub(d))),
+    );
+
+    // Step C: lp-lp ≡ 0, simplify to (-dp_r)-(lr-d)
+    additive_group_lemmas::lemma_sub_self::<T>(lp);
+    T::axiom_eqv_reflexive(dp_r.neg().sub(lr.sub(d)));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        lp.sub(lp), T::zero(),
+        dp_r.neg().sub(lr.sub(d)), dp_r.neg().sub(lr.sub(d)),
+    );
+    additive_group_lemmas::lemma_add_zero_left::<T>(dp_r.neg().sub(lr.sub(d)));
+    T::axiom_eqv_transitive(
+        lp.sub(lp).add(dp_r.neg().sub(lr.sub(d))),
+        T::zero().add(dp_r.neg().sub(lr.sub(d))),
+        dp_r.neg().sub(lr.sub(d)),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        lp.sub(lp).add(dp_r.neg().sub(lr.sub(d))),
+        dp_r.neg().sub(lr.sub(d)),
+    );
+    // original ≡ (-dp_r)-(lr-d)
+
+    // Step D: (-dp_r)-(lr-d) ≡ (-dp_r)+(d-lr)
+    T::axiom_sub_is_add_neg(dp_r.neg(), lr.sub(d));
+    lemma_neg_sub::<T>(lr, d);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        dp_r.neg(), lr.sub(d).neg(), d.sub(lr),
+    );
+    T::axiom_eqv_transitive(
+        dp_r.neg().sub(lr.sub(d)),
+        dp_r.neg().add(lr.sub(d).neg()),
+        dp_r.neg().add(d.sub(lr)),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        dp_r.neg().sub(lr.sub(d)),
+        dp_r.neg().add(d.sub(lr)),
+    );
+    // original ≡ (-dp_r)+(d-lr)
+
+    // Step E: Substitute d ≡ dp_r+dp_r
+    T::axiom_eqv_reflexive(lr);
+    additive_group_lemmas::lemma_sub_congruence::<T>(d, dp_r.add(dp_r), lr, lr);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        dp_r.neg(), d.sub(lr), dp_r.add(dp_r).sub(lr),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        dp_r.neg().add(d.sub(lr)),
+        dp_r.neg().add(dp_r.add(dp_r).sub(lr)),
+    );
+    // original ≡ (-dp_r)+((dp_r+dp_r)-lr)
+
+    // Step F: Convert to add form and use assoc
+    T::axiom_sub_is_add_neg(dp_r.add(dp_r), lr);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        dp_r.neg(),
+        dp_r.add(dp_r).sub(lr),
+        dp_r.add(dp_r).add(lr.neg()),
+    );
+    T::axiom_add_associative(dp_r.neg(), dp_r.add(dp_r), lr.neg());
+    T::axiom_eqv_symmetric(
+        dp_r.neg().add(dp_r.add(dp_r)).add(lr.neg()),
+        dp_r.neg().add(dp_r.add(dp_r).add(lr.neg())),
+    );
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r.add(dp_r).sub(lr)),
+        dp_r.neg().add(dp_r.add(dp_r).add(lr.neg())),
+        dp_r.neg().add(dp_r.add(dp_r)).add(lr.neg()),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        dp_r.neg().add(dp_r.add(dp_r).sub(lr)),
+        dp_r.neg().add(dp_r.add(dp_r)).add(lr.neg()),
+    );
+    // original ≡ ((-dp_r)+(dp_r+dp_r))+(-lr)
+
+    // Step G: (-dp_r)+(dp_r+dp_r) ≡ dp_r
+    T::axiom_add_associative(dp_r.neg(), dp_r, dp_r);
+    T::axiom_eqv_symmetric(
+        dp_r.neg().add(dp_r).add(dp_r),
+        dp_r.neg().add(dp_r.add(dp_r)),
+    );
+    // (-dp_r)+(dp_r+dp_r) ≡ ((-dp_r)+dp_r)+dp_r
+    T::axiom_add_commutative(dp_r.neg(), dp_r);
+    lemma_add_neg_is_sub::<T>(dp_r, dp_r);
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r), dp_r.add(dp_r.neg()), dp_r.sub(dp_r),
+    );
+    additive_group_lemmas::lemma_sub_self::<T>(dp_r);
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r), dp_r.sub(dp_r), T::zero(),
+    );
+    // (-dp_r)+dp_r ≡ 0
+    T::axiom_eqv_reflexive(dp_r);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        dp_r.neg().add(dp_r), T::zero(), dp_r, dp_r,
+    );
+    additive_group_lemmas::lemma_add_zero_left::<T>(dp_r);
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r).add(dp_r), T::zero().add(dp_r), dp_r,
+    );
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r.add(dp_r)),
+        dp_r.neg().add(dp_r).add(dp_r),
+        dp_r,
+    );
+    // (-dp_r)+(dp_r+dp_r) ≡ dp_r
+
+    // Step H: dp_r+(-lr) ≡ dp_r-lr
+    T::axiom_eqv_reflexive(lr.neg());
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        dp_r.neg().add(dp_r.add(dp_r)), dp_r, lr.neg(), lr.neg(),
+    );
+    // ((-dp_r)+(dp_r+dp_r))+(-lr) ≡ dp_r+(-lr)
+    lemma_add_neg_is_sub::<T>(dp_r, lr);
+    T::axiom_eqv_transitive(
+        dp_r.neg().add(dp_r.add(dp_r)).add(lr.neg()),
+        dp_r.add(lr.neg()),
+        dp_r.sub(lr),
+    );
+    T::axiom_eqv_transitive(
+        lp.sub(dp_r).sub(lr.sub(d).add(lp)),
+        dp_r.neg().add(dp_r.add(dp_r)).add(lr.neg()),
+        dp_r.sub(lr),
+    );
+}
+
 /// RHS form: -(lift(p)*dqr - lift(q)*dpr + lift(r)*dpq) ≡ (lq - dot(p,q))*dpr + (dot(p,r) - lr)*dpq
 ///
 /// Uses Lagrange to replace lift(p)*dqr, then negates.
@@ -1975,8 +2234,8 @@ proof fn lemma_swap_ad_lhs_form<T: Ring>(p: Vec2<T>, q: Vec2<T>, r: Vec2<T>)
     // dqp ≡ -dpq (antisymmetry)
     lemma_det2d_antisymmetric::<T>(q, p);
     // dqr - dqp ≡ dqr - (-dpq) ≡ dqr + dpq (sub_neg_is_add)
-    additive_group_lemmas::lemma_sub_congruence::<T>(dqr, dqr, dqp, dpq.neg());
     T::axiom_eqv_reflexive(dqr);
+    additive_group_lemmas::lemma_sub_congruence::<T>(dqr, dqr, dqp, dpq.neg());
     lemma_sub_neg_is_add::<T>(dqr, dpq);
     T::axiom_eqv_transitive(dqr.sub(dqp), dqr.sub(dpq.neg()), dqr.add(dpq));
     // D = (dqr - dqp) - dpr ≡ (dqr + dpq) - dpr
@@ -2143,7 +2402,7 @@ proof fn lemma_swap_ad_lhs_form<T: Ring>(p: Vec2<T>, q: Vec2<T>, r: Vec2<T>)
     ring_lemmas::lemma_mul_congruence_right::<T>(
         dpr, lqp, lq.sub(two_dqp).add(lp),
     );
-    T::axiom_mul_commutative(dpr, lqp);
+    T::axiom_mul_commutative(lqp, dpr);
     T::axiom_mul_commutative(dpr, lq.sub(two_dqp).add(lp));
     T::axiom_eqv_transitive(lqp.mul(dpr), dpr.mul(lqp), dpr.mul(lq.sub(two_dqp).add(lp)));
     T::axiom_eqv_transitive(
@@ -2169,7 +2428,7 @@ proof fn lemma_swap_ad_lhs_form<T: Ring>(p: Vec2<T>, q: Vec2<T>, r: Vec2<T>)
     ring_lemmas::lemma_mul_congruence_right::<T>(
         dpq, lrp, lr.sub(two_drp).add(lp),
     );
-    T::axiom_mul_commutative(dpq, lrp);
+    T::axiom_mul_commutative(lrp, dpq);
     T::axiom_mul_commutative(dpq, lr.sub(two_drp).add(lp));
     T::axiom_eqv_transitive(lrp.mul(dpq), dpq.mul(lrp), dpq.mul(lr.sub(two_drp).add(lp)));
     T::axiom_eqv_transitive(
@@ -2184,142 +2443,163 @@ proof fn lemma_swap_ad_lhs_form<T: Ring>(p: Vec2<T>, q: Vec2<T>, r: Vec2<T>)
     );
     // lrp*dpq ≡ (lr - two_drp)*dpq + lp*dpq
 
-    // === Phase F: Assemble full LHS ===
-    // LHS = lp*D + lqp*dpr - lrp*dpq
-    // lp*D ≡ (dp_q - lp)*dpr + (lp - dp_r)*dpq              [Phase D]
-    // lqp*dpr ≡ (lq - two_dqp)*dpr + lp*dpr                 [Phase E]
-    // lrp*dpq ≡ (lr - two_drp)*dpq + lp*dpq                 [Phase E]
-    //
-    // LHS ≡ [(dp_q-lp)*dpr + (lp-dp_r)*dpq] + [(lq-two_dqp)*dpr + lp*dpr] - [(lr-two_drp)*dpq + lp*dpq]
-    //
-    // Collect dpr terms: (dp_q-lp)*dpr + (lq-two_dqp)*dpr + lp*dpr
-    //   = ((dp_q-lp) + (lq-two_dqp) + lp)*dpr
-    //   = (dp_q + lq - two_dqp)*dpr
-    //   = (dp_q + lq - 2*dot(q,p))*dpr
-    //   By dot commutativity: dp_q = dot(p,q) = dot(q,p)
-    //   = (dot(q,p) + lq - 2*dot(q,p))*dpr = (lq - dot(q,p))*dpr = (lq - dp_q)*dpr ✓
-    //
-    // Collect dpq terms: (lp-dp_r)*dpq - (lr-two_drp)*dpq - lp*dpq
-    //   = ((lp-dp_r) - (lr-two_drp) - lp)*dpq
-    //   = (-dp_r - lr + two_drp)*dpq
-    //   = (-dp_r - lr + 2*dot(r,p))*dpq
-    //   By dot commutativity: dp_r = dot(p,r) = dot(r,p)
-    //   = (dot(r,p) - lr)*dpq = (dp_r - lr)*dpq ✓
-
-    // Strategy: work with the dpr and dpq coefficient groups separately.
-    // For dpr coefficient: show (dp_q-lp) + (lq-two_dqp) + lp ≡ lq - dp_q
-    // For dpq coefficient: show (lp-dp_r) - (lr-two_drp) - lp ≡ dp_r - lr
-
-    // --- dpr coefficient ---
-    // (dp_q - lp) + (lq - two_dqp) + lp
-    // = dp_q - lp + lq - two_dqp + lp
-    // -lp and +lp cancel; dp_q - two_dqp = dp_q - 2*dot(q,p) = dot(p,q) - 2*dot(q,p)
-    // By dot comm: dot(p,q) = dot(q,p), so = dot(q,p) - 2*dot(q,p) = -dot(q,p) = -dp_q (via comm)
-    // So coefficient = lq - dp_q = lq - dot(p,q) ✓
-
-    // Let me build: ((dp_q-lp) + (lq-two_dqp))*dpr + lp*dpr ≡ ((dp_q-lp)+(lq-two_dqp)+lp)*dpr
-    // by right distributivity (backwards)
-    // Then show the scalar coefficient simplifies.
-
-    // First combine ((dp_q-lp) + (lq-two_dqp)) + lp
-    // = (dp_q - lp + lq - two_dqp) + lp
-    // sub_add_rearrange(dp_q, lq, lp, two_dqp):
-    //   (dp_q+lq)-(lp+two_dqp) ≡ (dp_q-lp)+(lq-two_dqp)
-    verus_linalg::quat::ops::lemma_sub_add_rearrange::<T>(dp_q, lq, lp, two_dqp);
+    // === Phase F: Factor Phase E results ===
+    // lqp*dpr ≡ ... ≡ ((lq-two_dqp)+lp)*dpr
+    ring_lemmas::lemma_mul_distributes_right::<T>(lq.sub(two_dqp), lp, dpr);
     T::axiom_eqv_symmetric(
-        dp_q.add(lq).sub(lp.add(two_dqp)),
-        dp_q.sub(lp).add(lq.sub(two_dqp)),
+        lq.sub(two_dqp).add(lp).mul(dpr),
+        lq.sub(two_dqp).mul(dpr).add(lp.mul(dpr)),
     );
-    // (dp_q-lp)+(lq-two_dqp) ≡ (dp_q+lq)-(lp+two_dqp)
+    T::axiom_eqv_transitive(
+        lqp.mul(dpr),
+        lq.sub(two_dqp).mul(dpr).add(lp.mul(dpr)),
+        lq.sub(two_dqp).add(lp).mul(dpr),
+    );
+    // lrp*dpq ≡ ... ≡ ((lr-two_drp)+lp)*dpq
+    ring_lemmas::lemma_mul_distributes_right::<T>(lr.sub(two_drp), lp, dpq);
+    T::axiom_eqv_symmetric(
+        lr.sub(two_drp).add(lp).mul(dpq),
+        lr.sub(two_drp).mul(dpq).add(lp.mul(dpq)),
+    );
+    T::axiom_eqv_transitive(
+        lrp.mul(dpq),
+        lr.sub(two_drp).mul(dpq).add(lp.mul(dpq)),
+        lr.sub(two_drp).add(lp).mul(dpq),
+    );
 
-    // Add lp: ((dp_q+lq)-(lp+two_dqp)) + lp
-    // = (dp_q+lq) - (lp+two_dqp) + lp
-    // sub_add_sub telescoping with a=dp_q+lq, b=lp+two_dqp, c=... doesn't directly apply.
-    // Instead: (X - Y) + Z where X=dp_q+lq, Y=lp+two_dqp, Z=lp
-    // = X - Y + Z = X + (Z - Y) = X - (Y - Z)
-    // sub_is_add_neg + assoc: (X-Y)+Z = X+(-Y)+Z = X+(-Y+Z) = X+(Z-Y)...
-    // Actually, let me use a simpler path.
-    // (X-Y)+Z: I want to show this ≡ (X+Z)-Y when Y has no lp.
-    // Hmm, actually: (X-Y)+Z = X-Y+Z. I want X+Z-Y = dp_q+lq+lp-(lp+two_dqp).
-    // By add_commutative+assoc: dp_q+lq+lp = dp_q+(lq+lp).
-    // lp+two_dqp = two_dqp+lp.
-    // So X+Z-Y = dp_q+(lq+lp)-(two_dqp+lp).
-    // sub_add_rearrange(dp_q, lq+lp, two_dqp, lp):
-    //   (dp_q + lq+lp) - (two_dqp + lp) ≡ (dp_q 1 two_dqp) + (lq+lp-lp)
-    //   = (dp_q-two_dqp) + lq
+    // === Phase G: Build substituted LHS ===
+    let u = dp_q.sub(lp).mul(dpr);
+    let v = lp.sub(dp_r).mul(dpq);
+    let w = lq.sub(two_dqp).add(lp).mul(dpr);
+    let x = lr.sub(two_drp).add(lp).mul(dpq);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        lp.mul(dqr.sub(dqp).sub(dpr)), u.add(v),
+        lqp.mul(dpr), w,
+    );
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        lp.mul(dqr.sub(dqp).sub(dpr)).add(lqp.mul(dpr)), u.add(v).add(w),
+        lrp.mul(dpq), x,
+    );
+    // LHS ≡ (u+v)+w-x
 
-    // This is getting complicated. Let me try a more direct approach.
-    // Show: dp_q.sub(lp).add(lq.sub(two_dqp)).add(lp) ≡ lq.sub(dp_q)
+    // === Phase H: Rearrange (u+v)+w-x to (u+w)+(v-x) ===
+    // (u+v)+w ≡ u+(v+w) ≡ u+(w+v) ≡ (u+w)+v
+    T::axiom_add_associative(u, v, w);
+    T::axiom_add_commutative(v, w);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(u, v.add(w), w.add(v));
+    T::axiom_eqv_transitive(
+        u.add(v).add(w), u.add(v.add(w)), u.add(w.add(v)),
+    );
+    T::axiom_add_associative(u, w, v);
+    T::axiom_eqv_symmetric(u.add(w).add(v), u.add(w.add(v)));
+    T::axiom_eqv_transitive(
+        u.add(v).add(w), u.add(w.add(v)), u.add(w).add(v),
+    );
+    // (u+v)+w ≡ (u+w)+v
+    T::axiom_eqv_reflexive(x);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        u.add(v).add(w), u.add(w).add(v), x, x,
+    );
+    // (u+v)+w-x ≡ (u+w)+v-x
+    crate::segment_distance::lemma_add_sub_rearrange::<T>(u.add(w), v, x);
+    crate::triangle_intersection::lemma_add_sub_rearrange::<T>(u.add(w), v, x);
+    T::axiom_eqv_symmetric(
+        u.add(w).add(v.sub(x)), u.add(w).sub(x).add(v),
+    );
+    T::axiom_eqv_transitive(
+        u.add(w).add(v).sub(x),
+        u.add(w).sub(x).add(v),
+        u.add(w).add(v.sub(x)),
+    );
+    // (u+w)+v-x ≡ (u+w)+(v-x)
+    T::axiom_eqv_transitive(
+        u.add(v).add(w).sub(x),
+        u.add(w).add(v).sub(x),
+        u.add(w).add(v.sub(x)),
+    );
+    // (u+v)+w-x ≡ (u+w)+(v-x)
 
-    // Step: dp_q - lp + lq - two_dqp + lp
-    // Use add_commutative to move lp to cancel: dp_q + lq - two_dqp + (lp - lp)
-    // lp - lp ≡ 0 [sub_self]
-    // But this mixing of subs and adds is painful. Let me try to use the "convert everything to adds with negs" approach.
+    // Chain Phase G + H: LHS ≡ (u+w)+(v-x)
+    T::axiom_eqv_transitive(
+        lp.mul(dqr.sub(dqp).sub(dpr)).add(lqp.mul(dpr)).sub(lrp.mul(dpq)),
+        u.add(v).add(w).sub(x),
+        u.add(w).add(v.sub(x)),
+    );
 
-    // Actually, let me just use a dedicated helper for this.
-    // TODO: This is getting very long. Let me try a totally different strategy.
-    // Instead of proving the coefficient simplifies symbolically, let me just use
-    // the "sum is zero" approach via neg_unique. This avoids having to factor.
+    // === Phase I: Factor dpr and dpq terms ===
+    // u+w ≡ ((dp_q-lp)+((lq-two_dqp)+lp))*dpr
+    ring_lemmas::lemma_mul_distributes_right::<T>(
+        dp_q.sub(lp), lq.sub(two_dqp).add(lp), dpr,
+    );
+    T::axiom_eqv_symmetric(
+        dp_q.sub(lp).add(lq.sub(two_dqp).add(lp)).mul(dpr),
+        dp_q.sub(lp).mul(dpr).add(lq.sub(two_dqp).add(lp).mul(dpr)),
+    );
+    // v-x ≡ ((lp-dp_r)-((lr-two_drp)+lp))*dpq
+    crate::triangle_intersection::lemma_right_distributes_over_sub::<T>(
+        lp.sub(dp_r), lr.sub(two_drp).add(lp), dpq,
+    );
 
-    // ACTUALLY: Let me try a much simpler approach for the LHS proof.
-    // Instead of collecting coefficients, I'll add the LHS to -CF and show ≡ 0.
-    // Where CF = (lq-dp_q)*dpr + (dp_r-lr)*dpq
-    // LHS - CF = lp*D + lqp*dpr - lrp*dpq - (lq-dp_q)*dpr - (dp_r-lr)*dpq
-    // And show this ≡ 0.
+    // === Phase J: Simplify coefficients via dot commutativity + helpers ===
+    // two_dqp ≡ dp_q + dp_q
+    verus_linalg::vec2::ops::lemma_dot_commutative::<T>(p, q);
+    T::axiom_eqv_symmetric(dp_q, vec2_dot(q, p));
+    ring_lemmas::lemma_mul_congruence_right::<T>(
+        verus_algebra::convex::two::<T>(), vec2_dot(q, p), dp_q,
+    );
+    lemma_two_is_add::<T>(dp_q);
+    T::axiom_eqv_transitive(
+        two_dqp, verus_algebra::convex::two::<T>().mul(dp_q), dp_q.add(dp_q),
+    );
+    // dpr coefficient cancel
+    lemma_dpr_coeff_cancel::<T>(dp_q, lp, lq, two_dqp);
+    T::axiom_mul_congruence_left(
+        dp_q.sub(lp).add(lq.sub(two_dqp).add(lp)), lq.sub(dp_q), dpr,
+    );
+    T::axiom_eqv_transitive(
+        u.add(w),
+        dp_q.sub(lp).add(lq.sub(two_dqp).add(lp)).mul(dpr),
+        lq.sub(dp_q).mul(dpr),
+    );
+    // u+w ≡ (lq-dp_q)*dpr
 
-    // Hmm, that's also complex. Let me try yet another approach: prove it numerically
-    // by showing LHS - RHS form has coefficient zero in dpr and dpq,
-    // using two separate sub-lemmas.
+    // two_drp ≡ dp_r + dp_r
+    verus_linalg::vec2::ops::lemma_dot_commutative::<T>(p, r);
+    T::axiom_eqv_symmetric(dp_r, vec2_dot(r, p));
+    ring_lemmas::lemma_mul_congruence_right::<T>(
+        verus_algebra::convex::two::<T>(), vec2_dot(r, p), dp_r,
+    );
+    lemma_two_is_add::<T>(dp_r);
+    T::axiom_eqv_transitive(
+        two_drp, verus_algebra::convex::two::<T>().mul(dp_r), dp_r.add(dp_r),
+    );
+    // dpq coefficient cancel
+    lemma_dpq_coeff_cancel::<T>(lp, dp_r, lr, two_drp);
+    T::axiom_mul_congruence_left(
+        lp.sub(dp_r).sub(lr.sub(two_drp).add(lp)), dp_r.sub(lr), dpq,
+    );
+    T::axiom_eqv_transitive(
+        v.sub(x),
+        lp.sub(dp_r).sub(lr.sub(two_drp).add(lp)).mul(dpq),
+        dp_r.sub(lr).mul(dpq),
+    );
+    // v-x ≡ (dp_r-lr)*dpq
 
-    // OK, I'll split the coefficient proof into helpers called from here.
-    // lemma_coeff_dpr_cancel::<T>(p, q);  // TODO: define these helpers
-    // lemma_coeff_dpq_cancel::<T>(p, r);
-
-    // Now chain:
-    // lp*D ≡ (dp_q-lp)*dpr + (lp-dp_r)*dpq  [Phase D]
-    // lqp*dpr ≡ (lq-two_dqp)*dpr + lp*dpr    [Phase E]
-    // lrp*dpq ≡ (lr-two_drp)*dpq + lp*dpq    [Phase E]
-    //
-    // LHS = lp*D + lqp*dpr - lrp*dpq
-    // I need to show this ≡ (lq-dp_q)*dpr + (dp_r-lr)*dpq
-    //
-    // Step 1: lp*D + lqp*dpr
-    //   ≡ [(dp_q-lp)*dpr + (lp-dp_r)*dpq] + [(lq-two_dqp)*dpr + lp*dpr]
-    // Step 2: Collect dpr terms: ((dp_q-lp) + (lq-two_dqp) + lp)*dpr + (lp-dp_r)*dpq
-    //   The coefficient of dpr: from coeff_dpr_cancel, (dp_q-lp)+(lq-two_dqp)+lp ≡ lq-dp_q
-    //   (using dot commutativity)
-    // Step 3: Then subtract lrp*dpq ≡ (lr-two_drp)*dpq + lp*dpq
-    //   Collect dpq terms: (lp-dp_r) - (lr-two_drp) - lp ≡ dp_r-lr
-    //   (using dot commutativity)
-
-    // Actually this is still complex. Let me think about this differently...
-    // Instead of collecting, I'll directly show:
-    // [(dp_q-lp) + (lq-two_dqp) + lp]*dpr = [lq - dp_q]*dpr by coefficient helper
-    // [(lp-dp_r) - (lr-two_drp) - lp]*dpq = [dp_r - lr]*dpq by coefficient helper
-
-    // But I also need to show that lp*D + lqp*dpr - lrp*dpq factorizes this way.
-    // The factorization itself needs equational steps (distribute, collect).
-
-    // OK let me try a COMPLETELY different approach. I'll prove it via the sum-is-zero method.
-    // Show: LHS + incircle ≡ 0, then use neg_unique.
-    // This avoids the need to factor into coefficient form at all!
-    // Instead, I expand everything and show pairwise cancellation.
-
-    // But wait, the ensures clause of THIS function is LHS ≡ CF, not LHS ≡ -incircle.
-    // I defined CF as an intermediate form. The main algebra function chains LHS≡CF≡-incircle.
-
-    // Hmm, maybe I should restructure. Instead of the two-helper approach,
-    // let me go back to proving the main ensures directly in lemma_incircle2d_swap_ad_algebra.
-    // Using the neg_unique approach:
-    // Show incircle + LHS ≡ 0 → LHS ≡ -incircle.
-
-    // Let me abandon this current approach and restructure.
-    assume(false);
+    // === Phase K: Final assembly ===
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        u.add(w), lq.sub(dp_q).mul(dpr),
+        v.sub(x), dp_r.sub(lr).mul(dpq),
+    );
+    T::axiom_eqv_transitive(
+        lp.mul(dqr.sub(dqp).sub(dpr)).add(lqp.mul(dpr)).sub(lrp.mul(dpq)),
+        u.add(w).add(v.sub(x)),
+        lq.sub(dp_q).mul(dpr).add(dp_r.sub(lr).mul(dpq)),
+    );
+    // LHS ≡ CF ✓
 }
 
 /// Algebraic core: lift(p)*D + lift(q-p)*dpr - lift(r-p)*dpq ≡ -(lift(p)*dqr - lift(q)*dpr + lift(r)*dpq)
 /// where D = det2d(q,r) - det2d(q,p) - det2d(p,r)
-#[verifier::external_body]
 proof fn lemma_incircle2d_swap_ad_algebra<T: Ring>(
     p: Vec2<T>, q: Vec2<T>, r: Vec2<T>,
 )
@@ -2334,8 +2614,22 @@ proof fn lemma_incircle2d_swap_ad_algebra<T: Ring>(
                     .neg()
             ),
 {
-    // TODO: Prove using Lagrange identity + norm_sq_sub_expand + antisymmetry
-    // This is a pure algebraic identity on Vec2 vectors.
+    let lhs = lift(p).mul(det2d(q, r).sub(det2d(q, p)).sub(det2d(p, r)))
+        .add(lift(q.sub(p)).mul(det2d(p, r)))
+        .sub(lift(r.sub(p)).mul(det2d(p, q)));
+    let cf = lift(q).sub(vec2_dot(p, q)).mul(det2d(p, r))
+        .add(vec2_dot(p, r).sub(lift(r)).mul(det2d(p, q)));
+    let neg_inc = lift(p).mul(det2d(q, r))
+        .sub(lift(q).mul(det2d(p, r)))
+        .add(lift(r).mul(det2d(p, q)))
+        .neg();
+
+    lemma_swap_ad_lhs_form::<T>(p, q, r);
+    // lhs ≡ cf
+    lemma_swap_ad_rhs_form::<T>(p, q, r);
+    // neg_inc ≡ cf
+    T::axiom_eqv_symmetric(neg_inc, cf);
+    T::axiom_eqv_transitive(lhs, cf, neg_inc);
 }
 
 /// incircle2d(c,d,b,a) ≡ -incircle2d(a,b,c,d)

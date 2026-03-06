@@ -133,7 +133,6 @@ pub proof fn lemma_flip_needed_swap_ab_2d<T: OrderedRing>(
 
 /// After flipping edge (a,b) to (c,d), the new configuration is Delaunay.
 /// Key theorem for Lawson's flip algorithm convergence.
-#[verifier::external_body]
 pub proof fn lemma_delaunay_flip_symmetric_2d<T: OrderedRing>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
 )
@@ -142,8 +141,12 @@ pub proof fn lemma_delaunay_flip_symmetric_2d<T: OrderedRing>(
     ensures
         is_locally_delaunay_edge_2d(c, d, b, a),
 {
-    // assume(false) — requires algebraic identity connecting incircle2d(a,b,c,d)
-    // to incircle2d(c,d,b,a) via reference-point swap
+    lemma_incircle2d_four_point_swap::<T>(a, b, c, d);
+    // incircle2d(c,d,b,a) ≡ -incircle2d(a,b,c,d)
+    lemma_neg_flips_sign::<T>(incircle2d(c, d, b, a), incircle2d(a, b, c, d));
+    // 0 < incircle2d(c,d,b,a) <==> incircle2d(a,b,c,d) < 0
+    ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), incircle2d(a, b, c, d));
+    // Trichotomy: 0<inc excludes inc<0, so !(0 < incircle2d(c,d,b,a))
 }
 
 // =========================================================================
@@ -190,7 +193,6 @@ pub proof fn lemma_delaunay_cycle_abc_3d<T: OrderedRing>(
 }
 
 /// Lawson's theorem for 3D: after a bistellar flip, the new configuration is Delaunay.
-#[verifier::external_body]
 pub proof fn lemma_flip_reverses_delaunay_3d<T: OrderedRing>(
     a: Point3<T>, b: Point3<T>, c: Point3<T>, d: Point3<T>, e: Point3<T>,
 )
@@ -199,7 +201,9 @@ pub proof fn lemma_flip_reverses_delaunay_3d<T: OrderedRing>(
     ensures
         is_locally_delaunay_3d(b, c, d, a, e),
 {
-    // assume(false) — Lawson's theorem requires convex combination argument
+    lemma_insphere3d_cyclic_abcd::<T>(a, b, c, d, e);
+    lemma_neg_flips_sign::<T>(insphere3d(b, c, d, a, e), insphere3d(a, b, c, d, e));
+    ordered_ring_lemmas::lemma_trichotomy::<T>(T::zero(), insphere3d(a, b, c, d, e));
 }
 
 } // verus!

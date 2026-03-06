@@ -974,6 +974,51 @@ proof fn lemma_weighted_additive_identity<T: Ring>(
 }
 
 // =========================================================================
+// Helper: scalar affine combination component identity
+// =========================================================================
+
+/// For a scalar component of q = a + v*(b-a) + w*(c-a),
+/// shows a_c + (v*(b_c - a_c) + w*(c_c - a_c)) ≡ u*a_c + v*b_c + w*c_c.
+proof fn lemma_affine_combo_component<T: Ring>(
+    a_c: T, b_c: T, c_c: T, u: T, v: T, w: T,
+)
+    requires u.add(v).add(w).eqv(T::one()),
+    ensures
+        a_c.add(v.mul(b_c.sub(a_c)).add(w.mul(c_c.sub(a_c))))
+            .eqv(u.mul(a_c).add(v.mul(b_c)).add(w.mul(c_c)))
+{
+    let ba = b_c.sub(a_c);
+    let ca = c_c.sub(a_c);
+
+    // a_c + ba ≡ b_c
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(b_c, a_c);
+    T::axiom_add_commutative(ba, a_c);
+    T::axiom_eqv_symmetric(ba.add(a_c), a_c.add(ba));
+    T::axiom_eqv_transitive(a_c.add(ba), ba.add(a_c), b_c);
+
+    // a_c + ca ≡ c_c
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(c_c, a_c);
+    T::axiom_add_commutative(ca, a_c);
+    T::axiom_eqv_symmetric(ca.add(a_c), a_c.add(ca));
+    T::axiom_eqv_transitive(a_c.add(ca), ca.add(a_c), c_c);
+
+    // weighted identity: (a_c + v*ba) + w*ca ≡ u*a_c + v*b_c + w*c_c
+    lemma_weighted_additive_identity::<T>(a_c, ba, ca, b_c, c_c, u, v, w);
+
+    // associativity: (a_c + v*ba) + w*ca ≡ a_c + (v*ba + w*ca)
+    T::axiom_add_associative(a_c, v.mul(ba), w.mul(ca));
+    T::axiom_eqv_symmetric(
+        a_c.add(v.mul(ba)).add(w.mul(ca)),
+        a_c.add(v.mul(ba).add(w.mul(ca)))
+    );
+    T::axiom_eqv_transitive(
+        a_c.add(v.mul(ba).add(w.mul(ca))),
+        a_c.add(v.mul(ba)).add(w.mul(ca)),
+        u.mul(a_c).add(v.mul(b_c)).add(w.mul(c_c))
+    );
+}
+
+// =========================================================================
 // Helper: projection injectivity (coplanar + matching 2D projection → 3D equal)
 // =========================================================================
 
@@ -982,7 +1027,8 @@ proof fn lemma_weighted_additive_identity<T: Ring>(
 ///
 /// The "kept" components of p match q by the barycentric reconstruction equalities.
 /// The "dropped" component follows from: both coplanar → triple(ba,ca,sub3(p,q))≡0,
-/// two zero components → triple reduces to N_i * diff_i, field cancellation → diff_i ≡ 0.
+/// cyclic to dot(d,N)≡0 with two zero components → N_dropped * d_dropped ≡ 0,
+/// field cancellation (N_dropped ≢ 0) → d_dropped ≡ 0.
 proof fn lemma_projection_injectivity_zero<T: OrderedField>(
     p: Point3<T>, a: Point3<T>, b: Point3<T>, c: Point3<T>,
     u: T, v: T, w: T, axis: int,
@@ -994,7 +1040,6 @@ proof fn lemma_projection_injectivity_zero<T: OrderedField>(
         axis == 0 ==> !triangle_normal(a, b, c).x.eqv(T::zero()),
         axis == 1 ==> !triangle_normal(a, b, c).y.eqv(T::zero()),
         axis == 2 ==> !triangle_normal(a, b, c).z.eqv(T::zero()),
-        // p's "kept" components satisfy barycentric reconstruction:
         axis == 0 ==> (
             p.y.eqv(u.mul(a.y).add(v.mul(b.y)).add(w.mul(c.y))) &&
             p.z.eqv(u.mul(a.z).add(v.mul(b.z)).add(w.mul(c.z)))
@@ -1014,8 +1059,238 @@ proof fn lemma_projection_injectivity_zero<T: OrderedField>(
         &&& sub3(p, q).z.eqv(T::zero())
     })
 {
-    // TODO: Fill in proof. For now, stub.
-    assume(false);
+    let ba = sub3(b, a);
+    let ca = sub3(c, a);
+    let q = add_vec3(a, scale(v, ba).add(scale(w, ca)));
+    let d = sub3(p, q);
+    let n = triangle_normal(a, b, c);
+
+    // ---- Phase 1: q components ≡ u*a + v*b + w*c ----
+    lemma_affine_combo_component::<T>(a.x, b.x, c.x, u, v, w);
+    lemma_affine_combo_component::<T>(a.y, b.y, c.y, u, v, w);
+    lemma_affine_combo_component::<T>(a.z, b.z, c.z, u, v, w);
+
+    // ---- Phase 2: orient3d(a,b,c,q) ≡ 0 ----
+    additive_group_lemmas::lemma_sub_self::<T>(a.x);
+    additive_group_lemmas::lemma_sub_self::<T>(a.y);
+    additive_group_lemmas::lemma_sub_self::<T>(a.z);
+    crate::insphere::lemma_triple_zero_third::<T>(ba, ca, sub3(a, a));
+
+    lemma_triple_self_zero_13::<T>(ba, ca);
+    lemma_triple_self_zero_23::<T>(ba, ca);
+
+    ring_lemmas::lemma_mul_congruence_right::<T>(v, triple(ba, ca, ba), T::zero());
+    T::axiom_mul_zero_right(v);
+    T::axiom_eqv_transitive(v.mul(triple(ba, ca, ba)), v.mul(T::zero()), T::zero());
+
+    ring_lemmas::lemma_mul_congruence_right::<T>(w, triple(ba, ca, ca), T::zero());
+    T::axiom_mul_zero_right(w);
+    T::axiom_eqv_transitive(w.mul(triple(ba, ca, ca)), w.mul(T::zero()), T::zero());
+
+    let oaa = orient3d(a, b, c, a);
+    let vt = v.mul(triple(ba, ca, ba));
+    let wt = w.mul(triple(ba, ca, ca));
+    additive_group_lemmas::lemma_add_congruence::<T>(oaa, T::zero(), vt, T::zero());
+    T::axiom_add_zero_right(T::zero());
+    T::axiom_eqv_transitive(oaa.add(vt), T::zero().add(T::zero()), T::zero());
+    additive_group_lemmas::lemma_add_congruence::<T>(oaa.add(vt), T::zero(), wt, T::zero());
+    T::axiom_add_zero_right(T::zero());
+    T::axiom_eqv_transitive(oaa.add(vt).add(wt), T::zero().add(T::zero()), T::zero());
+
+    lemma_orient3d_affine_combination::<T>(a, b, c, a, b, c, v, w);
+    T::axiom_eqv_transitive(orient3d(a, b, c, q), oaa.add(vt).add(wt), T::zero());
+
+    // ---- Phase 3: triple(ba, ca, d) ≡ 0 ----
+    let td = triple(ba, ca, d);
+    let oq = orient3d(a, b, c, q);
+    lemma_orient3d_linear_last::<T>(a, b, c, q, d);
+    lemma_orient3d_shift_endpoint::<T>(a, b, c, q, p);
+    let oq_d = orient3d(a, b, c, add_vec3(q, d));
+    T::axiom_eqv_transitive(oq_d, orient3d(a, b, c, p), T::zero());
+    T::axiom_eqv_symmetric(oq_d, oq.add(td));
+    T::axiom_eqv_transitive(oq.add(td), oq_d, T::zero());
+    T::axiom_eqv_reflexive(td);
+    T::axiom_eqv_symmetric(oq, T::zero());
+    additive_group_lemmas::lemma_add_congruence::<T>(T::zero(), oq, td, td);
+    additive_group_lemmas::lemma_add_zero_left::<T>(td);
+    T::axiom_eqv_symmetric(T::zero().add(td), td);
+    T::axiom_eqv_transitive(td, T::zero().add(td), oq.add(td));
+    T::axiom_eqv_transitive(td, oq.add(td), T::zero());
+
+    // ---- Phase 4: dot(d, N) ≡ 0 via cyclic ----
+    // triple(ba,ca,d) ≡ triple(d,ba,ca) = dot(d, cross(ba,ca)) = dot(d, N)
+    lemma_triple_cyclic::<T>(ba, ca, d);
+    lemma_triple_cyclic::<T>(ca, d, ba);
+    T::axiom_eqv_transitive(td, triple(ca, d, ba), triple(d, ba, ca));
+    T::axiom_eqv_symmetric(td, triple(d, ba, ca));
+    T::axiom_eqv_transitive(triple(d, ba, ca), td, T::zero());
+    // dot(d, N) = d.x*n.x + d.y*n.y + d.z*n.z ≡ 0
+
+    // ---- Phase 5: per-axis case split ----
+    if axis == 0 {
+        // Kept: y, z. Dropped: x
+        let target_y = u.mul(a.y).add(v.mul(b.y)).add(w.mul(c.y));
+        let target_z = u.mul(a.z).add(v.mul(b.z)).add(w.mul(c.z));
+
+        // d.y ≡ 0: p.y ≡ target_y ≡ q.y → sub ≡ 0
+        T::axiom_eqv_symmetric(q.y, target_y);
+        T::axiom_eqv_transitive(p.y, target_y, q.y);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.y, q.y);
+        // d.z ≡ 0
+        T::axiom_eqv_symmetric(q.z, target_z);
+        T::axiom_eqv_transitive(p.z, target_z, q.z);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.z, q.z);
+
+        // d.y*n.y ≡ 0
+        T::axiom_mul_congruence_left(d.y, T::zero(), n.y);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.y);
+        T::axiom_eqv_transitive(d.y.mul(n.y), T::zero().mul(n.y), T::zero());
+        // d.z*n.z ≡ 0
+        T::axiom_mul_congruence_left(d.z, T::zero(), n.z);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.z);
+        T::axiom_eqv_transitive(d.z.mul(n.z), T::zero().mul(n.z), T::zero());
+
+        // dot(d,N) ≡ d.x*n.x
+        T::axiom_eqv_reflexive(d.x.mul(n.x));
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x), d.x.mul(n.x), d.y.mul(n.y), T::zero());
+        T::axiom_add_zero_right(d.x.mul(n.x));
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)),
+            d.x.mul(n.x).add(T::zero()), d.x.mul(n.x));
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x).add(d.y.mul(n.y)), d.x.mul(n.x),
+            d.z.mul(n.z), T::zero());
+        T::axiom_add_zero_right(d.x.mul(n.x));
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            d.x.mul(n.x).add(T::zero()), d.x.mul(n.x));
+
+        // d.x*n.x ≡ 0
+        T::axiom_eqv_symmetric(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            d.x.mul(n.x));
+        T::axiom_eqv_transitive(d.x.mul(n.x),
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            T::zero());
+
+        // Field cancel: n.x*d.x ≡ n.x*0, n.x ≢ 0 → d.x ≡ 0
+        T::axiom_mul_commutative(n.x, d.x);
+        T::axiom_eqv_transitive(n.x.mul(d.x), d.x.mul(n.x), T::zero());
+        T::axiom_mul_zero_right(n.x);
+        T::axiom_eqv_symmetric(n.x.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(n.x.mul(d.x), T::zero(), n.x.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(d.x, T::zero(), n.x);
+    } else if axis == 1 {
+        // Kept: x, z. Dropped: y
+        let target_x = u.mul(a.x).add(v.mul(b.x)).add(w.mul(c.x));
+        let target_z = u.mul(a.z).add(v.mul(b.z)).add(w.mul(c.z));
+
+        // d.x ≡ 0
+        T::axiom_eqv_symmetric(q.x, target_x);
+        T::axiom_eqv_transitive(p.x, target_x, q.x);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.x, q.x);
+        // d.z ≡ 0
+        T::axiom_eqv_symmetric(q.z, target_z);
+        T::axiom_eqv_transitive(p.z, target_z, q.z);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.z, q.z);
+
+        // d.x*n.x ≡ 0
+        T::axiom_mul_congruence_left(d.x, T::zero(), n.x);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.x);
+        T::axiom_eqv_transitive(d.x.mul(n.x), T::zero().mul(n.x), T::zero());
+        // d.z*n.z ≡ 0
+        T::axiom_mul_congruence_left(d.z, T::zero(), n.z);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.z);
+        T::axiom_eqv_transitive(d.z.mul(n.z), T::zero().mul(n.z), T::zero());
+
+        // dot(d,N) ≡ d.y*n.y: first term zero
+        T::axiom_eqv_reflexive(d.y.mul(n.y));
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x), T::zero(), d.y.mul(n.y), d.y.mul(n.y));
+        additive_group_lemmas::lemma_add_zero_left::<T>(d.y.mul(n.y));
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)),
+            T::zero().add(d.y.mul(n.y)), d.y.mul(n.y));
+        // third term zero
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x).add(d.y.mul(n.y)), d.y.mul(n.y),
+            d.z.mul(n.z), T::zero());
+        T::axiom_add_zero_right(d.y.mul(n.y));
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            d.y.mul(n.y).add(T::zero()), d.y.mul(n.y));
+
+        // d.y*n.y ≡ 0
+        T::axiom_eqv_symmetric(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            d.y.mul(n.y));
+        T::axiom_eqv_transitive(d.y.mul(n.y),
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            T::zero());
+
+        // Field cancel: n.y*d.y ≡ n.y*0, n.y ≢ 0 → d.y ≡ 0
+        T::axiom_mul_commutative(n.y, d.y);
+        T::axiom_eqv_transitive(n.y.mul(d.y), d.y.mul(n.y), T::zero());
+        T::axiom_mul_zero_right(n.y);
+        T::axiom_eqv_symmetric(n.y.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(n.y.mul(d.y), T::zero(), n.y.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(d.y, T::zero(), n.y);
+    } else {
+        // axis == 2: Kept: x, y. Dropped: z
+        let target_x = u.mul(a.x).add(v.mul(b.x)).add(w.mul(c.x));
+        let target_y = u.mul(a.y).add(v.mul(b.y)).add(w.mul(c.y));
+
+        // d.x ≡ 0
+        T::axiom_eqv_symmetric(q.x, target_x);
+        T::axiom_eqv_transitive(p.x, target_x, q.x);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.x, q.x);
+        // d.y ≡ 0
+        T::axiom_eqv_symmetric(q.y, target_y);
+        T::axiom_eqv_transitive(p.y, target_y, q.y);
+        additive_group_lemmas::lemma_eqv_implies_sub_eqv_zero::<T>(p.y, q.y);
+
+        // d.x*n.x ≡ 0
+        T::axiom_mul_congruence_left(d.x, T::zero(), n.x);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.x);
+        T::axiom_eqv_transitive(d.x.mul(n.x), T::zero().mul(n.x), T::zero());
+        // d.y*n.y ≡ 0
+        T::axiom_mul_congruence_left(d.y, T::zero(), n.y);
+        ring_lemmas::lemma_mul_zero_left::<T>(n.y);
+        T::axiom_eqv_transitive(d.y.mul(n.y), T::zero().mul(n.y), T::zero());
+
+        // dot(d,N) ≡ d.z*n.z: both first terms zero
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x), T::zero(), d.y.mul(n.y), T::zero());
+        T::axiom_add_zero_right(T::zero());
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)),
+            T::zero().add(T::zero()), T::zero());
+        T::axiom_eqv_reflexive(d.z.mul(n.z));
+        additive_group_lemmas::lemma_add_congruence::<T>(
+            d.x.mul(n.x).add(d.y.mul(n.y)), T::zero(),
+            d.z.mul(n.z), d.z.mul(n.z));
+        additive_group_lemmas::lemma_add_zero_left::<T>(d.z.mul(n.z));
+        T::axiom_eqv_transitive(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            T::zero().add(d.z.mul(n.z)), d.z.mul(n.z));
+
+        // d.z*n.z ≡ 0
+        T::axiom_eqv_symmetric(
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            d.z.mul(n.z));
+        T::axiom_eqv_transitive(d.z.mul(n.z),
+            d.x.mul(n.x).add(d.y.mul(n.y)).add(d.z.mul(n.z)),
+            T::zero());
+
+        // Field cancel: n.z*d.z ≡ n.z*0, n.z ≢ 0 → d.z ≡ 0
+        T::axiom_mul_commutative(n.z, d.z);
+        T::axiom_eqv_transitive(n.z.mul(d.z), d.z.mul(n.z), T::zero());
+        T::axiom_mul_zero_right(n.z);
+        T::axiom_eqv_symmetric(n.z.mul(T::zero()), T::zero());
+        T::axiom_eqv_transitive(n.z.mul(d.z), T::zero(), n.z.mul(T::zero()));
+        field_lemmas::lemma_mul_cancel_left::<T>(d.z, T::zero(), n.z);
+    }
 }
 
 // =========================================================================
