@@ -192,7 +192,7 @@ proof fn lemma_triple_zero_second<T: Ring>(a: Vec3<T>, v: Vec3<T>, c: Vec3<T>)
 }
 
 /// If v has zero components, triple(a, b, v) ≡ 0.
-proof fn lemma_triple_zero_third<T: Ring>(a: Vec3<T>, b: Vec3<T>, v: Vec3<T>)
+pub proof fn lemma_triple_zero_third<T: Ring>(a: Vec3<T>, b: Vec3<T>, v: Vec3<T>)
     requires
         v.x.eqv(T::zero()),
         v.y.eqv(T::zero()),
