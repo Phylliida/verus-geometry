@@ -297,6 +297,390 @@ proof fn lemma_cramer_dot_form<T: Ring>(
 }
 
 // =========================================================================
+// Helper: phi + lift ≡ tw (circumcenter distance identity)
+// =========================================================================
+
+/// Given sq_dist(O,v) ≡ ncd - tw + l and phi ≡ ncd - sq_dist(O,v),
+/// proves phi + l ≡ tw.
+///
+/// This is the key algebraic step: from the norm_sq_sub_expand identity
+/// for each vertex v, the circumcenter "phi" shift satisfies phi + lift(v) ≡ 2*dot(cd,v).
+proof fn lemma_phi_plus_lift_vertex<T: Ring>(
+    ncd: T, tw: T, l: T, sq_dist_v: T, phi: T,
+)
+    requires
+        sq_dist_v.eqv(ncd.sub(tw).add(l)),
+        phi.eqv(ncd.sub(sq_dist_v)),
+    ensures
+        phi.add(l).eqv(tw),
+{
+    let k = ncd.sub(tw);
+
+    // (A) phi + sq_dist_v ≡ ncd
+    T::axiom_eqv_reflexive(sq_dist_v);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        phi, ncd.sub(sq_dist_v), sq_dist_v, sq_dist_v,
+    );
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(ncd, sq_dist_v);
+    T::axiom_eqv_transitive(
+        phi.add(sq_dist_v), ncd.sub(sq_dist_v).add(sq_dist_v), ncd,
+    );
+
+    // (B) phi + (k + l) ≡ ncd  [since sq_dist_v ≡ k + l]
+    additive_group_lemmas::lemma_add_congruence_right::<T>(phi, sq_dist_v, k.add(l));
+    T::axiom_eqv_symmetric(phi.add(sq_dist_v), phi.add(k.add(l)));
+    T::axiom_eqv_transitive(phi.add(k.add(l)), phi.add(sq_dist_v), ncd);
+
+    // (C) k + tw ≡ ncd
+    additive_group_lemmas::lemma_sub_then_add_cancel::<T>(ncd, tw);
+
+    // (D) phi + (k+l) ≡ k + (phi+l)  [rearrange via commutativity + associativity]
+    T::axiom_add_commutative(phi, k.add(l));
+    T::axiom_add_associative(k, l, phi);
+    T::axiom_add_commutative(l, phi);
+    additive_group_lemmas::lemma_add_congruence_right::<T>(k, l.add(phi), phi.add(l));
+    T::axiom_eqv_transitive(
+        phi.add(k.add(l)), k.add(l).add(phi), k.add(l.add(phi)),
+    );
+    T::axiom_eqv_transitive(
+        phi.add(k.add(l)), k.add(l.add(phi)), k.add(phi.add(l)),
+    );
+
+    // (E) k + (phi+l) ≡ ncd  [combine (B) and (D)]
+    T::axiom_eqv_symmetric(phi.add(k.add(l)), k.add(phi.add(l)));
+    T::axiom_eqv_transitive(k.add(phi.add(l)), phi.add(k.add(l)), ncd);
+
+    // (F) k + (phi+l) ≡ k + tw  [combine (E) and (C)]
+    T::axiom_eqv_symmetric(k.add(tw), ncd);
+    T::axiom_eqv_transitive(k.add(phi.add(l)), ncd, k.add(tw));
+
+    // Conclude by left cancellation
+    additive_group_lemmas::lemma_add_left_cancel::<T>(phi.add(l), tw, k);
+}
+
+// =========================================================================
+// Helper: Cramer alternating dot·det sum is zero
+// =========================================================================
+
+/// From Cramer's dot form, the alternating sum of dot·det products vanishes:
+///   dot(cd,ua)*det(ub,uc) - dot(cd,ub)*det(ua,uc) + dot(cd,uc)*det(ua,ub) ≡ 0
+proof fn lemma_cramer_alternating_dot_zero<T: Ring>(
+    cd: Vec2<T>, ua: Vec2<T>, ub: Vec2<T>, uc: Vec2<T>,
+)
+    ensures
+        vec2_dot(cd, ua).mul(det2d(ub, uc))
+            .sub(vec2_dot(cd, ub).mul(det2d(ua, uc)))
+            .add(vec2_dot(cd, uc).mul(det2d(ua, ub)))
+            .eqv(T::zero()),
+{
+    let D_bc = det2d(ub, uc);
+    let D_ac = det2d(ua, uc);
+    let D_ab = det2d(ua, ub);
+    let da = vec2_dot(cd, ua);
+    let db = vec2_dot(cd, ub);
+    let dc = vec2_dot(cd, uc);
+    let I1 = da.mul(D_bc);
+    let I2 = db.mul(D_ac);
+    let I3 = dc.mul(D_ab);
+
+    // --- Cramer dot form: det(uc,ub)*da + D_ac*db ≡ D_ab*dc ---
+    lemma_cramer_dot_form::<T>(cd, ua, ub, uc);
+
+    // --- Convert Cramer term 1: det2d(uc,ub)*da ≡ -I1 ---
+    lemma_det2d_antisymmetric::<T>(uc, ub);
+    // det2d(uc,ub) ≡ -D_bc
+    T::axiom_eqv_reflexive(da);
+    ring_lemmas::lemma_mul_congruence::<T>(det2d(uc, ub), D_bc.neg(), da, da);
+    // det2d(uc,ub)*da ≡ (-D_bc)*da
+    ring_lemmas::lemma_mul_neg_left::<T>(D_bc, da);
+    // (-D_bc)*da ≡ -(D_bc*da)
+    T::axiom_eqv_transitive(det2d(uc, ub).mul(da), D_bc.neg().mul(da), D_bc.mul(da).neg());
+    T::axiom_mul_commutative(D_bc, da);
+    additive_group_lemmas::lemma_neg_congruence::<T>(D_bc.mul(da), da.mul(D_bc));
+    T::axiom_eqv_transitive(det2d(uc, ub).mul(da), D_bc.mul(da).neg(), I1.neg());
+    // det2d(uc,ub)*da ≡ -I1
+
+    // --- Convert Cramer term 2: D_ac*db ≡ I2 ---
+    T::axiom_mul_commutative(D_ac, db);
+
+    // --- Convert Cramer RHS: D_ab*dc ≡ I3 ---
+    T::axiom_mul_commutative(D_ab, dc);
+
+    // --- Chain: (-I1) + I2 ≡ I3 ---
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        det2d(uc, ub).mul(da), I1.neg(),
+        D_ac.mul(db), I2,
+    );
+    // Cramer_LHS ≡ (-I1) + I2
+    T::axiom_eqv_symmetric(
+        det2d(uc, ub).mul(da).add(D_ac.mul(db)),
+        I1.neg().add(I2),
+    );
+    T::axiom_eqv_transitive(
+        I1.neg().add(I2),
+        det2d(uc, ub).mul(da).add(D_ac.mul(db)),
+        D_ab.mul(dc),
+    );
+    T::axiom_eqv_transitive(I1.neg().add(I2), D_ab.mul(dc), I3);
+    // (-I1) + I2 ≡ I3
+
+    // --- Derive I3 - I2 ≡ -I1 ---
+    T::axiom_eqv_reflexive(I2);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        I1.neg().add(I2), I3, I2, I2,
+    );
+    // (-I1 + I2) - I2 ≡ I3 - I2
+    additive_group_lemmas::lemma_add_then_sub_cancel::<T>(I1.neg(), I2);
+    // (-I1 + I2) - I2 ≡ -I1
+    T::axiom_eqv_symmetric(I1.neg().add(I2).sub(I2), I3.sub(I2));
+    T::axiom_eqv_transitive(I3.sub(I2), I1.neg().add(I2).sub(I2), I1.neg());
+    // I3 - I2 ≡ -I1
+
+    // --- I1 + (I3 - I2) ≡ 0 ---
+    additive_group_lemmas::lemma_add_congruence_right::<T>(I1, I3.sub(I2), I1.neg());
+    T::axiom_add_inverse_right(I1);
+    T::axiom_eqv_transitive(I1.add(I3.sub(I2)), I1.add(I1.neg()), T::zero());
+
+    // --- Convert I1.sub(I2).add(I3) to I1.add(I3.sub(I2)) ---
+    T::axiom_sub_is_add_neg(I1, I2);
+    T::axiom_eqv_reflexive(I3);
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        I1.sub(I2), I1.add(I2.neg()), I3, I3,
+    );
+    T::axiom_add_associative(I1, I2.neg(), I3);
+    T::axiom_eqv_transitive(
+        I1.sub(I2).add(I3),
+        I1.add(I2.neg()).add(I3),
+        I1.add(I2.neg().add(I3)),
+    );
+    T::axiom_add_commutative(I2.neg(), I3);
+    T::axiom_sub_is_add_neg(I3, I2);
+    T::axiom_eqv_symmetric(I3.sub(I2), I3.add(I2.neg()));
+    T::axiom_eqv_transitive(I2.neg().add(I3), I3.add(I2.neg()), I3.sub(I2));
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        I1, I2.neg().add(I3), I3.sub(I2),
+    );
+    T::axiom_eqv_transitive(
+        I1.sub(I2).add(I3),
+        I1.add(I2.neg().add(I3)),
+        I1.add(I3.sub(I2)),
+    );
+
+    // --- Final chain: I1.sub(I2).add(I3) ≡ 0 ---
+    T::axiom_eqv_transitive(I1.sub(I2).add(I3), I1.add(I3.sub(I2)), T::zero());
+}
+
+// =========================================================================
+// Helper: alternating sum addition (zip of two a-b+c sums)
+// =========================================================================
+
+/// (a-b+c) + (p-q+r) ≡ (a+p) - (b+q) + (c+r)
+/// Used to decompose incircle + phi*orient into pairwise sums.
+proof fn lemma_alternating_sum_add<T: Ring>(
+    a: T, b: T, c: T, p: T, q: T, r: T,
+)
+    ensures
+        a.sub(b).add(c).add(p.sub(q).add(r)).eqv(
+            a.add(p).sub(b.add(q)).add(c.add(r))
+        ),
+{
+    let nb = b.neg();
+    let nq = q.neg();
+
+    // Phase 1: Convert subs → add+neg
+    T::axiom_sub_is_add_neg(a, b);   // a-b ≡ a+nb
+    T::axiom_sub_is_add_neg(p, q);   // p-q ≡ p+nq
+
+    T::axiom_eqv_reflexive(c);
+    additive_group_lemmas::lemma_add_congruence::<T>(a.sub(b), a.add(nb), c, c);
+    // (a-b)+c ≡ (a+nb)+c
+
+    T::axiom_eqv_reflexive(r);
+    additive_group_lemmas::lemma_add_congruence::<T>(p.sub(q), p.add(nq), r, r);
+    // (p-q)+r ≡ (p+nq)+r
+
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        a.sub(b).add(c), a.add(nb).add(c),
+        p.sub(q).add(r), p.add(nq).add(r),
+    );
+    // LHS ≡ ((a+nb)+c) + ((p+nq)+r)  =: L1
+
+    // Phase 2: Rearrange L1 → L2 using add_rearrange_2x2
+    // ((a+nb)+c) + ((p+nq)+r) ≡ ((a+nb)+(p+nq)) + (c+r)
+    additive_group_lemmas::lemma_add_rearrange_2x2::<T>(
+        a.add(nb), c, p.add(nq), r,
+    );
+
+    T::axiom_eqv_transitive(
+        a.sub(b).add(c).add(p.sub(q).add(r)),       // LHS
+        a.add(nb).add(c).add(p.add(nq).add(r)),     // L1
+        a.add(nb).add(p.add(nq)).add(c.add(r)),     // L2
+    );
+
+    // Phase 3: Rearrange inner pair (a+nb)+(p+nq) → (a+p)+(nb+nq)
+    additive_group_lemmas::lemma_add_rearrange_2x2::<T>(a, nb, p, nq);
+
+    // Phase 4: Combine negs: nb+nq ≡ -(b+q)
+    additive_group_lemmas::lemma_neg_add::<T>(b, q);
+    // -(b+q) ≡ nb+nq
+    T::axiom_eqv_symmetric(b.add(q).neg(), nb.add(nq));
+    // nb+nq ≡ -(b+q)
+
+    additive_group_lemmas::lemma_add_congruence_right::<T>(
+        a.add(p), nb.add(nq), b.add(q).neg(),
+    );
+    // (a+p)+(nb+nq) ≡ (a+p)+(-(b+q))
+
+    // Chain: (a+nb)+(p+nq) ≡ (a+p)+(nb+nq) ≡ (a+p)+(-(b+q))
+    T::axiom_eqv_transitive(
+        a.add(nb).add(p.add(nq)),
+        a.add(p).add(nb.add(nq)),
+        a.add(p).add(b.add(q).neg()),
+    );
+
+    // Phase 5: (a+p)+(-(b+q)) ≡ (a+p).sub(b+q) via sub_is_add_neg reversed
+    T::axiom_sub_is_add_neg(a.add(p), b.add(q));
+    T::axiom_eqv_symmetric(
+        a.add(p).sub(b.add(q)),
+        a.add(p).add(b.add(q).neg()),
+    );
+    T::axiom_eqv_transitive(
+        a.add(nb).add(p.add(nq)),
+        a.add(p).add(b.add(q).neg()),
+        a.add(p).sub(b.add(q)),
+    );
+
+    // Phase 6: Thread into L2 → RHS
+    // L2 = ((a+nb)+(p+nq)) + (c+r), RHS = ((a+p).sub(b+q)) + (c+r)
+    T::axiom_eqv_reflexive(c.add(r));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        a.add(nb).add(p.add(nq)), a.add(p).sub(b.add(q)),
+        c.add(r), c.add(r),
+    );
+    // L2 ≡ RHS
+
+    // Final: LHS ≡ L2 ≡ RHS
+    T::axiom_eqv_transitive(
+        a.sub(b).add(c).add(p.sub(q).add(r)),
+        a.add(nb).add(p.add(nq)).add(c.add(r)),
+        a.add(p).sub(b.add(q)).add(c.add(r)),
+    );
+}
+
+// =========================================================================
+// Helper: factor common left multiplier from alternating sum
+// =========================================================================
+
+/// k*a - k*b + k*c ≡ k*(a - b + c)
+proof fn lemma_factor_alternating_sum<T: Ring>(
+    k: T, a: T, b: T, c: T,
+)
+    ensures
+        k.mul(a).sub(k.mul(b)).add(k.mul(c)).eqv(
+            k.mul(a.sub(b).add(c))
+        ),
+{
+    // k*(a-b) ≡ k*a - k*b
+    ring_lemmas::lemma_mul_distributes_over_sub::<T>(k, a, b);
+    T::axiom_eqv_symmetric(k.mul(a.sub(b)), k.mul(a).sub(k.mul(b)));
+    // k*a - k*b ≡ k*(a-b)
+
+    // (k*a - k*b) + k*c ≡ k*(a-b) + k*c
+    T::axiom_eqv_reflexive(k.mul(c));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        k.mul(a).sub(k.mul(b)), k.mul(a.sub(b)),
+        k.mul(c), k.mul(c),
+    );
+
+    // k*((a-b)+c) ≡ k*(a-b) + k*c [left distributivity]
+    T::axiom_mul_distributes_left(k, a.sub(b), c);
+    T::axiom_eqv_symmetric(k.mul(a.sub(b).add(c)), k.mul(a.sub(b)).add(k.mul(c)));
+
+    // Chain: (k*a - k*b) + k*c ≡ k*(a-b) + k*c ≡ k*(a-b+c)
+    T::axiom_eqv_transitive(
+        k.mul(a).sub(k.mul(b)).add(k.mul(c)),
+        k.mul(a.sub(b)).add(k.mul(c)),
+        k.mul(a.sub(b).add(c)),
+    );
+}
+
+// =========================================================================
+// Helper: orient2d decomposition relative to a base point
+// =========================================================================
+
+/// orient2d(a,b,c) ≡ det2d(ub,uc) - det2d(ua,uc) + det2d(ua,ub)
+/// where uv = sub2(v, d).
+proof fn lemma_orient2d_rebase<T: Ring>(
+    a: Point2<T>, b: Point2<T>, c: Point2<T>, d: Point2<T>,
+)
+    ensures
+    {
+        let ua = sub2(a, d);
+        let ub = sub2(b, d);
+        let uc = sub2(c, d);
+        orient2d(a, b, c).eqv(
+            det2d(ub, uc).sub(det2d(ua, uc)).add(det2d(ua, ub))
+        )
+    },
+{
+    let ua = sub2(a, d);
+    let ub = sub2(b, d);
+    let uc = sub2(c, d);
+    let D_bc = det2d(ub, uc);
+    let D_ac = det2d(ua, uc);
+    let D_ab = det2d(ua, ub);
+
+    // Step 1: sub2(b,a) ≡ ub - ua, sub2(c,a) ≡ uc - ua
+    lemma_sub2_rebase::<T>(b, a, d);
+    lemma_sub2_rebase::<T>(c, a, d);
+
+    // Step 2: orient2d = det2d(sub2(b,a), sub2(c,a)) ≡ det2d(ub-ua, uc-ua)
+    lemma_det2d_congruence::<T>(sub2(b, a), ub.sub(ua), sub2(c, a), uc.sub(ua));
+
+    // Step 3: det2d(ub-ua, uc-ua) ≡ (D_bc - det2d(ub,ua)) - D_ac  [det2d_sub_sub]
+    crate::incircle::lemma_det2d_sub_sub::<T>(ua, ub, uc);
+    T::axiom_eqv_transitive(
+        orient2d(a, b, c),
+        det2d(ub.sub(ua), uc.sub(ua)),
+        D_bc.sub(det2d(ub, ua)).sub(D_ac),
+    );
+
+    // Step 4: det2d(ub,ua) ≡ -det2d(ua,ub) = -D_ab  [antisymmetry]
+    lemma_det2d_antisymmetric::<T>(ub, ua);
+
+    // Step 5: D_bc - det2d(ub,ua) ≡ D_bc - (-D_ab) ≡ D_bc + D_ab  [sub_congruence + sub_neg_is_add]
+    T::axiom_eqv_reflexive(D_bc);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        D_bc, D_bc, det2d(ub, ua), D_ab.neg(),
+    );
+    crate::incircle::lemma_sub_neg_is_add::<T>(D_bc, D_ab);
+    T::axiom_eqv_transitive(
+        D_bc.sub(det2d(ub, ua)),
+        D_bc.sub(D_ab.neg()),
+        D_bc.add(D_ab),
+    );
+
+    // Step 6: (D_bc - det2d(ub,ua)) - D_ac ≡ (D_bc + D_ab) - D_ac  [sub_congruence]
+    T::axiom_eqv_reflexive(D_ac);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        D_bc.sub(det2d(ub, ua)), D_bc.add(D_ab), D_ac, D_ac,
+    );
+    T::axiom_eqv_transitive(
+        orient2d(a, b, c),
+        D_bc.sub(det2d(ub, ua)).sub(D_ac),
+        D_bc.add(D_ab).sub(D_ac),
+    );
+
+    // Step 7: (D_bc + D_ab) - D_ac ≡ (D_bc - D_ac) + D_ab  [add_sub_rearrange]
+    crate::intersection3d::lemma_add_sub_rearrange::<T>(D_bc, D_ab, D_ac);
+    T::axiom_eqv_transitive(
+        orient2d(a, b, c),
+        D_bc.add(D_ab).sub(D_ac),
+        D_bc.sub(D_ac).add(D_ab),
+    );
+}
+
+// =========================================================================
 // Helper: circumcenter-incircle-orient identity
 // =========================================================================
 
@@ -352,51 +736,216 @@ proof fn lemma_circumcenter_incircle_orient<T: OrderedRing>(
     verus_linalg::vec2::ops::lemma_norm_sq_sub_expand::<T>(cd, ub);
     verus_linalg::vec2::ops::lemma_norm_sq_sub_expand::<T>(cd, uc);
 
-    // From circumcenter: sq_dist(O,a) ≡ sq_dist(O,b) ≡ sq_dist(O,c)
-    // So phi also = norm_sq(cd) - sq_dist(O,b) = norm_sq(cd) - sq_dist(O,c)
-    // giving lb + phi ≡ 2*dot(cd,ub), lc + phi ≡ 2*dot(cd,uc)
+    // Complete transitivity chains for sq_dist(O,b) and sq_dist(O,c)
+    let ncd = vec2_norm_sq(cd);
+    let tw_a = verus_algebra::convex::two::<T>().mul(vec2_dot(cd, ua));
+    let tw_b = verus_algebra::convex::two::<T>().mul(vec2_dot(cd, ub));
+    let tw_c = verus_algebra::convex::two::<T>().mul(vec2_dot(cd, uc));
+    let D_bc = det2d(ub, uc);
+    let D_ac = det2d(ua, uc);
+    let D_ab = det2d(ua, ub);
 
-    // --- Phase 2: Expand incircle2d + phi * orient2d ---
-    // incircle2d = la*det(ub,uc) - lb*det(ua,uc) + lc*det(ua,ub)
-    // orient2d(a,b,c) = det2d(b-a, c-a) = det2d(ub-ua, uc-ua)
-    //   ≡ det(ub,uc) - det(ua,uc) + det(ua,ub)   [by lemma_det2d_sub_sub]
-    // phi * orient2d ≡ phi*det(ub,uc) - phi*det(ua,uc) + phi*det(ua,ub)
-    // incircle2d + phi*orient2d
-    //   = (la+phi)*det(ub,uc) - (lb+phi)*det(ua,uc) + (lc+phi)*det(ua,ub)
-    //   ≡ 2*dot(cd,ua)*det(ub,uc) - 2*dot(cd,ub)*det(ua,uc) + 2*dot(cd,uc)*det(ua,ub)
-    //   = 2 * (dot(cd,ua)*det(ub,uc) - dot(cd,ub)*det(ua,uc) + dot(cd,uc)*det(ua,ub))
-    //   = 2 * 0 = 0   [by Cramer dot form]
+    T::axiom_eqv_transitive(
+        sq_dist_2d(center, b), vec2_norm_sq(cd.sub(ub)), ncd.sub(tw_b).add(lb),
+    );
+    T::axiom_eqv_transitive(
+        sq_dist_2d(center, c), vec2_norm_sq(cd.sub(uc)), ncd.sub(tw_c).add(lc),
+    );
 
-    // Apply Cramer dot form with p=cd, u=ua, v=ub, w=uc:
-    // det(uc,ub)*dot(cd,ua) + det(ua,uc)*dot(cd,ub) ≡ det(ua,ub)*dot(cd,uc)
-    lemma_cramer_dot_form::<T>(cd, ua, ub, uc);
+    // --- Phase 2: phi + lv ≡ tw_v for each vertex ---
+    // For vertex a: phi = ncd - sq_dist(O,a) definitionally
+    T::axiom_eqv_reflexive(phi);
+    lemma_phi_plus_lift_vertex::<T>(ncd, tw_a, la, sq_dist_2d(center, a), phi);
 
-    // This gives us: det(uc,ub)*dot(cd,ua) + det(ua,uc)*dot(cd,ub) ≡ det(ua,ub)*dot(cd,uc)
-    // By antisymmetry: det(uc,ub) ≡ -det(ub,uc)
-    lemma_det2d_antisymmetric::<T>(uc, ub);
-    // -det(ub,uc)*dot(cd,ua) + det(ua,uc)*dot(cd,ub) ≡ det(ua,ub)*dot(cd,uc)
-    // Rearranging: dot(cd,ua)*det(ub,uc) - dot(cd,ub)*det(ua,uc) + dot(cd,uc)*det(ua,ub) ≡ 0
+    // For vertex b: circumcenter gives sq_dist(O,a) ≡ sq_dist(O,b)
+    T::axiom_eqv_reflexive(ncd);
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        ncd, ncd, sq_dist_2d(center, a), sq_dist_2d(center, b),
+    );
+    lemma_phi_plus_lift_vertex::<T>(ncd, tw_b, lb, sq_dist_2d(center, b), phi);
 
-    // --- Phase 3: Chain the identity to conclude incircle2d ≡ -phi * orient2d ---
-    // Since incircle2d + phi*orient2d ≡ 0,
-    // incircle2d ≡ -(phi*orient2d) = (-phi)*orient2d = phi.neg()*orient2d
+    // For vertex c: sq_dist(O,a) ≡ sq_dist(O,c) by transitivity
+    T::axiom_eqv_transitive(
+        sq_dist_2d(center, a), sq_dist_2d(center, b), sq_dist_2d(center, c),
+    );
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        ncd, ncd, sq_dist_2d(center, a), sq_dist_2d(center, c),
+    );
+    lemma_phi_plus_lift_vertex::<T>(ncd, tw_c, lc, sq_dist_2d(center, c), phi);
 
-    // For now, we use the Cramer result to establish the chain.
-    // The full algebraic manipulation is:
-    // From Cramer: det(uc,ub)*dot(cd,ua) + det(ua,uc)*dot(cd,ub) ≡ det(ua,ub)*dot(cd,uc)
-    // Using circumcenter: la+phi ≡ 2*dot(cd,ua), lb+phi ≡ 2*dot(cd,ub), lc+phi ≡ 2*dot(cd,uc)
-    // incircle2d = la*D_bc - lb*D_ac + lc*D_ab
-    // phi*orient ≡ phi*D_bc - phi*D_ac + phi*D_ab  [via det2d_sub_sub + distributivity]
-    // sum = (la+phi)*D_bc - (lb+phi)*D_ac + (lc+phi)*D_ab
-    //     ≡ 2*dot(cd,ua)*D_bc - 2*dot(cd,ub)*D_ac + 2*dot(cd,uc)*D_ab
-    //     ≡ 0  [by Cramer]
-    // So incircle2d ≡ -phi*orient2d
+    // --- Phase 3: Expand phi*orient into phi*D_bc - phi*D_ac + phi*D_ab ---
+    lemma_orient2d_rebase::<T>(a, b, c, d);
+    T::axiom_eqv_reflexive(phi);
+    ring_lemmas::lemma_mul_congruence::<T>(
+        phi, phi, orient2d(a, b, c), D_bc.sub(D_ac).add(D_ab),
+    );
+    // phi*orient ≡ phi*(D_bc - D_ac + D_ab)
+    // Reverse of factor_alternating_sum: phi*(D_bc-D_ac+D_ab) ≡ phi*D_bc - phi*D_ac + phi*D_ab
+    lemma_factor_alternating_sum::<T>(phi, D_bc, D_ac, D_ab);
+    T::axiom_eqv_symmetric(
+        phi.mul(D_bc).sub(phi.mul(D_ac)).add(phi.mul(D_ab)),
+        phi.mul(D_bc.sub(D_ac).add(D_ab)),
+    );
+    T::axiom_eqv_transitive(
+        phi.mul(orient2d(a, b, c)),
+        phi.mul(D_bc.sub(D_ac).add(D_ab)),
+        phi.mul(D_bc).sub(phi.mul(D_ac)).add(phi.mul(D_ab)),
+    );
 
-    // Due to the complexity of formalizing the full chain, we establish this
-    // via the identity connecting all pieces.
-    // The key insight: Cramer gives exactly what we need modulo the circumcenter substitution.
+    // --- Phase 4: Combine incircle + phi*orient via alternating_sum_add ---
+    // incircle = la*D_bc - lb*D_ac + lc*D_ab (by spec unfolding)
+    // phi_expanded = phi*D_bc - phi*D_ac + phi*D_ab
+    T::axiom_eqv_reflexive(incircle2d(a, b, c, d));
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        incircle2d(a, b, c, d), incircle2d(a, b, c, d),
+        phi.mul(orient2d(a, b, c)),
+        phi.mul(D_bc).sub(phi.mul(D_ac)).add(phi.mul(D_ab)),
+    );
+    // incircle + phi*orient ≡ incircle + phi_expanded
 
-    assume(false); // TODO: complete the algebraic chain
+    // By Helper 3: (a-b+c) + (p-q+r) ≡ (a+p) - (b+q) + (c+r)
+    lemma_alternating_sum_add::<T>(
+        la.mul(D_bc), lb.mul(D_ac), lc.mul(D_ab),
+        phi.mul(D_bc), phi.mul(D_ac), phi.mul(D_ab),
+    );
+
+    T::axiom_eqv_transitive(
+        incircle2d(a, b, c, d).add(phi.mul(orient2d(a, b, c))),
+        incircle2d(a, b, c, d).add(phi.mul(D_bc).sub(phi.mul(D_ac)).add(phi.mul(D_ab))),
+        la.mul(D_bc).add(phi.mul(D_bc))
+            .sub(lb.mul(D_ac).add(phi.mul(D_ac)))
+            .add(lc.mul(D_ab).add(phi.mul(D_ab))),
+    );
+
+    // --- Phase 5: Factor each pair: lv*D + phi*D ≡ (lv+phi)*D ≡ tw_v*D ---
+    // Vertex a pair
+    ring_lemmas::lemma_mul_distributes_right::<T>(la, phi, D_bc);
+    T::axiom_eqv_symmetric(la.add(phi).mul(D_bc), la.mul(D_bc).add(phi.mul(D_bc)));
+    T::axiom_add_commutative(la, phi);
+    T::axiom_eqv_transitive(la.add(phi), phi.add(la), tw_a);
+    T::axiom_eqv_reflexive(D_bc);
+    ring_lemmas::lemma_mul_congruence::<T>(la.add(phi), tw_a, D_bc, D_bc);
+    T::axiom_eqv_transitive(
+        la.mul(D_bc).add(phi.mul(D_bc)), la.add(phi).mul(D_bc), tw_a.mul(D_bc),
+    );
+
+    // Vertex b pair
+    ring_lemmas::lemma_mul_distributes_right::<T>(lb, phi, D_ac);
+    T::axiom_eqv_symmetric(lb.add(phi).mul(D_ac), lb.mul(D_ac).add(phi.mul(D_ac)));
+    T::axiom_add_commutative(lb, phi);
+    T::axiom_eqv_transitive(lb.add(phi), phi.add(lb), tw_b);
+    T::axiom_eqv_reflexive(D_ac);
+    ring_lemmas::lemma_mul_congruence::<T>(lb.add(phi), tw_b, D_ac, D_ac);
+    T::axiom_eqv_transitive(
+        lb.mul(D_ac).add(phi.mul(D_ac)), lb.add(phi).mul(D_ac), tw_b.mul(D_ac),
+    );
+
+    // Vertex c pair
+    ring_lemmas::lemma_mul_distributes_right::<T>(lc, phi, D_ab);
+    T::axiom_eqv_symmetric(lc.add(phi).mul(D_ab), lc.mul(D_ab).add(phi.mul(D_ab)));
+    T::axiom_add_commutative(lc, phi);
+    T::axiom_eqv_transitive(lc.add(phi), phi.add(lc), tw_c);
+    T::axiom_eqv_reflexive(D_ab);
+    ring_lemmas::lemma_mul_congruence::<T>(lc.add(phi), tw_c, D_ab, D_ab);
+    T::axiom_eqv_transitive(
+        lc.mul(D_ab).add(phi.mul(D_ab)), lc.add(phi).mul(D_ab), tw_c.mul(D_ab),
+    );
+
+    // Combine: paired_form ≡ tw_a*D_bc - tw_b*D_ac + tw_c*D_ab
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        la.mul(D_bc).add(phi.mul(D_bc)), tw_a.mul(D_bc),
+        lb.mul(D_ac).add(phi.mul(D_ac)), tw_b.mul(D_ac),
+    );
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        la.mul(D_bc).add(phi.mul(D_bc)).sub(lb.mul(D_ac).add(phi.mul(D_ac))),
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)),
+        lc.mul(D_ab).add(phi.mul(D_ab)),
+        tw_c.mul(D_ab),
+    );
+
+    // --- Phase 6: Factor two() from cramer sum ---
+    let two = verus_algebra::convex::two::<T>();
+    let I1 = vec2_dot(cd, ua).mul(D_bc);
+    let I2 = vec2_dot(cd, ub).mul(D_ac);
+    let I3 = vec2_dot(cd, uc).mul(D_ab);
+
+    // tw_v*D = (two*dot)*D ≡ two*(dot*D) by associativity
+    T::axiom_mul_associative(two, vec2_dot(cd, ua), D_bc);
+    T::axiom_eqv_symmetric(two.mul(I1), tw_a.mul(D_bc));
+    T::axiom_mul_associative(two, vec2_dot(cd, ub), D_ac);
+    T::axiom_eqv_symmetric(two.mul(I2), tw_b.mul(D_ac));
+    T::axiom_mul_associative(two, vec2_dot(cd, uc), D_ab);
+    T::axiom_eqv_symmetric(two.mul(I3), tw_c.mul(D_ab));
+
+    // cramer_sum ≡ two*I1 - two*I2 + two*I3
+    additive_group_lemmas::lemma_sub_congruence::<T>(
+        tw_a.mul(D_bc), two.mul(I1), tw_b.mul(D_ac), two.mul(I2),
+    );
+    additive_group_lemmas::lemma_add_congruence::<T>(
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)), two.mul(I1).sub(two.mul(I2)),
+        tw_c.mul(D_ab), two.mul(I3),
+    );
+
+    // two*I1 - two*I2 + two*I3 ≡ two*(I1 - I2 + I3) by factor_alternating_sum
+    lemma_factor_alternating_sum::<T>(two, I1, I2, I3);
+    T::axiom_eqv_transitive(
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)).add(tw_c.mul(D_ab)),
+        two.mul(I1).sub(two.mul(I2)).add(two.mul(I3)),
+        two.mul(I1.sub(I2).add(I3)),
+    );
+
+    // --- Phase 7: Cramer zero: I1 - I2 + I3 ≡ 0 ---
+    lemma_cramer_alternating_dot_zero::<T>(cd, ua, ub, uc);
+    T::axiom_eqv_reflexive(two);
+    ring_lemmas::lemma_mul_congruence::<T>(two, two, I1.sub(I2).add(I3), T::zero());
+    T::axiom_mul_zero_right(two);
+    T::axiom_eqv_transitive(two.mul(I1.sub(I2).add(I3)), two.mul(T::zero()), T::zero());
+    // cramer_sum ≡ 0
+    T::axiom_eqv_transitive(
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)).add(tw_c.mul(D_ab)),
+        two.mul(I1.sub(I2).add(I3)),
+        T::zero(),
+    );
+
+    // --- Phase 8: Chain all: incircle + phi*orient ≡ paired ≡ cramer ≡ 0 ---
+    T::axiom_eqv_transitive(
+        incircle2d(a, b, c, d).add(phi.mul(orient2d(a, b, c))),
+        la.mul(D_bc).add(phi.mul(D_bc))
+            .sub(lb.mul(D_ac).add(phi.mul(D_ac)))
+            .add(lc.mul(D_ab).add(phi.mul(D_ab))),
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)).add(tw_c.mul(D_ab)),
+    );
+    T::axiom_eqv_transitive(
+        incircle2d(a, b, c, d).add(phi.mul(orient2d(a, b, c))),
+        tw_a.mul(D_bc).sub(tw_b.mul(D_ac)).add(tw_c.mul(D_ab)),
+        T::zero(),
+    );
+
+    // --- Phase 9: Conclude incircle ≡ phi.neg() * orient ---
+    // phi*orient + incircle ≡ 0 (by commutativity)
+    T::axiom_add_commutative(
+        phi.mul(orient2d(a, b, c)), incircle2d(a, b, c, d),
+    );
+    T::axiom_eqv_transitive(
+        phi.mul(orient2d(a, b, c)).add(incircle2d(a, b, c, d)),
+        incircle2d(a, b, c, d).add(phi.mul(orient2d(a, b, c))),
+        T::zero(),
+    );
+    // By neg_unique: incircle ≡ -(phi*orient)
+    additive_group_lemmas::lemma_neg_unique::<T>(
+        phi.mul(orient2d(a, b, c)), incircle2d(a, b, c, d),
+    );
+    // -(phi*orient) ≡ phi.neg()*orient by mul_neg_left (reversed)
+    ring_lemmas::lemma_mul_neg_left::<T>(phi, orient2d(a, b, c));
+    T::axiom_eqv_symmetric(
+        phi.neg().mul(orient2d(a, b, c)),
+        phi.mul(orient2d(a, b, c)).neg(),
+    );
+    T::axiom_eqv_transitive(
+        incircle2d(a, b, c, d),
+        phi.mul(orient2d(a, b, c)).neg(),
+        phi.neg().mul(orient2d(a, b, c)),
+    );
 }
 
 /// Delaunay-Voronoi duality: if (a,b,c) is a CCW Delaunay triangle
