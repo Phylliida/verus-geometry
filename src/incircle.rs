@@ -1531,7 +1531,7 @@ pub proof fn lemma_lagrange_2d<T: Ring>(p: Vec2<T>, q: Vec2<T>, r: Vec2<T>)
 }
 
 /// Helper: a.sub(b.neg()) ≡ a.add(b)
-proof fn lemma_sub_neg_is_add<T: Ring>(a: T, b: T)
+pub proof fn lemma_sub_neg_is_add<T: Ring>(a: T, b: T)
     ensures a.sub(b.neg()).eqv(a.add(b))
 {
     T::axiom_sub_is_add_neg(a, b.neg());
