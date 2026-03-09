@@ -87,4 +87,42 @@ pub proof fn lemma_qext_from_rational_im<F: Field, R: Radicand<F>>(v: F)
     F::axiom_eqv_reflexive(F::zero());
 }
 
+/// Multiplying a rational embedding by a qext simplifies components:
+/// qext(v, 0) * qext(r, i) ≡ qext(v*r, v*i).
+pub proof fn lemma_rational_mul_qext<F: Field, R: Radicand<F>>(v: F, r: F, i: F)
+    ensures
+        qe_mul::<F, R>(qext_from_rational(v), qext(r, i)).eqv(
+            qext::<F, R>(v.mul(r), v.mul(i))
+        ),
+{
+    // re = v*r + 0*i*D where D = R::value()
+    // Show 0*i*D ≡ 0:
+    lemma_mul_zero_left::<F>(i);
+    F::axiom_mul_congruence_left(F::zero().mul(i), F::zero(), R::value());
+    lemma_mul_zero_left::<F>(R::value());
+    F::axiom_eqv_transitive(
+        F::zero().mul(i).mul(R::value()), F::zero().mul(R::value()), F::zero(),
+    );
+    // v*r + 0*i*D ≡ v*r + 0 ≡ v*r
+    lemma_add_congruence_right::<F>(v.mul(r), F::zero().mul(i).mul(R::value()), F::zero());
+    F::axiom_add_zero_right(v.mul(r));
+    F::axiom_eqv_transitive(
+        v.mul(r).add(F::zero().mul(i).mul(R::value())),
+        v.mul(r).add(F::zero()),
+        v.mul(r),
+    );
+
+    // im = v*i + 0*r. Show 0*r ≡ 0:
+    lemma_mul_zero_left::<F>(r);
+    // v*i + 0*r ≡ v*i + 0 ≡ v*i
+    lemma_add_congruence_right::<F>(v.mul(i), F::zero().mul(r), F::zero());
+    F::axiom_add_zero_right(v.mul(i));
+    F::axiom_eqv_transitive(
+        v.mul(i).add(F::zero().mul(r)),
+        v.mul(i).add(F::zero()),
+        v.mul(i),
+    );
+    // Z3 now has both component eqvs → qe_eqv is satisfied.
+}
+
 } // verus!

@@ -35,7 +35,7 @@ pub open spec fn line_line_intersection_2d<F: OrderedField>(
 //  Helper: a * (b / c) ≡ (a*b) / c
 // ===========================================================================
 
-proof fn lemma_mul_div_assoc<F: OrderedField>(a: F, b: F, c: F)
+pub proof fn lemma_mul_div_assoc<F: OrderedField>(a: F, b: F, c: F)
     requires
         !c.eqv(F::zero()),
     ensures
@@ -46,6 +46,7 @@ proof fn lemma_mul_div_assoc<F: OrderedField>(a: F, b: F, c: F)
     lemma_mul_congruence_right::<F>(a, b.div(c), b.mul(c.recip()));
     // a * (b * recip(c)) ≡ (a*b) * recip(c)
     F::axiom_mul_associative(a, b, c.recip());
+    F::axiom_eqv_symmetric(a.mul(b).mul(c.recip()), a.mul(b.mul(c.recip())));
     F::axiom_eqv_transitive(a.mul(b.div(c)), a.mul(b.mul(c.recip())), a.mul(b).mul(c.recip()));
     // (a*b) * recip(c) ≡ (a*b) / c
     F::axiom_div_is_mul_recip(a.mul(b), c);
@@ -95,22 +96,24 @@ proof fn lemma_ll_numerator_l1<T: Ring>(
 
     // a1*(b1*c2) ≡ α = b1*(a1*c2)
     T::axiom_mul_associative(a1, b1, c2);
+    T::axiom_eqv_symmetric(a1.mul(b1).mul(c2), a1.mul(b1.mul(c2)));
     T::axiom_mul_commutative(a1, b1);
-    lemma_mul_congruence_left::<T>(a1.mul(b1), b1.mul(a1), c2);
+    T::axiom_mul_congruence_left(a1.mul(b1), b1.mul(a1), c2);
     T::axiom_mul_associative(b1, a1, c2);
-    T::axiom_eqv_symmetric(b1.mul(a1).mul(c2), b1.mul(a1.mul(c2)));
     T::axiom_eqv_transitive(a1.mul(b1).mul(c2), b1.mul(a1).mul(c2), alpha);
     T::axiom_eqv_transitive(a1.mul(b1.mul(c2)), a1.mul(b1).mul(c2), alpha);
 
     // a1*(b2*c1) ≡ β = c1*(a1*b2)
     T::axiom_mul_associative(a1, b2, c1);
+    T::axiom_eqv_symmetric(a1.mul(b2).mul(c1), a1.mul(b2.mul(c1)));
     T::axiom_mul_commutative(a1.mul(b2), c1);
     T::axiom_eqv_transitive(a1.mul(b2.mul(c1)), a1.mul(b2).mul(c1), beta);
 
     // b1*(a2*c1) ≡ γ = c1*(a2*b1)
     T::axiom_mul_associative(b1, a2, c1);
+    T::axiom_eqv_symmetric(b1.mul(a2).mul(c1), b1.mul(a2.mul(c1)));
     T::axiom_mul_commutative(b1, a2);
-    lemma_mul_congruence_left::<T>(b1.mul(a2), a2.mul(b1), c1);
+    T::axiom_mul_congruence_left(b1.mul(a2), a2.mul(b1), c1);
     T::axiom_mul_commutative(a2.mul(b1), c1);
     T::axiom_eqv_transitive(b1.mul(a2).mul(c1), a2.mul(b1).mul(c1), gamma);
     T::axiom_eqv_transitive(b1.mul(a2.mul(c1)), b1.mul(a2).mul(c1), gamma);
@@ -169,7 +172,8 @@ proof fn lemma_ll_numerator_l1<T: Ring>(
 
     // (γ-β) + (β-γ) ≡ 0 by sub + neg_sub + inverse
     lemma_neg_sub::<T>(gamma, beta);
-    // -(γ-β) ≡ β-γ
+    // -(γ-β) ≡ β-γ, so β-γ ≡ -(γ-β)
+    T::axiom_eqv_symmetric(gamma.sub(beta).neg(), beta.sub(gamma));
     lemma_add_congruence_right::<T>(gamma.sub(beta), beta.sub(gamma), gamma.sub(beta).neg());
     T::axiom_add_inverse_right(gamma.sub(beta));
     T::axiom_eqv_transitive(
@@ -217,15 +221,16 @@ proof fn lemma_ll_numerator_l2<T: Ring>(
 
     // a2*(b1*c2) ≡ α = c2*(a2*b1)
     T::axiom_mul_associative(a2, b1, c2);
+    T::axiom_eqv_symmetric(a2.mul(b1).mul(c2), a2.mul(b1.mul(c2)));
     T::axiom_mul_commutative(a2.mul(b1), c2);
     T::axiom_eqv_transitive(a2.mul(b1.mul(c2)), a2.mul(b1).mul(c2), alpha);
 
     // a2*(b2*c1) ≡ β = b2*(a2*c1)
     T::axiom_mul_associative(a2, b2, c1);
+    T::axiom_eqv_symmetric(a2.mul(b2).mul(c1), a2.mul(b2.mul(c1)));
     T::axiom_mul_commutative(a2, b2);
-    lemma_mul_congruence_left::<T>(a2.mul(b2), b2.mul(a2), c1);
+    T::axiom_mul_congruence_left(a2.mul(b2), b2.mul(a2), c1);
     T::axiom_mul_associative(b2, a2, c1);
-    T::axiom_eqv_symmetric(b2.mul(a2).mul(c1), b2.mul(a2.mul(c1)));
     T::axiom_eqv_transitive(a2.mul(b2).mul(c1), b2.mul(a2).mul(c1), beta);
     T::axiom_eqv_transitive(a2.mul(b2.mul(c1)), a2.mul(b2).mul(c1), beta);
 
@@ -234,8 +239,9 @@ proof fn lemma_ll_numerator_l2<T: Ring>(
 
     // c2*(a1*b2) ≡ γ = b2*(a1*c2)
     T::axiom_mul_associative(c2, a1, b2);
+    T::axiom_eqv_symmetric(c2.mul(a1).mul(b2), c2.mul(a1.mul(b2)));
     T::axiom_mul_commutative(c2, a1);
-    lemma_mul_congruence_left::<T>(c2.mul(a1), a1.mul(c2), b2);
+    T::axiom_mul_congruence_left(c2.mul(a1), a1.mul(c2), b2);
     T::axiom_mul_commutative(a1.mul(c2), b2);
     T::axiom_eqv_transitive(c2.mul(a1).mul(b2), a1.mul(c2).mul(b2), gamma);
     T::axiom_eqv_transitive(c2.mul(a1.mul(b2)), c2.mul(a1).mul(b2), gamma);
@@ -274,6 +280,7 @@ proof fn lemma_ll_numerator_l2<T: Ring>(
         c2.mul(det), gamma.sub(alpha),
     );
     lemma_neg_sub::<T>(alpha, gamma);
+    T::axiom_eqv_symmetric(alpha.sub(gamma).neg(), gamma.sub(alpha));
     lemma_add_congruence_right::<T>(alpha.sub(gamma), gamma.sub(alpha), alpha.sub(gamma).neg());
     T::axiom_add_inverse_right(alpha.sub(gamma));
     T::axiom_eqv_transitive(
@@ -294,7 +301,7 @@ proof fn lemma_ll_numerator_l2<T: Ring>(
 
 /// Common proof structure: given a*x_num + b*y_num + c*det ≡ 0 and det ≠ 0,
 /// show a*(x_num/det) + b*(y_num/det) + c ≡ 0.
-proof fn lemma_ll_eval_from_numerator<F: OrderedField>(
+pub proof fn lemma_ll_eval_from_numerator<F: OrderedField>(
     a_coef: F, b_coef: F, c_coef: F, x_num: F, y_num: F, det: F,
 )
     requires
@@ -324,18 +331,18 @@ proof fn lemma_ll_eval_from_numerator<F: OrderedField>(
         a_coef.mul(x_num).add(b_coef.mul(y_num)).div(det),
     );
 
-    // From numerator ≡ 0: a*x_num + b*y_num ≡ -(c*det)
-    lemma_neg_unique::<F>(
-        a_coef.mul(x_num).add(b_coef.mul(y_num)),
-        c_coef.mul(det),
-    );
-
-    // (a*x_num + b*y_num)/det ≡ (-(c*det))/det ≡ -(c*det/det) ≡ -c
+    // From numerator ≡ 0: c*det ≡ neg(numer), then derive numer ≡ neg(c*det)
     let numer = a_coef.mul(x_num).add(b_coef.mul(y_num));
+    lemma_neg_unique::<F>(numer, c_coef.mul(det));
+    // c*det ≡ neg(numer) → neg(c*det) ≡ neg(neg(numer)) ≡ numer
+    F::axiom_neg_congruence(c_coef.mul(det), numer.neg());
+    lemma_neg_involution::<F>(numer);
+    F::axiom_eqv_transitive(c_coef.mul(det).neg(), numer.neg().neg(), numer);
+    F::axiom_eqv_symmetric(c_coef.mul(det).neg(), numer);
 
     // numer/det ≡ (-(c*det))/det
     F::axiom_eqv_reflexive(det);
-    lemma_div_congruence::<F>(numer, c_coef.mul(det).neg(), det, det);
+    verus_algebra::quadratic::lemma_div_congruence::<F>(numer, c_coef.mul(det).neg(), det, det);
     // (-(c*det))/det ≡ -((c*det)/det)
     lemma_div_neg_numerator::<F>(c_coef.mul(det), det);
     // (c*det)/det ≡ c
@@ -374,6 +381,47 @@ proof fn lemma_ll_eval_from_numerator<F: OrderedField>(
 //  Main lemmas
 // ===========================================================================
 
+/// Bridge: a*b - c*d ≡ a*b - d*c when c*d ≡ d*c (by commutativity).
+/// This converts between the numerator lemma's det (a1*b2 - a2*b1) and
+/// line_det's det (a1*b2 - b1*a2).
+proof fn lemma_det_commute_bridge<F: OrderedField>(a1: F, b1: F, a2: F, b2: F)
+    ensures
+        a1.mul(b2).sub(a2.mul(b1)).eqv(a1.mul(b2).sub(b1.mul(a2))),
+{
+    F::axiom_mul_commutative(a2, b1);
+    F::axiom_eqv_reflexive(a1.mul(b2));
+    lemma_sub_congruence::<F>(a1.mul(b2), a1.mul(b2), a2.mul(b1), b1.mul(a2));
+}
+
+/// Bridge a numerator identity from det_alt to det via congruence.
+proof fn lemma_numerator_bridge<F: OrderedField>(
+    a_coef: F, b_coef: F, c_coef: F, x_num: F, y_num: F, det_alt: F, det: F,
+)
+    requires
+        det_alt.eqv(det),
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det_alt)).eqv(F::zero()),
+    ensures
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det)).eqv(F::zero()),
+{
+    lemma_mul_congruence_right::<F>(c_coef, det_alt, det);
+    F::axiom_eqv_reflexive(a_coef.mul(x_num).add(b_coef.mul(y_num)));
+    lemma_add_congruence::<F>(
+        a_coef.mul(x_num).add(b_coef.mul(y_num)),
+        a_coef.mul(x_num).add(b_coef.mul(y_num)),
+        c_coef.mul(det_alt),
+        c_coef.mul(det),
+    );
+    F::axiom_eqv_symmetric(
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det)),
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det_alt)),
+    );
+    F::axiom_eqv_transitive(
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det)),
+        a_coef.mul(x_num).add(b_coef.mul(y_num)).add(c_coef.mul(det_alt)),
+        F::zero(),
+    );
+}
+
 /// The intersection point lies on l1.
 pub proof fn lemma_ll_intersection_on_l1<F: OrderedField>(l1: Line2<F>, l2: Line2<F>)
     requires
@@ -384,8 +432,11 @@ pub proof fn lemma_ll_intersection_on_l1<F: OrderedField>(l1: Line2<F>, l2: Line
     let det = line_det(l1, l2);
     let x_num = l1.b.mul(l2.c).sub(l2.b.mul(l1.c));
     let y_num = l2.a.mul(l1.c).sub(l1.a.mul(l2.c));
+    let det_alt = l1.a.mul(l2.b).sub(l2.a.mul(l1.b));
 
     lemma_ll_numerator_l1::<F>(l1.a, l1.b, l1.c, l2.a, l2.b, l2.c);
+    lemma_det_commute_bridge::<F>(l1.a, l1.b, l2.a, l2.b);
+    lemma_numerator_bridge::<F>(l1.a, l1.b, l1.c, x_num, y_num, det_alt, det);
     lemma_ll_eval_from_numerator::<F>(l1.a, l1.b, l1.c, x_num, y_num, det);
 }
 
@@ -399,8 +450,11 @@ pub proof fn lemma_ll_intersection_on_l2<F: OrderedField>(l1: Line2<F>, l2: Line
     let det = line_det(l1, l2);
     let x_num = l1.b.mul(l2.c).sub(l2.b.mul(l1.c));
     let y_num = l2.a.mul(l1.c).sub(l1.a.mul(l2.c));
+    let det_alt = l1.a.mul(l2.b).sub(l2.a.mul(l1.b));
 
     lemma_ll_numerator_l2::<F>(l1.a, l1.b, l1.c, l2.a, l2.b, l2.c);
+    lemma_det_commute_bridge::<F>(l1.a, l1.b, l2.a, l2.b);
+    lemma_numerator_bridge::<F>(l2.a, l2.b, l2.c, x_num, y_num, det_alt, det);
     lemma_ll_eval_from_numerator::<F>(l2.a, l2.b, l2.c, x_num, y_num, det);
 }
 

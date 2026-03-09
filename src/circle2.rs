@@ -1,5 +1,7 @@
 use vstd::prelude::*;
 use verus_algebra::traits::*;
+use verus_algebra::lemmas::ring_lemmas::*;
+use verus_algebra::lemmas::additive_group_lemmas::*;
 use verus_linalg::vec2::Vec2;
 use verus_linalg::vec2::ops::norm_sq;
 use crate::point2::*;
@@ -67,6 +69,40 @@ pub proof fn lemma_on_circle_point<T: Ring>(center: Point2<T>, on_circle: Point2
     T::axiom_eqv_reflexive(sq_dist_2d(on_circle, center));
 }
 
+/// norm_sq(neg(v)) ≡ norm_sq(v) — negation doesn't change squared norm.
+proof fn lemma_norm_sq_neg<T: Ring>(v: Vec2<T>)
+    ensures
+        norm_sq(v.neg()).eqv(norm_sq(v)),
+{
+    // norm_sq(neg(v)) = (-v.x)*(-v.x) + (-v.y)*(-v.y)
+    // ≡ v.x*v.x + v.y*v.y = norm_sq(v)
+    lemma_neg_mul_neg::<T>(v.x, v.x);
+    lemma_neg_mul_neg::<T>(v.y, v.y);
+    lemma_add_congruence::<T>(v.x.neg().mul(v.x.neg()), v.x.mul(v.x),
+                              v.y.neg().mul(v.y.neg()), v.y.mul(v.y));
+}
+
+/// Squared distance is symmetric: sq_dist_2d(p, q) ≡ sq_dist_2d(q, p).
+pub proof fn lemma_sq_dist_symmetric<T: Ring>(p: Point2<T>, q: Point2<T>)
+    ensures
+        sq_dist_2d(p, q).eqv(sq_dist_2d(q, p)),
+{
+    // sq_dist(p,q) = norm_sq(sub2(p,q))
+    // sub2(p,q) ≡ neg(sub2(q,p))
+    lemma_sub2_antisymmetric::<T>(p, q);
+    // norm_sq(sub2(p,q)) ≡ norm_sq(neg(sub2(q,p)))
+    use verus_linalg::vec2::ops::lemma_norm_sq_congruence;
+    lemma_norm_sq_congruence::<T>(sub2(p, q), sub2(q, p).neg());
+    // norm_sq(neg(sub2(q,p))) ≡ norm_sq(sub2(q,p))
+    lemma_norm_sq_neg::<T>(sub2(q, p));
+    // chain
+    T::axiom_eqv_transitive(
+        norm_sq(sub2(p, q)),
+        norm_sq(sub2(q, p).neg()),
+        norm_sq(sub2(q, p)),
+    );
+}
+
 /// Connection to circumcenter: if center is the circumcenter of (a,b,c),
 /// then a, b, c all lie on the circle centered at center with radius sq_dist(a, center).
 pub proof fn lemma_circumcircle_connection<T: OrderedRing>(
@@ -78,7 +114,30 @@ pub proof fn lemma_circumcircle_connection<T: OrderedRing>(
         point_on_circle2(circle2_from_center_point(center, a), b),
         point_on_circle2(circle2_from_center_point(center, a), c),
 {
-    assume(false); // Deferred: uses transitivity of eqv on sq_dist
+    // is_circumcenter gives: sq_dist(center, a) ≡ sq_dist(center, b)
+    //                     and sq_dist(center, b) ≡ sq_dist(center, c)
+    // point_on_circle2 needs: sq_dist(b, center) ≡ sq_dist(a, center)
+    //                     and sq_dist(c, center) ≡ sq_dist(a, center)
+
+    // Bridge with symmetry: sq_dist(x, y) ≡ sq_dist(y, x)
+    lemma_sq_dist_symmetric::<T>(center, a);
+    lemma_sq_dist_symmetric::<T>(center, b);
+    lemma_sq_dist_symmetric::<T>(center, c);
+    lemma_sq_dist_symmetric::<T>(b, center);
+    lemma_sq_dist_symmetric::<T>(c, center);
+
+    // sq_dist(center,a) ≡ sq_dist(center,b) → sq_dist(b,center) ≡ sq_dist(a,center)
+    T::axiom_eqv_symmetric(sq_dist_2d(center, a), sq_dist_2d(center, b));
+    // sq_dist(center,b) ≡ sq_dist(center,a)
+    // sq_dist(b,center) ≡ sq_dist(center,b) ≡ sq_dist(center,a) ≡ sq_dist(a,center)
+    T::axiom_eqv_transitive(sq_dist_2d(b, center), sq_dist_2d(center, b), sq_dist_2d(center, a));
+    T::axiom_eqv_transitive(sq_dist_2d(b, center), sq_dist_2d(center, a), sq_dist_2d(a, center));
+
+    // sq_dist(center,b) ≡ sq_dist(center,c) → sq_dist(c,center) ≡ sq_dist(a,center)
+    T::axiom_eqv_symmetric(sq_dist_2d(center, b), sq_dist_2d(center, c));
+    T::axiom_eqv_transitive(sq_dist_2d(c, center), sq_dist_2d(center, c), sq_dist_2d(center, b));
+    T::axiom_eqv_transitive(sq_dist_2d(c, center), sq_dist_2d(center, b), sq_dist_2d(center, a));
+    T::axiom_eqv_transitive(sq_dist_2d(c, center), sq_dist_2d(center, a), sq_dist_2d(a, center));
 }
 
 } // verus!

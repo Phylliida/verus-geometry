@@ -265,7 +265,119 @@ pub proof fn lemma_line2_orient2d_equivalence<T: Ring>(
     ensures
         line2_eval(line2_from_points(p, q), r).eqv(crate::orient2d::orient2d(p, q, r)),
 {
-    assume(false); // Deferred: algebraic expansion connecting line eval to det2d
+    let line = line2_from_points(p, q);
+    let a = line.a;  // = q.y.sub(p.y).neg()
+    let b = line.b;  // = q.x.sub(p.x)
+    let dy = q.y.sub(p.y);
+    let drx = r.x.sub(p.x);
+    let dry = r.y.sub(p.y);
+
+    // --- Part 1: orient2d ≡ a*drx + b*dry ---
+    // orient2d = det2d(sub2(q,p), sub2(r,p)) = dx*dry - dy*drx = b*dry.sub(dy*drx)
+    // First bridge sub to add(neg):
+    T::axiom_sub_is_add_neg(b.mul(dry), dy.mul(drx));
+    // b*dry.sub(dy*drx) ≡ b*dry + (dy*drx).neg()
+
+    // a*drx = dy.neg()*drx ≡ (dy*drx).neg() by mul_neg_left
+    lemma_mul_neg_left::<T>(dy, drx);
+    T::axiom_eqv_symmetric(a.mul(drx), dy.mul(drx).neg());
+    // dy.mul(drx).neg() ≡ a.mul(drx)
+
+    T::axiom_eqv_reflexive(b.mul(dry));
+    lemma_add_congruence::<T>(b.mul(dry), b.mul(dry), dy.mul(drx).neg(), a.mul(drx));
+    // b*dry + (dy*drx).neg() ≡ b*dry + a*drx
+
+    T::axiom_add_commutative(b.mul(dry), a.mul(drx));
+    T::axiom_eqv_transitive(
+        b.mul(dry).add(dy.mul(drx).neg()),
+        b.mul(dry).add(a.mul(drx)),
+        a.mul(drx).add(b.mul(dry)),
+    );
+    // b*dry + (dy*drx).neg() ≡ a*drx + b*dry
+
+    // Chain with sub bridge: orient2d ≡ a*drx + b*dry
+    T::axiom_eqv_transitive(
+        b.mul(dry).sub(dy.mul(drx)),
+        b.mul(dry).add(dy.mul(drx).neg()),
+        a.mul(drx).add(b.mul(dry)),
+    );
+
+    // --- Part 2: eval(r) ≡ a*drx + b*dry ---
+    // eval(r) = (a*rx + b*ry) + c, where c = (a*px + b*py).neg()
+
+    // Step A: neg_add to split c
+    lemma_neg_add::<T>(a.mul(p.x), b.mul(p.y));
+
+    // Step B: congruence on the c summand
+    lemma_add_congruence_right::<T>(
+        a.mul(r.x).add(b.mul(r.y)),
+        a.mul(p.x).add(b.mul(p.y)).neg(),
+        a.mul(p.x).neg().add(b.mul(p.y).neg()),
+    );
+    // eval(r) ≡ (a*rx + b*ry) + (-(a*px) + -(b*py))
+
+    // Step C: 4-term rearrangement
+    lemma_add_rearrange_2x2::<T>(
+        a.mul(r.x), b.mul(r.y), a.mul(p.x).neg(), b.mul(p.y).neg(),
+    );
+
+    // Step D: chain B → C
+    T::axiom_eqv_transitive(
+        a.mul(r.x).add(b.mul(r.y)).add(a.mul(p.x).add(b.mul(p.y)).neg()),
+        a.mul(r.x).add(b.mul(r.y)).add(a.mul(p.x).neg().add(b.mul(p.y).neg())),
+        a.mul(r.x).add(a.mul(p.x).neg()).add(b.mul(r.y).add(b.mul(p.y).neg())),
+    );
+    // eval(r) ≡ (a*rx + -(a*px)) + (b*ry + -(b*py))
+
+    // Step E: bridge add(neg) ↔ sub, then factor via mul_distributes_over_sub
+    // For a terms:
+    lemma_mul_distributes_over_sub::<T>(a, r.x, p.x);
+    // a*drx ≡ a*rx.sub(a*px)
+    T::axiom_sub_is_add_neg(a.mul(r.x), a.mul(p.x));
+    // a*rx.sub(a*px) ≡ a*rx + (a*px).neg()
+    T::axiom_eqv_transitive(
+        a.mul(drx), a.mul(r.x).sub(a.mul(p.x)), a.mul(r.x).add(a.mul(p.x).neg()),
+    );
+    T::axiom_eqv_symmetric(a.mul(drx), a.mul(r.x).add(a.mul(p.x).neg()));
+    // a*rx + (a*px).neg() ≡ a*drx
+
+    // For b terms:
+    lemma_mul_distributes_over_sub::<T>(b, r.y, p.y);
+    T::axiom_sub_is_add_neg(b.mul(r.y), b.mul(p.y));
+    T::axiom_eqv_transitive(
+        b.mul(dry), b.mul(r.y).sub(b.mul(p.y)), b.mul(r.y).add(b.mul(p.y).neg()),
+    );
+    T::axiom_eqv_symmetric(b.mul(dry), b.mul(r.y).add(b.mul(p.y).neg()));
+    // b*ry + (b*py).neg() ≡ b*dry
+
+    // Step F: congruence to get a*drx + b*dry
+    lemma_add_congruence::<T>(
+        a.mul(r.x).add(a.mul(p.x).neg()), a.mul(drx),
+        b.mul(r.y).add(b.mul(p.y).neg()), b.mul(dry),
+    );
+    // (a*rx + -(a*px)) + (b*ry + -(b*py)) ≡ a*drx + b*dry
+
+    // Step G: chain eval(r) → D → F → a*drx + b*dry
+    let mid = a.mul(r.x).add(a.mul(p.x).neg()).add(b.mul(r.y).add(b.mul(p.y).neg()));
+    T::axiom_eqv_transitive(
+        a.mul(r.x).add(b.mul(r.y)).add(a.mul(p.x).add(b.mul(p.y)).neg()),  // eval(r)
+        mid,
+        a.mul(drx).add(b.mul(dry)),
+    );
+    // eval(r) ≡ a*drx + b*dry
+
+    // --- Part 3: chain eval(r) ≡ a*drx + b*dry ≡ orient2d ---
+    T::axiom_eqv_symmetric(
+        b.mul(dry).sub(dy.mul(drx)),  // = orient2d after unfolding
+        a.mul(drx).add(b.mul(dry)),
+    );
+    // a*drx + b*dry ≡ orient2d
+
+    T::axiom_eqv_transitive(
+        line2_eval(line2_from_points(p, q), r),
+        a.mul(drx).add(b.mul(dry)),
+        crate::orient2d::orient2d(p, q, r),
+    );
 }
 
 /// The perpendicular bisector of [p, q] is equidistant from p and q:
