@@ -82,4 +82,22 @@ pub mod convex_hull_3d;
 #[cfg(verus_keep_ghost)]
 pub mod voronoi;
 
+#[cfg(verus_keep_ghost)]
+pub mod line2;
+
+#[cfg(verus_keep_ghost)]
+pub mod circle2;
+
+#[cfg(verus_keep_ghost)]
+pub mod line_intersection;
+
+#[cfg(verus_keep_ghost)]
+pub mod constructed_scalar;
+
+#[cfg(verus_keep_ghost)]
+pub mod circle_line;
+
+#[cfg(verus_keep_ghost)]
+pub mod circle_circle;
+
 pub mod runtime;
