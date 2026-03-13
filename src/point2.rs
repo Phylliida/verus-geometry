@@ -1,7 +1,7 @@
-use vstd::prelude::*;
-use verus_algebra::traits::*;
 use verus_algebra::lemmas::additive_group_lemmas;
+use verus_algebra::traits::*;
 use verus_linalg::vec2::Vec2;
+use vstd::prelude::*;
 
 verus! {
 
@@ -36,6 +36,13 @@ impl<T: Ring> Equivalence for Point2<T> {
     proof fn axiom_eqv_transitive(a: Self, b: Self, c: Self) {
         T::axiom_eqv_transitive(a.x, b.x, c.x);
         T::axiom_eqv_transitive(a.y, b.y, c.y);
+    }
+
+    proof fn axiom_eq_implies_eqv(a: Self, b: Self) {
+        if a == b {
+            T::axiom_eq_implies_eqv(a.x, b.x);
+            T::axiom_eq_implies_eqv(a.y, b.y);
+        }
     }
 }
 
