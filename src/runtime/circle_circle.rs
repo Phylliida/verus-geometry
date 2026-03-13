@@ -1,4 +1,5 @@
 use verus_rational::RuntimeRational;
+use verus_quadratic_extension::runtime::RuntimeQExtRat;
 
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
@@ -12,7 +13,15 @@ use super::circle2::RuntimeCircle2;
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
+use verus_quadratic_extension::radicand::*;
+#[cfg(verus_keep_ghost)]
+use verus_quadratic_extension::spec::*;
+#[cfg(verus_keep_ghost)]
+use crate::circle_line::*;
+#[cfg(verus_keep_ghost)]
 use crate::circle_circle::*;
+#[cfg(verus_keep_ghost)]
+use crate::point2::Point2;
 
 #[cfg(verus_keep_ghost)]
 verus! {
@@ -72,6 +81,74 @@ pub fn cc_discriminant_exec(
 {
     let ra = radical_axis_exec(c1, c2);
     super::circle_line::cl_discriminant_exec(c1, &ra)
+}
+
+/// Compute the x-coordinate of a circle-circle intersection.
+/// Delegates to radical_axis + cl_intersection_x.
+pub fn cc_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
+    c1: &RuntimeCircle2,
+    c2: &RuntimeCircle2,
+    plus: bool,
+) -> (out: RuntimeQExtRat<R>)
+    where R: verus_quadratic_extension::runtime::RuntimeRadicand<R>
+    requires
+        c1.wf_spec(),
+        c2.wf_spec(),
+        !c1@.center.eqv(c2@.center),
+    ensures
+        out.wf_spec(),
+        out@ == cc_intersection_point::<RationalModel, R>(c1@, c2@, plus).x,
+{
+    let ra = radical_axis_exec(c1, c2);
+    proof {
+        let ral = radical_axis::<RationalModel>(c1@, c2@);
+        crate::circle_circle_proofs::lemma_radical_axis_nondegenerate::<RationalModel>(c1@, c2@);
+        crate::circle_line::lemma_cl_quad_a_positive::<RationalModel>(ral);
+        // 0 < cl_quad_a(ral) implies 0.le(cl_quad_a) && !0.eqv(cl_quad_a)
+        RationalModel::axiom_lt_iff_le_and_not_eqv(
+            RationalModel::from_int_spec(0),
+            cl_quad_a::<RationalModel>(ral),
+        );
+        // !0.eqv(x) → !x.eqv(0) by symmetry
+        RationalModel::axiom_eqv_symmetric(
+            RationalModel::from_int_spec(0),
+            cl_quad_a::<RationalModel>(ral),
+        );
+    }
+    super::circle_line::cl_intersection_x_exec::<R>(c1, &ra, plus)
+}
+
+/// Compute the y-coordinate of a circle-circle intersection.
+/// Delegates to radical_axis + cl_intersection_y.
+pub fn cc_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
+    c1: &RuntimeCircle2,
+    c2: &RuntimeCircle2,
+    plus: bool,
+) -> (out: RuntimeQExtRat<R>)
+    where R: verus_quadratic_extension::runtime::RuntimeRadicand<R>
+    requires
+        c1.wf_spec(),
+        c2.wf_spec(),
+        !c1@.center.eqv(c2@.center),
+    ensures
+        out.wf_spec(),
+        out@ == cc_intersection_point::<RationalModel, R>(c1@, c2@, plus).y,
+{
+    let ra = radical_axis_exec(c1, c2);
+    proof {
+        let ral = radical_axis::<RationalModel>(c1@, c2@);
+        crate::circle_circle_proofs::lemma_radical_axis_nondegenerate::<RationalModel>(c1@, c2@);
+        crate::circle_line::lemma_cl_quad_a_positive::<RationalModel>(ral);
+        RationalModel::axiom_lt_iff_le_and_not_eqv(
+            RationalModel::from_int_spec(0),
+            cl_quad_a::<RationalModel>(ral),
+        );
+        RationalModel::axiom_eqv_symmetric(
+            RationalModel::from_int_spec(0),
+            cl_quad_a::<RationalModel>(ral),
+        );
+    }
+    super::circle_line::cl_intersection_y_exec::<R>(c1, &ra, plus)
 }
 
 } // verus!
