@@ -27,3 +27,4 @@ pub mod circle2;
 pub mod line_intersection;
 pub mod circle_line;
 pub mod circle_circle;
+pub mod voronoi;
