@@ -65,6 +65,26 @@ pub open spec fn perpendicular_bisector<F: OrderedField>(
     Line2 { a, b, c }
 }
 
+/// Reflect a point across the line through `line_a` and `line_b`.
+/// Formula: p' = 2 * proj(p, line) - p, where proj is the orthogonal projection
+/// of p onto the line through (line_a, line_b).
+pub open spec fn reflect_point_across_line<F: OrderedField>(
+    p: Point2<F>, line_a: Point2<F>, line_b: Point2<F>,
+) -> Point2<F> {
+    let d = sub2(line_b, line_a);
+    let pa = sub2(p, line_a);
+    let dot_dd = d.x.mul(d.x).add(d.y.mul(d.y));
+    let dot_pad = pa.x.mul(d.x).add(pa.y.mul(d.y));
+    let t = dot_pad.div(dot_dd);
+    let two = F::one().add(F::one());
+    let proj_x = line_a.x.add(t.mul(d.x));
+    let proj_y = line_a.y.add(t.mul(d.y));
+    Point2 {
+        x: two.mul(proj_x).sub(p.x),
+        y: two.mul(proj_y).sub(p.y),
+    }
+}
+
 /// Two lines are parallel when their normals have zero determinant.
 pub open spec fn lines_parallel<T: Ring>(l1: Line2<T>, l2: Line2<T>) -> bool {
     l1.a.mul(l2.b).sub(l1.b.mul(l2.a)).eqv(T::zero())
