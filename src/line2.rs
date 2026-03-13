@@ -390,7 +390,204 @@ pub proof fn lemma_perpendicular_bisector_equidistant<F: OrderedField>(
     ensures
         crate::voronoi::sq_dist_2d(r, p).eqv(crate::voronoi::sq_dist_2d(r, q)),
 {
-    assume(false); // Deferred: algebraic expansion
+    use verus_algebra::convex::{two, lemma_two_nonzero};
+    use verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel;
+
+    // Setup
+    let a = q.x.sub(p.x);
+    let b = q.y.sub(p.y);
+    let two_val = two::<F>();
+    let mx = p.x.add(q.x).div(two_val);
+    let my = p.y.add(q.y).div(two_val);
+    let M = a.mul(mx).add(b.mul(my));
+    let S = a.mul(r.x).add(b.mul(r.y));
+
+    // Extract line condition: S ≡ M
+    // point_on_line2 gives S.add(M.neg()) ≡ 0, bridge to S.sub(M) ≡ 0
+    F::axiom_sub_is_add_neg(S, M);
+    F::axiom_eqv_transitive(S.sub(M), S.add(M.neg()), F::zero());
+    crate::collinearity::lemma_sub_zero_implies_eqv(S, M);
+
+    // Squared-distance components
+    let xp_sq = r.x.sub(p.x).mul(r.x.sub(p.x));
+    let yp_sq = r.y.sub(p.y).mul(r.y.sub(p.y));
+    let xq_sq = r.x.sub(q.x).mul(r.x.sub(q.x));
+    let yq_sq = r.y.sub(q.y).mul(r.y.sub(q.y));
+    let dist_p = xp_sq.add(yp_sq);  // = sq_dist_2d(r, p)
+    let dist_q = xq_sq.add(yq_sq);  // = sq_dist_2d(r, q)
+    let px_sq = p.x.mul(p.x);
+    let qx_sq = q.x.mul(q.x);
+    let py_sq = p.y.mul(p.y);
+    let qy_sq = q.y.mul(q.y);
+    let norm_sq_q = qx_sq.add(qy_sq);
+    let norm_sq_p = px_sq.add(py_sq);
+    let T1 = two_val.mul(a).mul(r.x);
+    let D1 = px_sq.sub(qx_sq);
+    let T2 = two_val.mul(b).mul(r.y);
+    let D2 = py_sq.sub(qy_sq);
+
+    // Step 1: dist_p - dist_q ≡ (xp_sq - xq_sq) + (yp_sq - yq_sq)
+    crate::circle_circle_proofs::lemma_sum_sub_rearrange(xp_sq, yp_sq, xq_sq, yq_sq);
+
+    // Step 2: Apply sq_diff to each coordinate
+    crate::circle_circle_proofs::lemma_sq_diff(r.x, p.x, q.x);
+    crate::circle_circle_proofs::lemma_sq_diff(r.y, p.y, q.y);
+    lemma_add_congruence::<F>(
+        xp_sq.sub(xq_sq), T1.add(D1),
+        yp_sq.sub(yq_sq), T2.add(D2),
+    );
+
+    // Step 3: Rearrange (T1+D1)+(T2+D2) ≡ (T1+T2)+(D1+D2)
+    lemma_add_rearrange_2x2::<F>(T1, D1, T2, D2);
+
+    // Chain: dist_p - dist_q ≡ (T1+T2)+(D1+D2)
+    F::axiom_eqv_transitive(
+        dist_p.sub(dist_q),
+        xp_sq.sub(xq_sq).add(yp_sq.sub(yq_sq)),
+        T1.add(D1).add(T2.add(D2)),
+    );
+    F::axiom_eqv_transitive(
+        dist_p.sub(dist_q),
+        T1.add(D1).add(T2.add(D2)),
+        T1.add(T2).add(D1.add(D2)),
+    );
+
+    // Step 4: Factor T1+T2 ≡ two*S
+    F::axiom_mul_associative(two_val, a, r.x);
+    F::axiom_mul_associative(two_val, b, r.y);
+    lemma_add_congruence::<F>(
+        T1, two_val.mul(a.mul(r.x)),
+        T2, two_val.mul(b.mul(r.y)),
+    );
+    F::axiom_mul_distributes_left(two_val, a.mul(r.x), b.mul(r.y));
+    F::axiom_eqv_symmetric(
+        two_val.mul(a.mul(r.x).add(b.mul(r.y))),
+        two_val.mul(a.mul(r.x)).add(two_val.mul(b.mul(r.y))),
+    );
+    F::axiom_eqv_transitive(
+        T1.add(T2),
+        two_val.mul(a.mul(r.x)).add(two_val.mul(b.mul(r.y))),
+        two_val.mul(S),
+    );
+
+    // Step 5: two*S ≡ two*M (from line condition S ≡ M)
+    lemma_mul_congruence_right::<F>(two_val, S, M);
+    F::axiom_eqv_transitive(T1.add(T2), two_val.mul(S), two_val.mul(M));
+
+    // Step 6: two*M ≡ a*(p.x+q.x) + b*(p.y+q.y) [clear midpoint division]
+    F::axiom_mul_distributes_left(two_val, a.mul(mx), b.mul(my));
+    lemma_two_nonzero::<F>();
+
+    // Clear x: two*(a*mx) ≡ a*(p.x+q.x)
+    crate::line_intersection::lemma_mul_div_assoc(a, p.x.add(q.x), two_val);
+    lemma_mul_congruence_right::<F>(two_val, a.mul(mx), a.mul(p.x.add(q.x)).div(two_val));
+    F::axiom_mul_commutative(two_val, a.mul(p.x.add(q.x)).div(two_val));
+    lemma_div_mul_cancel(a.mul(p.x.add(q.x)), two_val);
+    F::axiom_eqv_transitive(
+        two_val.mul(a.mul(p.x.add(q.x)).div(two_val)),
+        a.mul(p.x.add(q.x)).div(two_val).mul(two_val),
+        a.mul(p.x.add(q.x)),
+    );
+    F::axiom_eqv_transitive(
+        two_val.mul(a.mul(mx)),
+        two_val.mul(a.mul(p.x.add(q.x)).div(two_val)),
+        a.mul(p.x.add(q.x)),
+    );
+
+    // Clear y: two*(b*my) ≡ b*(p.y+q.y)
+    crate::line_intersection::lemma_mul_div_assoc(b, p.y.add(q.y), two_val);
+    lemma_mul_congruence_right::<F>(two_val, b.mul(my), b.mul(p.y.add(q.y)).div(two_val));
+    F::axiom_mul_commutative(two_val, b.mul(p.y.add(q.y)).div(two_val));
+    lemma_div_mul_cancel(b.mul(p.y.add(q.y)), two_val);
+    F::axiom_eqv_transitive(
+        two_val.mul(b.mul(p.y.add(q.y)).div(two_val)),
+        b.mul(p.y.add(q.y)).div(two_val).mul(two_val),
+        b.mul(p.y.add(q.y)),
+    );
+    F::axiom_eqv_transitive(
+        two_val.mul(b.mul(my)),
+        two_val.mul(b.mul(p.y.add(q.y)).div(two_val)),
+        b.mul(p.y.add(q.y)),
+    );
+
+    // two*M ≡ a*(px+qx) + b*(py+qy)
+    lemma_add_congruence::<F>(
+        two_val.mul(a.mul(mx)), a.mul(p.x.add(q.x)),
+        two_val.mul(b.mul(my)), b.mul(p.y.add(q.y)),
+    );
+    F::axiom_eqv_transitive(
+        two_val.mul(M),
+        two_val.mul(a.mul(mx)).add(two_val.mul(b.mul(my))),
+        a.mul(p.x.add(q.x)).add(b.mul(p.y.add(q.y))),
+    );
+
+    // Step 7: a*(px+qx) ≡ qx²-px² and b*(py+qy) ≡ qy²-py² via difference of squares
+    F::axiom_add_commutative(p.x, q.x);
+    lemma_mul_congruence_right::<F>(a, p.x.add(q.x), q.x.add(p.x));
+    lemma_square_sub::<F>(q.x, p.x);
+    F::axiom_eqv_transitive(
+        a.mul(p.x.add(q.x)), a.mul(q.x.add(p.x)),
+        qx_sq.sub(px_sq),
+    );
+
+    F::axiom_add_commutative(p.y, q.y);
+    lemma_mul_congruence_right::<F>(b, p.y.add(q.y), q.y.add(p.y));
+    lemma_square_sub::<F>(q.y, p.y);
+    F::axiom_eqv_transitive(
+        b.mul(p.y.add(q.y)), b.mul(q.y.add(p.y)),
+        qy_sq.sub(py_sq),
+    );
+
+    // Chain: two*M ≡ (qx²-px²)+(qy²-py²) ≡ norm_sq_q - norm_sq_p
+    lemma_add_congruence::<F>(
+        a.mul(p.x.add(q.x)), qx_sq.sub(px_sq),
+        b.mul(p.y.add(q.y)), qy_sq.sub(py_sq),
+    );
+    crate::circle_circle_proofs::lemma_diff_sum_rearrange(qx_sq, px_sq, qy_sq, py_sq);
+    F::axiom_eqv_transitive(
+        two_val.mul(M),
+        a.mul(p.x.add(q.x)).add(b.mul(p.y.add(q.y))),
+        qx_sq.sub(px_sq).add(qy_sq.sub(py_sq)),
+    );
+    F::axiom_eqv_transitive(
+        two_val.mul(M),
+        qx_sq.sub(px_sq).add(qy_sq.sub(py_sq)),
+        norm_sq_q.sub(norm_sq_p),
+    );
+
+    // Step 8: T1+T2 ≡ norm_sq_q - norm_sq_p
+    F::axiom_eqv_transitive(T1.add(T2), two_val.mul(M), norm_sq_q.sub(norm_sq_p));
+
+    // Step 9: D1+D2 ≡ norm_sq_p - norm_sq_q
+    crate::circle_circle_proofs::lemma_diff_sum_rearrange(px_sq, qx_sq, py_sq, qy_sq);
+
+    // Step 10: (T1+T2)+(D1+D2) ≡ 0 via telescoping cancellation
+    lemma_add_congruence::<F>(
+        T1.add(T2), norm_sq_q.sub(norm_sq_p),
+        D1.add(D2), norm_sq_p.sub(norm_sq_q),
+    );
+    lemma_sub_add_sub::<F>(norm_sq_q, norm_sq_p, norm_sq_q);
+    lemma_sub_self::<F>(norm_sq_q);
+    F::axiom_eqv_transitive(
+        norm_sq_q.sub(norm_sq_p).add(norm_sq_p.sub(norm_sq_q)),
+        norm_sq_q.sub(norm_sq_q),
+        F::zero(),
+    );
+
+    // Chain: dist_p - dist_q ≡ 0
+    F::axiom_eqv_transitive(
+        dist_p.sub(dist_q),
+        T1.add(T2).add(D1.add(D2)),
+        norm_sq_q.sub(norm_sq_p).add(norm_sq_p.sub(norm_sq_q)),
+    );
+    F::axiom_eqv_transitive(
+        dist_p.sub(dist_q),
+        norm_sq_q.sub(norm_sq_p).add(norm_sq_p.sub(norm_sq_q)),
+        F::zero(),
+    );
+
+    // Conclude: dist_p ≡ dist_q
+    crate::collinearity::lemma_sub_zero_implies_eqv(dist_p, dist_q);
 }
 
 } // verus!
