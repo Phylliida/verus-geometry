@@ -161,11 +161,11 @@ pub open spec fn cl_intersection_point<F: OrderedField, R: PositiveRadicand<F>>(
 // ===========================================================================
 
 // ===========================================================================
-//  Helpers for on-circle proof
+//  Helpers for on-circle proof (see also circle_line_on_circle.rs)
 // ===========================================================================
 
 /// (a - b) - a ≡ -b.
-proof fn lemma_sub_from_self<T: Ring>(a: T, b: T)
+pub proof fn lemma_sub_from_self<T: Ring>(a: T, b: T)
     ensures
         a.sub(b).sub(a).eqv(b.neg()),
 {
@@ -181,7 +181,7 @@ proof fn lemma_sub_from_self<T: Ring>(a: T, b: T)
 }
 
 /// a/c + b/c ≡ (a + b)/c for c ≠ 0.
-proof fn lemma_div_add_same_denom<F: Field>(a: F, b: F, c: F)
+pub proof fn lemma_div_add_same_denom<F: Field>(a: F, b: F, c: F)
     requires
         !c.eqv(F::zero()),
     ensures
@@ -209,7 +209,7 @@ proof fn lemma_div_add_same_denom<F: Field>(a: F, b: F, c: F)
 }
 
 /// Four fractions with same denominator: a/d + b/d + c/d + e/d ≡ (a+b+c+e)/d.
-proof fn lemma_four_div_same_denom<F: Field>(a: F, b: F, c: F, e: F, d: F)
+pub proof fn lemma_four_div_same_denom<F: Field>(a: F, b: F, c: F, e: F, d: F)
     requires
         !d.eqv(F::zero()),
     ensures
@@ -677,7 +677,104 @@ pub proof fn lemma_cl_intersection_on_circle<F: OrderedField, R: PositiveRadican
             crate::constructed_scalar::lift_point2::<F, R>(circle.center),
         ).eqv(crate::constructed_scalar::qext_from_rational::<F, R>(circle.radius_sq)),
 {
-    assume(false); // Deferred: uses quadratic_root_satisfies from Phase 1
+    use crate::constructed_scalar::*;
+    use crate::circle_line_on_circle::*;
+
+    let a = line.a;
+    let b = line.b;
+    let cx = circle.center.x;
+    let cy = circle.center.y;
+    let rsq = circle.radius_sq;
+    let big_a = cl_quad_a(line);
+    let h = cl_signed_dist_num(circle, line);
+    let d = R::value();
+
+    // A > 0 hence A ≠ 0
+    lemma_cl_quad_a_positive(line);
+    assert(!big_a.eqv(F::zero())) by {
+        F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
+        if big_a.eqv(F::zero()) {
+            F::axiom_eqv_symmetric(big_a, F::zero());
+        }
+    };
+
+    // Intersection point and lifted center
+    let P = cl_intersection_point::<F, R>(circle, line, plus);
+    let C = lift_point2::<F, R>(circle.center);
+    let px = cl_intersection_x::<F, R>(circle, line, plus);
+    let py = cl_intersection_y::<F, R>(circle, line, plus);
+    let rx = px.re;
+    let ry = py.re;
+    let ix = px.im;
+    let iy = py.im;
+
+    // Simplified diff components
+    let dr = a.mul(h).div(big_a).neg();
+    let er = b.mul(h).div(big_a).neg();
+    let di = ix;
+    let ei = iy;
+
+    // === Phase 1: F-level simplifications of diff components ===
+    // rx.sub(cx) ≡ neg(ah/A)
+    lemma_sub_from_self::<F>(cx, a.mul(h).div(big_a));
+    // ix.sub(0) ≡ ix
+    crate::incircle::lemma_sub_zero_right::<F>(ix);
+    // ry.sub(cy) ≡ neg(bh/A)
+    lemma_sub_from_self::<F>(cy, b.mul(h).div(big_a));
+    // iy.sub(0) ≡ iy
+    crate::incircle::lemma_sub_zero_right::<F>(iy);
+
+    // === Phase 2: SpecQuadExt-level diff simplification ===
+    // Z3 unfolds sub2(P,C).x = qext(rx.sub(cx), ix.sub(0))
+    // From Phase 1 component eqvs, Z3 derives:
+    //   sub2(P,C).x ≡QE qext(dr, di) = sdx
+    //   sub2(P,C).y ≡QE qext(er, ei) = sdy
+    let dx = P.x.sub(C.x);
+    let dy = P.y.sub(C.y);
+    let sdx = qext::<F, R>(dr, di);
+    let sdy = qext::<F, R>(er, ei);
+
+    // Help Z3 see the QE-level eqvs from component eqvs
+    assert(dx.eqv(sdx));
+    assert(dy.eqv(sdy));
+
+    // === Phase 3: Propagate through mul and add at QE level ===
+    lemma_mul_congruence::<SpecQuadExt<F, R>>(dx, sdx, dx, sdx);
+    lemma_mul_congruence::<SpecQuadExt<F, R>>(dy, sdy, dy, sdy);
+    lemma_add_congruence::<SpecQuadExt<F, R>>(
+        dx.mul(dx), sdx.mul(sdx),
+        dy.mul(dy), sdy.mul(sdy),
+    );
+    // sq_dist ≡QE sdx.mul(sdx).add(sdy.mul(sdy))
+
+    let sq = sdx.mul(sdx).add(sdy.mul(sdy));
+    let target = qext_from_rational::<F, R>(rsq);
+
+    // === Phase 4: Imaginary part ≡ 0 ===
+    // sq.im = (dr*di + di*dr) + (er*ei + ei*er)
+    if plus {
+        lemma_cl_cross_cancel_plus(a, b, h, big_a);
+    } else {
+        lemma_cl_cross_cancel_minus(a, b, h, big_a);
+    }
+    lemma_cl_full_im_zero(dr, di, er, ei);
+    // Now: sq.im ≡ F::zero() = target.im
+
+    // === Phase 5: Real part ≡ rsq ===
+    // sq.re = (dr² + di²*D) + (er² + ei²*D) where D = R::value()
+    // big_a ≡ a²+b² (definitional via cl_quad_a)
+    F::axiom_eqv_reflexive(big_a);
+    lemma_cl_re_with_d(a, b, h, big_a, rsq, d, plus);
+    // Now: sq.re ≡ rsq = target.re
+
+    // === Phase 6: Conclude SpecQuadExt eqv ===
+    // Z3 sees: sq.re ≡ target.re and sq.im ≡ target.im
+    // qe_eqv is component-wise → sq ≡ target
+    assert(sq.eqv(target));
+
+    // Chain: sq_dist_2d(P, C) ≡ sq ≡ target
+    let sd = sq_dist_2d(P, C);
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(sd, sq, target);
 }
 
 /// cl_quad_a > 0 for non-degenerate lines.

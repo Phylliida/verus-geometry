@@ -98,6 +98,12 @@ pub mod constructed_scalar;
 pub mod circle_line;
 
 #[cfg(verus_keep_ghost)]
+pub mod circle_line_on_circle;
+
+#[cfg(verus_keep_ghost)]
 pub mod circle_circle;
+
+#[cfg(verus_keep_ghost)]
+pub mod circle_circle_proofs;
 
 pub mod runtime;
