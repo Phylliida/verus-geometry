@@ -125,4 +125,74 @@ pub proof fn lemma_rational_mul_qext<F: Field, R: Radicand<F>>(v: F, r: F, i: F)
     // Z3 now has both component eqvs → qe_eqv is satisfied.
 }
 
+/// qext_from_rational(a + b) ≡ qext_from_rational(a) + qext_from_rational(b)
+pub proof fn lemma_rational_add<F: Field, R: Radicand<F>>(a: F, b: F)
+    ensures
+        qext_from_rational::<F, R>(a.add(b)).eqv(
+            qe_add::<F, R>(qext_from_rational(a), qext_from_rational(b))
+        ),
+{
+    // re: a+b ≡ a+b (reflexive)
+    F::axiom_eqv_reflexive(a.add(b));
+    // im: 0 ≡ 0+0
+    F::axiom_add_zero_right(F::zero());
+    F::axiom_eqv_symmetric(F::zero(), F::zero().add(F::zero()));
+}
+
+/// qext_from_rational(a - b) ≡ qext_from_rational(a) - qext_from_rational(b)
+pub proof fn lemma_rational_sub<F: Field, R: Radicand<F>>(a: F, b: F)
+    ensures
+        qext_from_rational::<F, R>(a.sub(b)).eqv(
+            qe_sub::<F, R>(qext_from_rational(a), qext_from_rational(b))
+        ),
+{
+    // re: a-b ≡ a-b (reflexive)
+    F::axiom_eqv_reflexive(a.sub(b));
+    // im: 0 ≡ 0-0
+    lemma_sub_self::<F>(F::zero());
+    F::axiom_eqv_symmetric(F::zero().sub(F::zero()), F::zero());
+    F::axiom_eqv_symmetric(F::zero(), F::zero().sub(F::zero()));
+}
+
+/// qext_from_rational(a * b) ≡ qext_from_rational(a) * qext_from_rational(b)
+pub proof fn lemma_rational_mul<F: Field, R: Radicand<F>>(a: F, b: F)
+    ensures
+        qext_from_rational::<F, R>(a.mul(b)).eqv(
+            qe_mul::<F, R>(qext_from_rational(a), qext_from_rational(b))
+        ),
+{
+    lemma_rational_mul_qext::<F, R>(a, b, F::zero());
+    // qe_mul(qext(a,0), qext(b,0)) ≡ qext(a*b, a*0)
+    F::axiom_mul_zero_right(a);
+    F::axiom_eqv_symmetric(a.mul(F::zero()), F::zero());
+    // 0 ≡ a*0 → qext(a*b, 0) ≡ qext(a*b, a*0)
+    F::axiom_eqv_reflexive(a.mul(b));
+    // rational(a*b) = qext(a*b, 0) eqv qext(a*b, a*0)
+    // then transitive with symmetric of first:
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qe_mul::<F, R>(qext_from_rational(a), qext_from_rational(b)),
+        qext::<F, R>(a.mul(b), a.mul(F::zero())),
+    );
+    // qext(a*b, a*0) ≡ qe_mul(...)
+    // qext(a*b, 0) ≡ qext(a*b, a*0) (from component eqvs: re reflexive, im: 0≡a*0)
+    // chain: rational(a*b) ≡ qext(a*b, a*0) ≡ qe_mul(...)
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qext_from_rational::<F, R>(a.mul(b)),
+        qext::<F, R>(a.mul(b), a.mul(F::zero())),
+        qe_mul::<F, R>(qext_from_rational(a), qext_from_rational(b)),
+    );
+}
+
+/// qext_from_rational(one) ≡ SpecQuadExt::one()
+pub proof fn lemma_rational_one<F: Field, R: Radicand<F>>()
+    ensures
+        qext_from_rational::<F, R>(F::one()).eqv(
+            SpecQuadExt::<F, R>::one()
+        ),
+{
+    // qext(1, 0) vs qe_one() = qext(1, 0) — structurally equal
+    F::axiom_eqv_reflexive(F::one());
+    F::axiom_eqv_reflexive(F::zero());
+}
+
 } // verus!
