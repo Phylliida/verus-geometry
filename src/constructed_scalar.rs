@@ -195,6 +195,181 @@ pub proof fn lemma_rational_one<F: Field, R: Radicand<F>>()
     F::axiom_eqv_reflexive(F::zero());
 }
 
+/// Embedding preserves eqv: a ≡ b implies qext(a) ≡ qext(b).
+pub proof fn lemma_rational_congruence<F: Field, R: Radicand<F>>(a: F, b: F)
+    requires
+        a.eqv(b),
+    ensures
+        qext_from_rational::<F, R>(a).eqv(qext_from_rational::<F, R>(b)),
+{
+    F::axiom_eqv_reflexive(F::zero());
+}
+
+/// qext_from_rational(b.recip()) ≡ qext_from_rational(b).recip()
+/// Proved by inverse uniqueness: qext(b)*qext(b.recip()) ≡ one, so qext(b.recip()) ≡ qext(b).recip().
+pub proof fn lemma_rational_recip<F: Field, R: Radicand<F>>(b: F)
+    requires
+        !b.eqv(F::zero()),
+    ensures
+        qext_from_rational::<F, R>(b.recip()).eqv(
+            qext_from_rational::<F, R>(b).recip()
+        ),
+{
+    let a = qext_from_rational::<F, R>(b);
+    let x = qext_from_rational::<F, R>(b.recip());
+
+    // --- Part A: prove a.mul(x) .eqv QE::one() ---
+
+    // b * b.recip() ≡ F::one()
+    F::axiom_mul_recip_right(b);
+    // qext(b * b.recip()) ≡ qext(b) * qext(b.recip())
+    lemma_rational_mul::<F, R>(b, b.recip());
+    // symmetric: a * x ≡ qext(b*b.recip())
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qext_from_rational::<F, R>(b.mul(b.recip())),
+        qe_mul(a, x),
+    );
+    // qext(b*b.recip()) ≡ qext(F::one()) [from b*b.recip() ≡ one, by congruence]
+    F::axiom_eqv_reflexive(F::zero());
+    // qext(F::one()) ≡ QE::one()
+    lemma_rational_one::<F, R>();
+    // Chain: a*x ≡ qext(b*b.recip()) ≡ qext(one) ≡ QE::one()
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qe_mul(a, x),
+        qext_from_rational(b.mul(b.recip())),
+        qext_from_rational(F::one()),
+    );
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qe_mul(a, x),
+        qext_from_rational(F::one()),
+        SpecQuadExt::<F, R>::one(),
+    );
+    // Now: a.mul(x) ≡ QE::one()
+
+    // --- Part B: prove !a.eqv(QE::zero()) ---
+    if a.eqv(SpecQuadExt::<F, R>::zero()) {
+        lemma_qext_from_rational_injective::<F, R>(b, F::zero());
+        // b.eqv(F::zero()) contradicts requires
+    }
+
+    // --- Part C: inverse uniqueness ---
+    // Goal: x ≡ a.recip()
+
+    // C1: a.recip() * a ≡ one
+    SpecQuadExt::<F, R>::axiom_mul_recip_right(a);
+    SpecQuadExt::<F, R>::axiom_mul_commutative(a, a.recip());
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        a.mul(a.recip()), a.recip().mul(a),
+    );
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        a.recip().mul(a), a.mul(a.recip()), SpecQuadExt::<F, R>::one(),
+    );
+
+    // C2: (a.recip()*a)*x ≡ one*x
+    SpecQuadExt::<F, R>::axiom_mul_congruence_left(
+        a.recip().mul(a), SpecQuadExt::<F, R>::one(), x,
+    );
+
+    // C3: one*x ≡ x
+    lemma_mul_one_left::<SpecQuadExt<F, R>>(x);
+
+    // C4: (a.recip()*a)*x ≡ x
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        a.recip().mul(a).mul(x),
+        SpecQuadExt::<F, R>::one().mul(x),
+        x,
+    );
+    // Symmetric: x ≡ (a.recip()*a)*x
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        a.recip().mul(a).mul(x), x,
+    );
+
+    // C5: (a.recip()*a)*x ≡ a.recip()*(a*x)  [associativity]
+    SpecQuadExt::<F, R>::axiom_mul_associative(a.recip(), a, x);
+
+    // C6: a.recip()*(a*x) ≡ a.recip()*one  [right congruence, a*x ≡ one]
+    lemma_mul_congruence_right::<SpecQuadExt<F, R>>(
+        a.recip(), a.mul(x), SpecQuadExt::<F, R>::one(),
+    );
+
+    // C7: a.recip()*one ≡ a.recip()
+    SpecQuadExt::<F, R>::axiom_mul_one_right(a.recip());
+
+    // Chain: (a.recip()*a)*x ≡ a.recip()*(a*x) ≡ a.recip()*one ≡ a.recip()
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        a.recip().mul(a).mul(x),
+        a.recip().mul(a.mul(x)),
+        a.recip().mul(SpecQuadExt::<F, R>::one()),
+    );
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        a.recip().mul(a).mul(x),
+        a.recip().mul(SpecQuadExt::<F, R>::one()),
+        a.recip(),
+    );
+
+    // Final: x ≡ (a.recip()*a)*x ≡ a.recip()
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        x, a.recip().mul(a).mul(x), a.recip(),
+    );
+}
+
+/// qext_from_rational(a.div(b)) ≡ qext_from_rational(a).div(qext_from_rational(b))
+pub proof fn lemma_rational_div<F: Field, R: Radicand<F>>(a: F, b: F)
+    requires
+        !b.eqv(F::zero()),
+    ensures
+        qext_from_rational::<F, R>(a.div(b)).eqv(
+            qext_from_rational::<F, R>(a).div(qext_from_rational::<F, R>(b))
+        ),
+{
+    let qa = qext_from_rational::<F, R>(a);
+    let qb = qext_from_rational::<F, R>(b);
+
+    // F level: a.div(b) ≡ a * b.recip()
+    F::axiom_div_is_mul_recip(a, b);
+    // qext(a.div(b)) ≡ qext(a * b.recip())  [embedding preserves eqv]
+    lemma_rational_congruence::<F, R>(a.div(b), a.mul(b.recip()));
+
+    // qext(a * b.recip()) ≡ qext(a) * qext(b.recip())
+    lemma_rational_mul::<F, R>(a, b.recip());
+
+    // Chain: qext(a.div(b)) ≡ qext(a*b.recip()) ≡ qa * qext(b.recip())
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qext_from_rational(a.div(b)),
+        qext_from_rational(a.mul(b.recip())),
+        qe_mul(qa, qext_from_rational(b.recip())),
+    );
+
+    // qext(b.recip()) ≡ qb.recip()
+    lemma_rational_recip::<F, R>(b);
+
+    // qa * qext(b.recip()) ≡ qa * qb.recip()  [right congruence]
+    lemma_mul_congruence_right::<SpecQuadExt<F, R>>(
+        qa, qext_from_rational(b.recip()), qb.recip(),
+    );
+
+    // Chain: qext(a.div(b)) ≡ qa * qext(b.recip()) ≡ qa * qb.recip()
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qext_from_rational(a.div(b)),
+        qe_mul(qa, qext_from_rational(b.recip())),
+        qa.mul(qb.recip()),
+    );
+
+    // QE level: qa.div(qb) ≡ qa * qb.recip()
+    SpecQuadExt::<F, R>::axiom_div_is_mul_recip(qa, qb);
+    // Symmetric: qa * qb.recip() ≡ qa.div(qb)
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qa.div(qb), qa.mul(qb.recip()),
+    );
+
+    // Final: qext(a.div(b)) ≡ qa * qb.recip() ≡ qa.div(qb)
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        qext_from_rational(a.div(b)),
+        qa.mul(qb.recip()),
+        qa.div(qb),
+    );
+}
+
 // ===========================================================================
 //  Circle lifting
 // ===========================================================================
