@@ -195,4 +195,199 @@ pub proof fn lemma_rational_one<F: Field, R: Radicand<F>>()
     F::axiom_eqv_reflexive(F::zero());
 }
 
+// ===========================================================================
+//  Circle lifting
+// ===========================================================================
+
+/// Lift a Circle2<F> to Circle2<SpecQuadExt<F, R>> by embedding center and radius_sq.
+pub open spec fn lift_circle2<F: Field, R: Radicand<F>>(
+    c: crate::circle2::Circle2<F>,
+) -> crate::circle2::Circle2<SpecQuadExt<F, R>> {
+    crate::circle2::Circle2 {
+        center: lift_point2(c.center),
+        radius_sq: qext_from_rational(c.radius_sq),
+    }
+}
+
+// ===========================================================================
+//  Embedding injectivity and preservation lemmas
+// ===========================================================================
+
+/// Embedding reflects eqv: qext_from_rational(a) ≡ qext_from_rational(b) implies a ≡ b.
+/// (Reverse direction of lemma_rational_congruence.)
+pub proof fn lemma_qext_from_rational_injective<F: Field, R: Radicand<F>>(a: F, b: F)
+    requires
+        qext_from_rational::<F, R>(a).eqv(qext_from_rational::<F, R>(b)),
+    ensures
+        a.eqv(b),
+{
+    // qe_eqv is component-wise: re.eqv(re) && im.eqv(im)
+    // qext_from_rational(a).re == a, qext_from_rational(b).re == b
+    // So the re component gives a.eqv(b) directly.
+}
+
+/// line2_nondegenerate is preserved/reflected by lifting.
+pub proof fn lemma_lift_line2_nondegenerate<F: Field, R: Radicand<F>>(
+    line: crate::line2::Line2<F>,
+)
+    ensures
+        crate::line2::line2_nondegenerate(line)
+            == crate::line2::line2_nondegenerate(lift_line2::<F, R>(line)),
+{
+    // line2_nondegenerate(line) = !line.a.eqv(zero) || !line.b.eqv(zero)
+    // lift_line2(line).a = qext_from_rational(line.a)
+    // QE::zero() = qext(F::zero(), F::zero()) = qext_from_rational(F::zero())
+    //
+    // qext_from_rational(line.a).eqv(QE::zero())
+    //   = qext_from_rational(line.a).eqv(qext_from_rational(F::zero()))
+    //   iff line.a.eqv(F::zero())
+    //   (forward: lemma_rational_congruence; reverse: lemma_qext_from_rational_injective)
+
+    // Show QE::zero() == qext_from_rational(F::zero())
+    // Both are qext(F::zero(), F::zero()) — structurally equal.
+
+    // Forward: nondegenerate(line) ==> nondegenerate(lift(line))
+    // If !line.a.eqv(0), then suppose lift.a.eqv(QE::zero()).
+    //   lift.a = qext_from_rational(line.a), QE::zero() = qext_from_rational(F::zero())
+    //   By injectivity: line.a.eqv(F::zero()) — contradiction.
+    // Similarly for line.b.
+
+    // Reverse: nondegenerate(lift(line)) ==> nondegenerate(line)
+    // If !lift.a.eqv(QE::zero()), suppose line.a.eqv(F::zero()).
+    //   By congruence: qext_from_rational(line.a).eqv(qext_from_rational(F::zero()))
+    //   = lift.a.eqv(QE::zero()) — contradiction.
+    // Similarly for line.b.
+
+    use crate::circle_circle_proofs::lemma_rational_congruence;
+
+    if crate::line2::line2_nondegenerate(line) {
+        // At least one of line.a, line.b is not eqv to zero
+        if !line.a.eqv(F::zero()) {
+            // Suppose for contradiction that lift.a.eqv(QE::zero())
+            if qext_from_rational::<F, R>(line.a).eqv(
+                SpecQuadExt::<F, R>::zero()
+            ) {
+                // QE::zero() = qext_from_rational(F::zero())
+                F::axiom_eqv_reflexive(F::zero());
+                // So lift.a.eqv(qext_from_rational(F::zero()))
+                // By injectivity: line.a.eqv(F::zero()) — contradiction
+                lemma_qext_from_rational_injective::<F, R>(line.a, F::zero());
+            }
+        } else {
+            // line.b is not eqv to zero
+            if qext_from_rational::<F, R>(line.b).eqv(
+                SpecQuadExt::<F, R>::zero()
+            ) {
+                F::axiom_eqv_reflexive(F::zero());
+                lemma_qext_from_rational_injective::<F, R>(line.b, F::zero());
+            }
+        }
+    } else {
+        // line.a.eqv(zero) && line.b.eqv(zero)
+        // By congruence: lift.a.eqv(QE::zero()) && lift.b.eqv(QE::zero())
+        lemma_rational_congruence::<F, R>(line.a, F::zero());
+        lemma_rational_congruence::<F, R>(line.b, F::zero());
+    }
+}
+
+/// line_det commutes with lifting:
+/// line_det(lift(l1), lift(l2)) ≡ qext_from_rational(line_det(l1, l2))
+pub proof fn lemma_lift_line_det<F: Field, R: Radicand<F>>(
+    l1: crate::line2::Line2<F>,
+    l2: crate::line2::Line2<F>,
+)
+    ensures
+        crate::line_intersection::line_det(
+            lift_line2::<F, R>(l1), lift_line2::<F, R>(l2)
+        ).eqv(
+            qext_from_rational::<F, R>(
+                crate::line_intersection::line_det(l1, l2)
+            )
+        ),
+{
+    // line_det(l1, l2) = l1.a * l2.b - l1.b * l2.a
+    // line_det(lift(l1), lift(l2)) = qext(l1.a,0) * qext(l2.b,0) - qext(l1.b,0) * qext(l2.a,0)
+    //
+    // By lemma_rational_mul: qext(a,0)*qext(b,0) ≡ qext(a*b, 0)
+    // By lemma_rational_sub: qext(x,0) - qext(y,0) ≡ qext(x-y, 0)
+    //
+    // So: qe_mul(qext(a1,0), qext(b2,0)).eqv(qext(a1*b2, 0))
+    //     qe_mul(qext(b1,0), qext(a2,0)).eqv(qext(b1*a2, 0))
+    //     qe_sub(qext(a1*b2,0), qext(b1*a2,0)).eqv(qext(a1*b2 - b1*a2, 0))
+    //
+    // Chain: line_det(lift(l1), lift(l2))
+    //   = qe_sub(qe_mul(qext(a1,0), qext(b2,0)), qe_mul(qext(b1,0), qext(a2,0)))
+    //   ≡ qe_sub(qext(a1*b2,0), qext(b1*a2,0))  (by mul congruence)
+    //   ≡ qext(a1*b2 - b1*a2, 0)                 (by rational_sub)
+    //   = qext_from_rational(line_det(l1, l2))
+
+    let a1 = l1.a;
+    let b1 = l1.b;
+    let a2 = l2.a;
+    let b2 = l2.b;
+
+    // Step 1: qe_mul(qext(a1,0), qext(b2,0)) ≡ qext(a1*b2, 0)
+    lemma_rational_mul::<F, R>(a1, b2);
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qext_from_rational::<F, R>(a1.mul(b2)),
+        qe_mul::<F, R>(qext_from_rational(a1), qext_from_rational(b2)),
+    );
+
+    // Step 2: qe_mul(qext(b1,0), qext(a2,0)) ≡ qext(b1*a2, 0)
+    lemma_rational_mul::<F, R>(b1, a2);
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qext_from_rational::<F, R>(b1.mul(a2)),
+        qe_mul::<F, R>(qext_from_rational(b1), qext_from_rational(a2)),
+    );
+
+    // Step 3: sub congruence
+    // qe_sub(qe_mul(...), qe_mul(...)) ≡ qe_sub(qext(a1*b2,0), qext(b1*a2,0))
+    lemma_sub_congruence::<SpecQuadExt<F, R>>(
+        qe_mul::<F, R>(qext_from_rational(a1), qext_from_rational(b2)),
+        qext_from_rational::<F, R>(a1.mul(b2)),
+        qe_mul::<F, R>(qext_from_rational(b1), qext_from_rational(a2)),
+        qext_from_rational::<F, R>(b1.mul(a2)),
+    );
+
+    // Step 4: qe_sub(qext(a1*b2,0), qext(b1*a2,0)) ≡ qext(a1*b2 - b1*a2, 0)
+    lemma_rational_sub::<F, R>(a1.mul(b2), b1.mul(a2));
+    SpecQuadExt::<F, R>::axiom_eqv_symmetric(
+        qext_from_rational::<F, R>(a1.mul(b2).sub(b1.mul(a2))),
+        qe_sub::<F, R>(qext_from_rational(a1.mul(b2)), qext_from_rational(b1.mul(a2))),
+    );
+
+    // Chain: line_det(lift) ≡ qe_sub(qext(a1*b2,0), qext(b1*a2,0)) ≡ qext_from_rational(line_det)
+    SpecQuadExt::<F, R>::axiom_eqv_transitive(
+        crate::line_intersection::line_det(lift_line2::<F, R>(l1), lift_line2::<F, R>(l2)),
+        qe_sub::<F, R>(
+            qext_from_rational::<F, R>(a1.mul(b2)),
+            qext_from_rational::<F, R>(b1.mul(a2)),
+        ),
+        qext_from_rational::<F, R>(crate::line_intersection::line_det(l1, l2)),
+    );
+}
+
+/// Center distinctness is preserved by lifting.
+pub proof fn lemma_lift_centers_distinct<F: Field, R: Radicand<F>>(
+    c1: crate::point2::Point2<F>,
+    c2: crate::point2::Point2<F>,
+)
+    requires
+        !c1.eqv(c2),
+    ensures
+        !lift_point2::<F, R>(c1).eqv(lift_point2::<F, R>(c2)),
+{
+    // Contrapositive: if lift(c1).eqv(lift(c2)), then c1.eqv(c2).
+    // lift(c1).eqv(lift(c2)) means:
+    //   qext_from_rational(c1.x).eqv(qext_from_rational(c2.x))
+    //   && qext_from_rational(c1.y).eqv(qext_from_rational(c2.y))
+    // By injectivity: c1.x.eqv(c2.x) && c1.y.eqv(c2.y) = c1.eqv(c2)
+    // But !c1.eqv(c2), so the premise is false.
+    if lift_point2::<F, R>(c1).eqv(lift_point2::<F, R>(c2)) {
+        lemma_qext_from_rational_injective::<F, R>(c1.x, c2.x);
+        lemma_qext_from_rational_injective::<F, R>(c1.y, c2.y);
+        // Now c1.x.eqv(c2.x) && c1.y.eqv(c2.y) → c1.eqv(c2) — contradiction
+    }
+}
+
 } // verus!
