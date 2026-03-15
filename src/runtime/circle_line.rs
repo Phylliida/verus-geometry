@@ -86,7 +86,6 @@ pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
     line: &RuntimeLine2,
     plus: bool,
 ) -> (out: RuntimeQExtRat<R>)
-    where R: verus_quadratic_extension::runtime::RuntimeRadicand<R>
     requires
         circle.wf_spec(),
         line.wf_spec(),
@@ -120,7 +119,6 @@ pub fn cl_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
     line: &RuntimeLine2,
     plus: bool,
 ) -> (out: RuntimeQExtRat<R>)
-    where R: verus_quadratic_extension::runtime::RuntimeRadicand<R>
     requires
         circle.wf_spec(),
         line.wf_spec(),
