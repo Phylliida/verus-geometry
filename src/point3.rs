@@ -178,4 +178,73 @@ pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3
     );
 }
 
+// ---------------------------------------------------------------------------
+// Addition rearrangement helpers
+// ---------------------------------------------------------------------------
+
+/// (a + b) + c ≡ (a + c) + b
+proof fn lemma_add_swap_last<T: Ring>(a: T, b: T, c: T)
+    ensures
+        a.add(b).add(c).eqv(a.add(c).add(b)),
+{
+    // (a+b)+c ≡ a+(b+c) by associativity
+    T::axiom_add_associative(a, b, c);
+    // b+c ≡ c+b by commutativity
+    T::axiom_add_commutative(b, c);
+    // a+(b+c) ≡ a+(c+b) by right congruence
+    additive_group_lemmas::lemma_add_congruence_right::<T>(a, b.add(c), c.add(b));
+    // (a+b)+c ≡ a+(c+b) by transitivity
+    T::axiom_eqv_transitive(a.add(b).add(c), a.add(b.add(c)), a.add(c.add(b)));
+    // (a+c)+b ≡ a+(c+b) by associativity
+    T::axiom_add_associative(a, c, b);
+    // a+(c+b) ≡ (a+c)+b by symmetric
+    T::axiom_eqv_symmetric(a.add(c).add(b), a.add(c.add(b)));
+    // (a+b)+c ≡ (a+c)+b by transitivity
+    T::axiom_eqv_transitive(a.add(b).add(c), a.add(c.add(b)), a.add(c).add(b));
+}
+
+/// (a + b) - c ≡ (a - c) + b
+proof fn lemma_sub_shift_component<T: Ring>(a: T, b: T, c: T)
+    ensures
+        a.add(b).sub(c).eqv(a.sub(c).add(b)),
+{
+    let nc = c.neg();
+    // LHS: (a+b).sub(c) ≡ (a+b)+(-c)
+    T::axiom_sub_is_add_neg(a.add(b), c);
+    // (a+b)+(-c) ≡ (a+(-c))+b by add_swap_last
+    lemma_add_swap_last::<T>(a, b, nc);
+    // Chain: (a+b).sub(c) ≡ (a+(-c))+b
+    T::axiom_eqv_transitive(a.add(b).sub(c), a.add(b).add(nc), a.add(nc).add(b));
+    // RHS: a.sub(c) ≡ a+(-c)
+    T::axiom_sub_is_add_neg(a, c);
+    // (a+(-c)) ≡ a.sub(c) by symmetric
+    T::axiom_eqv_symmetric(a.sub(c), a.add(nc));
+    // (a+(-c))+b ≡ a.sub(c)+b by left congruence
+    T::axiom_add_congruence_left(a.add(nc), a.sub(c), b);
+    // Chain: (a+b).sub(c) ≡ a.sub(c).add(b)
+    T::axiom_eqv_transitive(a.add(b).sub(c), a.add(nc).add(b), a.sub(c).add(b));
+}
+
+/// sub3(add_vec3(p, v), q) ≡ sub3(p, q) + v
+///
+/// Geometric meaning: (p + v) - q = (p - q) + v
+pub proof fn lemma_sub3_shift_add<T: Ring>(p: Point3<T>, v: Vec3<T>, q: Point3<T>)
+    ensures
+        sub3(add_vec3(p, v), q).eqv(sub3(p, q).add(v)),
+{
+    lemma_sub_shift_component::<T>(p.x, v.x, q.x);
+    lemma_sub_shift_component::<T>(p.y, v.y, q.y);
+    lemma_sub_shift_component::<T>(p.z, v.z, q.z);
+}
+
+/// sub3(a, b) ≡ sub3(b, a).neg()  (antisymmetry)
+pub proof fn lemma_sub3_antisymmetric<T: Ring>(a: Point3<T>, b: Point3<T>)
+    ensures
+        sub3(a, b).eqv(sub3(b, a).neg()),
+{
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.x, b.x);
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.y, b.y);
+    additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.z, b.z);
+}
+
 } // verus!
