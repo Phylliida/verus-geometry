@@ -299,19 +299,69 @@ pub proof fn lemma_symmetric_decomposition_backward<F: OrderedField>(
     };
 
     // la*(px+qx) - la*(px+rx) ≡ la*u by distributes_left on sub
+    // la*X - la*Y ≡ la*(X-Y): same chain as before (sub_is_add_neg + distributes + neg_right)
     assert(la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))).eqv(la.mul(u))) by {
         F::axiom_sub_is_add_neg(p.x.add(q.x), p.x.add(r.x));
         F::axiom_mul_distributes_left(la, p.x.add(q.x), p.x.add(r.x).neg());
         lemma_mul_neg_right::<F>(la, p.x.add(r.x));
         F::axiom_sub_is_add_neg(la.mul(p.x.add(q.x)), la.mul(p.x.add(r.x)));
+        // la*(X+neg(Y)) ≡ la*X + la*neg(Y) ≡ la*X + neg(la*Y)
+        lemma_add_congruence_right::<F>(la.mul(p.x.add(q.x)),
+            la.mul(p.x.add(r.x).neg()), la.mul(p.x.add(r.x)).neg());
+        F::axiom_eqv_transitive(
+            la.mul(p.x.add(q.x).add(p.x.add(r.x).neg())),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x).neg())),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()));
+        // la*(X-Y) ≡ la*(X+neg(Y))
+        lemma_mul_congruence_right::<F>(la, p.x.add(q.x).sub(p.x.add(r.x)),
+            p.x.add(q.x).add(p.x.add(r.x).neg()));
+        F::axiom_eqv_transitive(
+            la.mul(p.x.add(q.x).sub(p.x.add(r.x))),
+            la.mul(p.x.add(q.x).add(p.x.add(r.x).neg())),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()));
+        // Chain: la*X - la*Y ≡ la*X+neg(la*Y) [sub_is_add_neg] ≡ la*(X-Y) [above]
+        F::axiom_eqv_symmetric(
+            la.mul(p.x.add(q.x).sub(p.x.add(r.x))),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()));
+        F::axiom_eqv_transitive(
+            la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()),
+            la.mul(p.x.add(q.x).sub(p.x.add(r.x))));
         lemma_mul_congruence_right::<F>(la, p.x.add(q.x).sub(p.x.add(r.x)), u);
+        F::axiom_eqv_transitive(
+            la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))),
+            la.mul(p.x.add(q.x).sub(p.x.add(r.x))),
+            la.mul(u));
     };
     assert(lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y))).eqv(lb.mul(v))) by {
         F::axiom_sub_is_add_neg(p.y.add(q.y), p.y.add(r.y));
         F::axiom_mul_distributes_left(lb, p.y.add(q.y), p.y.add(r.y).neg());
         lemma_mul_neg_right::<F>(lb, p.y.add(r.y));
         F::axiom_sub_is_add_neg(lb.mul(p.y.add(q.y)), lb.mul(p.y.add(r.y)));
+        lemma_add_congruence_right::<F>(lb.mul(p.y.add(q.y)),
+            lb.mul(p.y.add(r.y).neg()), lb.mul(p.y.add(r.y)).neg());
+        F::axiom_eqv_transitive(
+            lb.mul(p.y.add(q.y).add(p.y.add(r.y).neg())),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y).neg())),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()));
+        lemma_mul_congruence_right::<F>(lb, p.y.add(q.y).sub(p.y.add(r.y)),
+            p.y.add(q.y).add(p.y.add(r.y).neg()));
+        F::axiom_eqv_transitive(
+            lb.mul(p.y.add(q.y).sub(p.y.add(r.y))),
+            lb.mul(p.y.add(q.y).add(p.y.add(r.y).neg())),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()));
+        F::axiom_eqv_symmetric(
+            lb.mul(p.y.add(q.y).sub(p.y.add(r.y))),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()));
+        F::axiom_eqv_transitive(
+            lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y))),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()),
+            lb.mul(p.y.add(q.y).sub(p.y.add(r.y))));
         lemma_mul_congruence_right::<F>(lb, p.y.add(q.y).sub(p.y.add(r.y)), v);
+        F::axiom_eqv_transitive(
+            lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y))),
+            lb.mul(p.y.add(q.y).sub(p.y.add(r.y))),
+            lb.mul(v));
     };
 
     // mid_inner_q - mid_inner_r ≡ (la*(px+qx)-la*(px+rx)) + (lb*(py+qy)-lb*(py+ry))
@@ -327,6 +377,34 @@ pub proof fn lemma_symmetric_decomposition_backward<F: OrderedField>(
             la.mul(p.x.add(r.x)).neg(), lb.mul(p.y.add(r.y)).neg());
         F::axiom_sub_is_add_neg(la.mul(p.x.add(q.x)), la.mul(p.x.add(r.x)));
         F::axiom_sub_is_add_neg(lb.mul(p.y.add(q.y)), lb.mul(p.y.add(r.y)));
+        // Convert add+neg to sub form
+        F::axiom_eqv_symmetric(
+            la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()));
+        F::axiom_eqv_symmetric(
+            lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y))),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()));
+        lemma_add_congruence::<F>(
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()),
+            la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))),
+            lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg()),
+            lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y))));
+        // Chain
+        F::axiom_eqv_transitive(
+            mid_inner_q.sub(mid_inner_r),
+            mid_inner_q.add(mid_inner_r.neg()),
+            mid_inner_q.add(la.mul(p.x.add(r.x)).neg().add(lb.mul(p.y.add(r.y)).neg())));
+        F::axiom_eqv_transitive(
+            mid_inner_q.sub(mid_inner_r),
+            mid_inner_q.add(la.mul(p.x.add(r.x)).neg().add(lb.mul(p.y.add(r.y)).neg())),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()).add(
+                lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg())));
+        F::axiom_eqv_transitive(
+            mid_inner_q.sub(mid_inner_r),
+            la.mul(p.x.add(q.x)).add(la.mul(p.x.add(r.x)).neg()).add(
+                lb.mul(p.y.add(q.y)).add(lb.mul(p.y.add(r.y)).neg())),
+            la.mul(p.x.add(q.x)).sub(la.mul(p.x.add(r.x))).add(
+                lb.mul(p.y.add(q.y)).sub(lb.mul(p.y.add(r.y)))));
     };
 
     // ≡ la*u + lb*v
