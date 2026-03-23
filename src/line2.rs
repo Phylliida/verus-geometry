@@ -1175,46 +1175,109 @@ pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
     //
     // For now, let's try asserting the key subgoal and see if Z3 connects:
 
+    // Helper: (a - b) - b ≡ a - (b + b)
+    // Proof: sub(sub(a,b), b) = add(add(a, neg(b)), neg(b))
+    //      = add(a, add(neg(b), neg(b)))  [assoc]
+    //      = add(a, neg(add(b, b)))       [neg distributes]
+    //      = sub(a, add(b, b))
+    // And: two*b ≡ b + b (by 1*b + 1*b = (1+1)*b = two*b via distribution)
+    // So: (a-b)-b ≡ a - two*b ≡ two*a' - two*b when a = two*a'... no.
+    //
+    // Actually we need: (two*X - Y) - Y ≡ two*(X - Y)
+    // two*(X - Y) = two*X - two*Y by distribution
+    // (two*X - Y) - Y ≡ two*X - Y - Y ≡ two*X - 2Y
+    // Need: Y + Y ≡ two*Y
+    // By: (1+1)*Y = 1*Y + 1*Y = Y + Y (distribute right)
+    // So Y + Y ≡ two*Y
+
+    // Help Z3 unfold reflect:
+    let r = reflect_point_across_line(p, a, b);
+    assert(r.x == two.mul(proj_x).sub(p.x));
+    assert(r.y == two.mul(proj_y).sub(p.y));
+
     // Step 5: sub2(r,p).x ≡ two.mul(proj_x.sub(p.x))
-    let rx_sub_px = sub2(reflect_point_across_line(p, a, b), p).x;
+    let rx_sub_px = sub2(r, p).x;
     assert(rx_sub_px.eqv(two.mul(proj_x.sub(p.x)))) by {
-        // rx_sub_px = (two*proj_x - p.x) - p.x
-        // two*proj_x - p.x - p.x = (two*proj_x - p.x) + (-p.x)
-        // = two*proj_x + (-p.x) + (-p.x)    [sub = add neg]
-        // = two*proj_x + ((-p.x) + (-p.x))   [assoc]
-        // = two*proj_x - (p.x + p.x)         [neg distributes back]
-        // = two*proj_x - two*p.x             [1+1 = two, p.x + p.x = two*p.x... hmm]
-        //
-        // Actually simpler: two*(proj_x - p.x) = two*proj_x - two*p.x by distribution
-        // two*proj_x - two*p.x ≡ (two*proj_x - p.x) - p.x? Yes:
-        // (a - b) - b = a - 2b vs a - 2b. Same thing.
-        // Need: (two*proj_x - p.x) - p.x ≡ two*proj_x - two*p.x
-        //
-        // sub(sub(a, b), b) ≡ sub(a, add(b, b))
-        // sub(a, add(b, b)) ≡ sub(a, two*b) when add(b,b) ≡ two*b
-
-        // Let's try: two*(proj_x - p.x) = two*proj_x - two*p.x by mul_distributes_left... wait
-        // Actually: two.mul(proj_x.sub(p.x)) = two.mul(proj_x.add(p.x.neg()))
-        // By distribution: = two.mul(proj_x).add(two.mul(p.x.neg()))
-        // two.mul(p.x.neg()) = -(two.mul(p.x)) by mul_neg_right
-        // So = two*proj_x + (-(two*p.x)) = two*proj_x - two*p.x
-
-        // And rx_sub_px = (two*proj_x - p.x) - p.x
-        // = (two*proj_x - p.x) + (-p.x) = two*proj_x + (-p.x) + (-p.x)
-        // = two*proj_x + (-p.x + -p.x)
-        // -p.x + -p.x ≡ -(p.x + p.x) by neg_add reversed... hmm
-        // Actually: -(p.x) + -(p.x) ≡ -(p.x + p.x) by neg distributes over add
-
-        // So we need: -(p.x + p.x) ≡ -(two * p.x)
-        // i.e. p.x + p.x ≡ two * p.x
-        // p.x + p.x = 1*p.x + 1*p.x = (1+1)*p.x = two*p.x by distribution
-
-        // This is doable but takes many steps. Let Z3 try with a strong hint:
-        F::axiom_sub_is_add_neg(two.mul(proj_x).sub(p.x), p.x);
-        F::axiom_sub_is_add_neg(two.mul(proj_x), p.x);
+        // rx_sub_px == two.mul(proj_x).sub(p.x).sub(p.x) structurally
+        assert(rx_sub_px == two.mul(proj_x).sub(p.x).sub(p.x));
+        // RHS: two*(proj_x - p.x) = two*(proj_x + (-p.x))
+        //    = two*proj_x + two*(-p.x)  [distributes_left]
+        //    = two*proj_x + (-(two*p.x))  [mul_neg_right]
+        //    = two*proj_x - two*p.x   [sub_is_add_neg]
         F::axiom_sub_is_add_neg(proj_x, p.x);
         F::axiom_mul_distributes_left(two, proj_x, p.x.neg());
         verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(two, p.x);
+        // two*(proj_x + (-p.x)) ≡ two*proj_x + two*(-p.x)
+        // two*(-p.x) ≡ -(two*p.x)
+        // So two*(proj_x - p.x) ≡ two*proj_x + (-(two*p.x)) = two*proj_x - two*p.x
+
+        // LHS: rx_sub_px = (two*proj_x - p.x) - p.x
+        //     = (two*proj_x + (-p.x)) + (-p.x)  [sub_is_add_neg twice]
+        //     = two*proj_x + ((-p.x) + (-p.x))  [associativity]
+        F::axiom_sub_is_add_neg(two.mul(proj_x).sub(p.x), p.x);
+        F::axiom_sub_is_add_neg(two.mul(proj_x), p.x);
+        F::axiom_add_associative(two.mul(proj_x), p.x.neg(), p.x.neg());
+
+        // Need: (-p.x) + (-p.x) ≡ -(two*p.x)
+        // (-p.x) + (-p.x) ≡ -(p.x + p.x) by neg_add
+        verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add::<F>(p.x, p.x);
+        F::axiom_eqv_symmetric(p.x.neg().add(p.x.neg()), p.x.add(p.x).neg());
+        // -(p.x + p.x): need p.x + p.x ≡ two*p.x
+        // p.x + p.x = 1*p.x + 1*p.x
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_one_left::<F>(p.x);
+        // 1*p.x ≡ p.x, so p.x ≡ 1*p.x
+        F::axiom_eqv_symmetric(F::one().mul(p.x), p.x);
+        F::axiom_eqv_reflexive(p.x);
+        lemma_add_congruence::<F>(p.x, F::one().mul(p.x), p.x, F::one().mul(p.x));
+        // p.x + p.x ≡ 1*p.x + 1*p.x
+        // 1*p.x + 1*p.x ≡ (1+1)*p.x = two*p.x by distributes_right
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(F::one(), F::one(), p.x);
+        F::axiom_eqv_symmetric(two.mul(p.x), F::one().mul(p.x).add(F::one().mul(p.x)));
+        F::axiom_eqv_transitive(
+            p.x.add(p.x),
+            F::one().mul(p.x).add(F::one().mul(p.x)),
+            two.mul(p.x));
+        // -(p.x + p.x) ≡ -(two*p.x)
+        F::axiom_neg_congruence(p.x.add(p.x), two.mul(p.x));
+        // (-p.x)+(-p.x) ≡ -(p.x+p.x) ≡ -(two*p.x)
+        F::axiom_eqv_transitive(
+            p.x.neg().add(p.x.neg()),
+            p.x.add(p.x).neg(),
+            two.mul(p.x).neg());
+
+        // Chain LHS: two*proj_x + ((-p.x)+(-p.x)) ≡ two*proj_x + (-(two*p.x))
+        lemma_add_congruence_right::<F>(two.mul(proj_x),
+            p.x.neg().add(p.x.neg()), two.mul(p.x).neg());
+        // (two*proj_x + (-p.x)) + (-p.x) ≡ two*proj_x + ((-p.x)+(-p.x)) by assoc
+        F::axiom_eqv_symmetric(
+            two.mul(proj_x).add(p.x.neg()).add(p.x.neg()),
+            two.mul(proj_x).add(p.x.neg().add(p.x.neg())));
+        // Chain: LHS ≡ two*proj_x + ((-p.x)+(-p.x)) ≡ two*proj_x + (-(two*p.x))
+        F::axiom_eqv_transitive(
+            two.mul(proj_x).add(p.x.neg()).add(p.x.neg()),
+            two.mul(proj_x).add(p.x.neg().add(p.x.neg())),
+            two.mul(proj_x).add(two.mul(p.x).neg()));
+
+        // RHS chain: two*(proj_x+(-p.x)) ≡ two*proj_x + two*(-p.x)
+        //           ≡ two*proj_x + (-(two*p.x))
+        lemma_add_congruence_right::<F>(two.mul(proj_x),
+            two.mul(p.x.neg()), two.mul(p.x).neg());
+        // Chain: two*(proj_x+(-p.x)) ≡ two*proj_x + two*(-p.x) ≡ two*proj_x + (-(two*p.x))
+        F::axiom_eqv_transitive(
+            two.mul(proj_x.add(p.x.neg())),
+            two.mul(proj_x).add(two.mul(p.x.neg())),
+            two.mul(proj_x).add(two.mul(p.x).neg()));
+
+        // Connect: two*(proj_x - p.x) = two*(proj_x + (-p.x)) ≡ two*proj_x + (-(two*p.x))
+        // LHS = (two*proj_x - p.x) - p.x ≡ two*proj_x + (-(two*p.x))
+        // They're both ≡ two*proj_x + (-(two*p.x)), so they're ≡ each other.
+        F::axiom_eqv_symmetric(
+            two.mul(proj_x.add(p.x.neg())),
+            two.mul(proj_x).add(two.mul(p.x).neg()));
+        F::axiom_eqv_transitive(
+            two.mul(proj_x).add(p.x.neg()).add(p.x.neg()),
+            two.mul(proj_x).add(two.mul(p.x).neg()),
+            two.mul(proj_x.add(p.x.neg())));
     };
 
     let ry_sub_py = sub2(reflect_point_across_line(p, a, b), p).y;
