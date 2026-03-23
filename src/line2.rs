@@ -610,4 +610,363 @@ pub proof fn lemma_perpendicular_bisector_equidistant<F: OrderedField>(
     crate::collinearity::lemma_sub_zero_implies_eqv(dist_p, dist_q);
 }
 
+// ===========================================================================
+//  Linear system uniqueness for symmetric decomposition
+// ===========================================================================
+
+/// If dx*u + dy*v ≡ 0 and -dy*u + dx*v ≡ 0 and dx²+dy² ≢ 0,
+/// then u ≡ 0 and v ≡ 0.
+///
+/// This is the uniqueness of the trivial solution of the 2×2 system
+/// with coefficient matrix [[dx, dy], [-dy, dx]] (rotation matrix scaled by |d|).
+proof fn lemma_2x2_trivial_solution<F: OrderedField>(
+    dx: F, dy: F, u: F, v: F,
+)
+    requires
+        // dx*u + dy*v ≡ 0
+        dx.mul(u).add(dy.mul(v)).eqv(F::zero()),
+        // -dy*u + dx*v ≡ 0
+        dy.neg().mul(u).add(dx.mul(v)).eqv(F::zero()),
+        // det ≢ 0
+        !dx.mul(dx).add(dy.mul(dy)).eqv(F::zero()),
+    ensures
+        u.eqv(F::zero()),
+        v.eqv(F::zero()),
+{
+    let dot_dd = dx.mul(dx).add(dy.mul(dy));
+    // From eq1: dx*u + dy*v ≡ 0
+    // Multiply by dx: dx²*u + dx*dy*v ≡ 0
+    lemma_mul_congruence_right::<F>(dx, dx.mul(u).add(dy.mul(v)), F::zero());
+    lemma_mul_zero_left::<F>(dx);
+    F::axiom_mul_commutative(F::zero(), dx);
+    F::axiom_eqv_transitive(dx.mul(F::zero()), F::zero().mul(dx), F::zero());
+    F::axiom_eqv_transitive(
+        dx.mul(dx.mul(u).add(dy.mul(v))),
+        dx.mul(F::zero()),
+        F::zero());
+    // Distribute: dx*(dx*u + dy*v) ≡ dx*(dx*u) + dx*(dy*v) ≡ (dx*dx)*u + (dx*dy)*v
+    F::axiom_mul_distributes_left(dx, dx.mul(u), dy.mul(v));
+    F::axiom_mul_associative(dx, dx, u);
+    F::axiom_mul_associative(dx, dy, v);
+    F::axiom_eqv_symmetric(dx.mul(dx).mul(u), dx.mul(dx.mul(u)));
+    F::axiom_eqv_symmetric(dx.mul(dy).mul(v), dx.mul(dy.mul(v)));
+    lemma_add_congruence::<F>(
+        dx.mul(dx.mul(u)), dx.mul(dx).mul(u),
+        dx.mul(dy.mul(v)), dx.mul(dy).mul(v));
+    F::axiom_eqv_transitive(
+        dx.mul(dx.mul(u).add(dy.mul(v))),
+        dx.mul(dx.mul(u)).add(dx.mul(dy.mul(v))),
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)));
+    // So dx²*u + (dx*dy)*v ≡ 0
+    // Chain: dx²*u + (dx*dy)*v ≡ dx*(dx*u+dy*v) [reverse of distribute] ≡ 0
+    F::axiom_eqv_symmetric(
+        dx.mul(dx.mul(u).add(dy.mul(v))),
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)));
+    F::axiom_eqv_transitive(
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)),
+        dx.mul(dx.mul(u).add(dy.mul(v))),
+        F::zero());
+
+    // From eq2: -dy*u + dx*v ≡ 0
+    // Multiply by dy: -dy²*u + dx*dy*v ≡ 0
+    // Actually multiply eq2 by dy: dy*(-dy*u + dx*v) ≡ 0
+    lemma_mul_congruence_right::<F>(dy, dy.neg().mul(u).add(dx.mul(v)), F::zero());
+    lemma_mul_zero_left::<F>(dy);
+    F::axiom_mul_commutative(F::zero(), dy);
+    F::axiom_eqv_transitive(dy.mul(F::zero()), F::zero().mul(dy), F::zero());
+    F::axiom_eqv_transitive(
+        dy.mul(dy.neg().mul(u).add(dx.mul(v))),
+        dy.mul(F::zero()),
+        F::zero());
+    F::axiom_mul_distributes_left(dy, dy.neg().mul(u), dx.mul(v));
+    F::axiom_mul_associative(dy, dy.neg(), u);
+    F::axiom_mul_associative(dy, dx, v);
+    F::axiom_eqv_symmetric(dy.mul(dy.neg()).mul(u), dy.mul(dy.neg().mul(u)));
+    F::axiom_eqv_symmetric(dy.mul(dx).mul(v), dy.mul(dx.mul(v)));
+    lemma_add_congruence::<F>(
+        dy.mul(dy.neg().mul(u)), dy.mul(dy.neg()).mul(u),
+        dy.mul(dx.mul(v)), dy.mul(dx).mul(v));
+    F::axiom_eqv_transitive(
+        dy.mul(dy.neg().mul(u).add(dx.mul(v))),
+        dy.mul(dy.neg().mul(u)).add(dy.mul(dx.mul(v))),
+        dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)));
+    // So (dy*(-dy))*u + (dy*dx)*v ≡ 0
+    F::axiom_eqv_symmetric(
+        dy.mul(dy.neg().mul(u).add(dx.mul(v))),
+        dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)));
+    F::axiom_eqv_transitive(
+        dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)),
+        dy.mul(dy.neg().mul(u).add(dx.mul(v))),
+        F::zero());
+
+    // dy*(-dy) ≡ -(dy*dy) by lemma_mul_neg_right or commute+neg_left
+    verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(dy, dy);
+    // dy*(-dy) ≡ -(dy*dy)
+    F::axiom_mul_congruence_left(dy.mul(dy.neg()), dy.mul(dy).neg(), u);
+    // So -(dy²)*u + (dy*dx)*v ≡ 0
+
+    // dy*dx ≡ dx*dy by commutativity
+    F::axiom_mul_commutative(dy, dx);
+    F::axiom_mul_congruence_left(dy.mul(dx), dx.mul(dy), v);
+    // So -(dy²)*u + (dx*dy)*v ≡ 0
+    lemma_add_congruence::<F>(
+        dy.mul(dy.neg()).mul(u), dy.mul(dy).neg().mul(u),
+        dy.mul(dx).mul(v), dx.mul(dy).mul(v));
+    F::axiom_eqv_transitive(
+        dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)),
+        dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)),
+        dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)));
+    // Chain to zero:
+    F::axiom_eqv_transitive(
+        dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)),
+        dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)),
+        F::zero());
+
+    // Now subtract eq_scaled_2 from eq_scaled_1:
+    // (dx²*u + (dx*dy)*v) - (-(dy²)*u + (dx*dy)*v)
+    // = dx²*u + dy²*u = (dx² + dy²)*u = dot_dd * u
+    // Both ≡ 0, so their difference ≡ 0.
+    lemma_sub_congruence::<F>(
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)),
+        F::zero(),
+        dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)),
+        F::zero());
+    lemma_sub_self::<F>(F::zero());
+    F::axiom_eqv_transitive(
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)).sub(
+            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))),
+        F::zero().sub(F::zero()),
+        F::zero());
+
+    // Now simplify the LHS: (A + C) - (B + C) = A - B where
+    // A = dx²*u, B = -(dy²)*u, C = (dx*dy)*v
+    // A - B = dx²*u - (-(dy²)*u) = dx²*u + dy²*u = (dx²+dy²)*u
+    // Need: (A+C) - (B+C) ≡ A - B
+    // This is: a+c - (b+c) ≡ a - b
+    lemma_add_sub_cancel_common::<F>(
+        dx.mul(dx).mul(u),
+        dy.mul(dy).neg().mul(u),
+        dx.mul(dy).mul(v));
+    // So dx²*u - (-(dy²)*u) ≡ 0
+
+    // dx²*u - (-(dy²)*u) = dx²*u + dy²*u (sub neg = add)
+    // -(-(dy²)) = dy²
+    F::axiom_sub_is_add_neg(dx.mul(dx).mul(u), dy.mul(dy).neg().mul(u));
+    // dx²*u + (-(-(dy²)*u))
+    // -(-(dy²)*u) ≡ dy²*u by neg_involution on mul + neg
+    lemma_neg_involution::<F>(dy.mul(dy).mul(u));
+    lemma_mul_neg_left::<F>(dy.mul(dy), u);
+    // -(dy²) * u ≡ -(dy²*u)
+    F::axiom_neg_congruence(dy.mul(dy).neg().mul(u), dy.mul(dy).mul(u).neg());
+    // -(-(dy²)*u) ≡ -(-(dy²*u)) ≡ dy²*u
+    F::axiom_eqv_transitive(
+        dy.mul(dy).neg().mul(u).neg(),
+        dy.mul(dy).mul(u).neg().neg(),
+        dy.mul(dy).mul(u));
+    // So dx²*u.sub(-(dy²)*u) ≡ dx²*u.add(dy²*u)
+    lemma_add_congruence_right::<F>(
+        dx.mul(dx).mul(u),
+        dy.mul(dy).neg().mul(u).neg(),
+        dy.mul(dy).mul(u));
+    // Using sub = add neg:
+    F::axiom_eqv_transitive(
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
+        dx.mul(dx).mul(u).add(dy.mul(dy).neg().mul(u).neg()),
+        dx.mul(dx).mul(u).add(dy.mul(dy).mul(u)));
+
+    // Factor: dx²*u + dy²*u = (dx²+dy²)*u
+    F::axiom_eqv_symmetric(
+        dx.mul(dx).add(dy.mul(dy)).mul(u),
+        dx.mul(dx).mul(u).add(dy.mul(dy).mul(u)));
+    // By right-distributivity (derived from left + commutativity):
+    // (a+b)*c = a*c + b*c
+    verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(
+        dx.mul(dx), dy.mul(dy), u);
+
+    // Chain: dot_dd * u ≡ dx²*u + dy²*u ≡ dx²*u.sub(neg_dy²*u) ≡ 0
+    F::axiom_eqv_transitive(
+        dot_dd.mul(u),
+        dx.mul(dx).mul(u).add(dy.mul(dy).mul(u)),
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)));
+    F::axiom_eqv_symmetric(
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)).sub(
+            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))));
+    F::axiom_eqv_transitive(
+        dot_dd.mul(u),
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)).sub(
+            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))));
+    F::axiom_eqv_transitive(dot_dd.mul(u),
+        dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)).sub(
+            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))),
+        F::zero());
+
+    // dot_dd * u ≡ 0 and dot_dd ≢ 0 → u ≡ 0
+    // dot_dd * u ≡ dot_dd * 0
+    lemma_mul_zero_left::<F>(dot_dd);
+    F::axiom_mul_commutative(F::zero(), dot_dd);
+    F::axiom_eqv_transitive(dot_dd.mul(u), F::zero(), dot_dd.mul(F::zero()));
+    F::axiom_eqv_symmetric(dot_dd.mul(u), dot_dd.mul(F::zero()));
+    verus_algebra::lemmas::field_lemmas::lemma_mul_cancel_left::<F>(u, F::zero(), dot_dd);
+
+    // Now v: substitute u ≡ 0 into eq1: dx*0 + dy*v ≡ 0 → dy*v ≡ 0
+    // From eq2: -dy*0 + dx*v ≡ 0 → dx*v ≡ 0
+    // Then (dx²+dy²)*v ≡ 0 by same argument, cancel → v ≡ 0
+    // Simpler: from eq1, dx*u ≡ 0, so dy*v ≡ 0 - dx*u ≡ 0 - 0 ≡ 0
+    // And from eq2, dx*v ≡ 0 similarly.
+    // Then dx²*v + dy²*v = dot_dd*v ≡ 0, cancel.
+    lemma_mul_congruence_right::<F>(dx, u, F::zero());
+    // dx*u ≡ dx*0 ≡ 0
+    F::axiom_mul_commutative(dx, F::zero());
+    lemma_mul_zero_left::<F>(dx);
+    F::axiom_eqv_transitive(dx.mul(u), dx.mul(F::zero()), F::zero().mul(dx));
+    F::axiom_eqv_transitive(dx.mul(u), F::zero().mul(dx), F::zero());
+    // eq1: dx*u + dy*v ≡ 0, dx*u ≡ 0, so 0 + dy*v ≡ 0 → dy*v ≡ 0
+    F::axiom_eqv_symmetric(dx.mul(u), F::zero());
+    lemma_add_congruence::<F>(dx.mul(u), F::zero(), dy.mul(v), dy.mul(v));
+    F::axiom_eqv_reflexive(dy.mul(v));
+    F::axiom_eqv_transitive(
+        dx.mul(u).add(dy.mul(v)),
+        F::zero().add(dy.mul(v)),
+        F::zero().add(dy.mul(v)));
+    lemma_add_zero_left::<F>(dy.mul(v));
+    F::axiom_eqv_transitive(F::zero().add(dy.mul(v)), dy.mul(v), dy.mul(v));
+    // Chain: dy*v ≡ 0+dy*v ≡ dx*u+dy*v ≡ 0
+    F::axiom_eqv_symmetric(F::zero().add(dy.mul(v)), dy.mul(v));
+    F::axiom_eqv_transitive(dy.mul(v), F::zero().add(dy.mul(v)),
+        dx.mul(u).add(dy.mul(v)));
+    F::axiom_eqv_symmetric(dx.mul(u).add(dy.mul(v)), F::zero());
+    F::axiom_eqv_symmetric(dy.mul(v), dx.mul(u).add(dy.mul(v)));
+    F::axiom_eqv_transitive(dy.mul(v), dx.mul(u).add(dy.mul(v)), F::zero());
+
+    // Similarly dx*v ≡ 0 from eq2
+    lemma_mul_congruence_right::<F>(dy.neg(), u, F::zero());
+    lemma_mul_zero_left::<F>(dy.neg());
+    F::axiom_mul_commutative(dy.neg(), F::zero());
+    F::axiom_eqv_transitive(dy.neg().mul(u), dy.neg().mul(F::zero()),
+        F::zero().mul(dy.neg()));
+    F::axiom_eqv_transitive(dy.neg().mul(u), F::zero().mul(dy.neg()), F::zero());
+    F::axiom_eqv_symmetric(dy.neg().mul(u), F::zero());
+    F::axiom_eqv_reflexive(dx.mul(v));
+    lemma_add_congruence::<F>(dy.neg().mul(u), F::zero(), dx.mul(v), dx.mul(v));
+    lemma_add_zero_left::<F>(dx.mul(v));
+    F::axiom_eqv_symmetric(F::zero().add(dx.mul(v)), dx.mul(v));
+    F::axiom_eqv_transitive(dx.mul(v), F::zero().add(dx.mul(v)),
+        dy.neg().mul(u).add(dx.mul(v)));
+    F::axiom_eqv_symmetric(dy.neg().mul(u).add(dx.mul(v)), F::zero());
+    F::axiom_eqv_symmetric(dx.mul(v), dy.neg().mul(u).add(dx.mul(v)));
+    F::axiom_eqv_transitive(dx.mul(v), dy.neg().mul(u).add(dx.mul(v)), F::zero());
+
+    // Now: dy*v ≡ 0 and dx*v ≡ 0
+    // dot_dd * v = (dx²+dy²)*v = dx²*v + dy²*v
+    // dx²*v = dx*(dx*v) ≡ dx*0 ≡ 0
+    lemma_mul_congruence_right::<F>(dx, dx.mul(v), F::zero());
+    F::axiom_mul_commutative(dx, F::zero());
+    lemma_mul_zero_left::<F>(dx);
+    F::axiom_eqv_transitive(dx.mul(dx.mul(v)), dx.mul(F::zero()), F::zero().mul(dx));
+    F::axiom_eqv_transitive(dx.mul(dx.mul(v)), F::zero().mul(dx), F::zero());
+    F::axiom_mul_associative(dx, dx, v);
+    F::axiom_eqv_transitive(dx.mul(dx).mul(v), dx.mul(dx.mul(v)), F::zero());
+
+    // dy²*v = dy*(dy*v) ≡ dy*0 ≡ 0
+    lemma_mul_congruence_right::<F>(dy, dy.mul(v), F::zero());
+    F::axiom_mul_commutative(dy, F::zero());
+    lemma_mul_zero_left::<F>(dy);
+    F::axiom_eqv_transitive(dy.mul(dy.mul(v)), dy.mul(F::zero()), F::zero().mul(dy));
+    F::axiom_eqv_transitive(dy.mul(dy.mul(v)), F::zero().mul(dy), F::zero());
+    F::axiom_mul_associative(dy, dy, v);
+    F::axiom_eqv_transitive(dy.mul(dy).mul(v), dy.mul(dy.mul(v)), F::zero());
+
+    // dot_dd * v = dx²*v + dy²*v ≡ 0 + 0 ≡ 0
+    F::axiom_eqv_symmetric(dx.mul(dx).mul(v), F::zero());
+    F::axiom_eqv_symmetric(dy.mul(dy).mul(v), F::zero());
+    lemma_add_congruence::<F>(
+        F::zero(), dx.mul(dx).mul(v),
+        F::zero(), dy.mul(dy).mul(v));
+    lemma_add_zero_left::<F>(F::zero());
+    F::axiom_eqv_symmetric(
+        F::zero().add(F::zero()), F::zero());
+    F::axiom_eqv_transitive(
+        dx.mul(dx).mul(v).add(dy.mul(dy).mul(v)),
+        F::zero().add(F::zero()),
+        F::zero());
+    // Factor: dx²*v + dy²*v ≡ (dx²+dy²)*v
+    verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(
+        dx.mul(dx), dy.mul(dy), v);
+    F::axiom_eqv_transitive(dot_dd.mul(v),
+        dx.mul(dx).mul(v).add(dy.mul(dy).mul(v)),
+        F::zero());
+    // Cancel: dot_dd * v ≡ dot_dd * 0, cancel
+    lemma_mul_zero_left::<F>(dot_dd);
+    F::axiom_mul_commutative(F::zero(), dot_dd);
+    F::axiom_eqv_transitive(dot_dd.mul(v), F::zero(), dot_dd.mul(F::zero()));
+    F::axiom_eqv_symmetric(dot_dd.mul(v), dot_dd.mul(F::zero()));
+    verus_algebra::lemmas::field_lemmas::lemma_mul_cancel_left::<F>(v, F::zero(), dot_dd);
+}
+
+/// (a + c) - (b + c) ≡ a - b
+proof fn lemma_add_sub_cancel_common<F: OrderedField>(a: F, b: F, c: F)
+    ensures
+        a.add(c).sub(b.add(c)).eqv(a.sub(b)),
+{
+    // (a+c) - (b+c) = (a+c) + (-(b+c)) = (a+c) + (-b + -c)
+    F::axiom_sub_is_add_neg(a.add(c), b.add(c));
+    // -(b+c) ≡ -b + -c by neg distributes over add
+    verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add::<F>(b, c);
+    lemma_add_congruence_right::<F>(a.add(c), b.add(c).neg(), b.neg().add(c.neg()));
+    F::axiom_eqv_transitive(
+        a.add(c).sub(b.add(c)),
+        a.add(c).add(b.add(c).neg()),
+        a.add(c).add(b.neg().add(c.neg())));
+    // (a+c) + (-b + -c) = a + (c + (-b + -c)) by assoc
+    F::axiom_add_associative(a, c, b.neg().add(c.neg()));
+    F::axiom_eqv_symmetric(a.add(c).add(b.neg().add(c.neg())),
+        a.add(c.add(b.neg().add(c.neg()))));
+    // c + (-b + -c) = c + (-c + -b) by inner commutativity
+    F::axiom_add_commutative(b.neg(), c.neg());
+    lemma_add_congruence_right::<F>(c, b.neg().add(c.neg()), c.neg().add(b.neg()));
+    // c + (-c + -b) = (c + -c) + -b by assoc
+    F::axiom_add_associative(c, c.neg(), b.neg());
+    // c + -c ≡ 0
+    F::axiom_add_inverse_right(c);
+    F::axiom_add_congruence_left(c.add(c.neg()), F::zero(), b.neg());
+    // 0 + -b ≡ -b
+    lemma_add_zero_left::<F>(b.neg());
+    F::axiom_eqv_transitive(
+        c.add(c.neg()).add(b.neg()),
+        F::zero().add(b.neg()),
+        b.neg());
+    // Chain: c + (-c + -b) ≡ (c + -c) + -b ≡ 0 + -b ≡ -b
+    F::axiom_eqv_symmetric(
+        c.add(c.neg()).add(b.neg()),
+        c.add(c.neg().add(b.neg())));
+    F::axiom_eqv_transitive(
+        c.add(c.neg().add(b.neg())),
+        c.add(c.neg()).add(b.neg()),
+        b.neg());
+    F::axiom_eqv_transitive(
+        c.add(b.neg().add(c.neg())),
+        c.add(c.neg().add(b.neg())),
+        b.neg());
+    // a + (c + (-b + -c)) ≡ a + -b
+    lemma_add_congruence_right::<F>(a, c.add(b.neg().add(c.neg())), b.neg());
+    // a + -b ≡ a - b
+    F::axiom_eqv_symmetric(a.sub(b), a.add(b.neg()));
+    F::axiom_sub_is_add_neg(a, b);
+    // Full chain
+    F::axiom_eqv_transitive(
+        a.add(c).sub(b.add(c)),
+        a.add(c).add(b.neg().add(c.neg())),
+        a.add(c.add(b.neg().add(c.neg()))));
+    F::axiom_eqv_transitive(
+        a.add(c).sub(b.add(c)),
+        a.add(c.add(b.neg().add(c.neg()))),
+        a.add(b.neg()));
+    F::axiom_eqv_transitive(
+        a.add(c).sub(b.add(c)),
+        a.add(b.neg()),
+        a.sub(b));
+}
+
 } // verus!
