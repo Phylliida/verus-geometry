@@ -107,4 +107,7 @@ pub mod circle_circle;
 pub mod circle_circle_proofs;
 
 #[cfg(verus_keep_ghost)]
+pub mod reflection;
+
+#[cfg(verus_keep_ghost)]
 pub mod runtime;

@@ -619,7 +619,7 @@ pub proof fn lemma_perpendicular_bisector_equidistant<F: OrderedField>(
 ///
 /// This is the uniqueness of the trivial solution of the 2×2 system
 /// with coefficient matrix [[dx, dy], [-dy, dx]] (rotation matrix scaled by |d|).
-proof fn lemma_2x2_trivial_solution<F: OrderedField>(
+pub proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     dx: F, dy: F, u: F, v: F,
 )
     requires
@@ -918,7 +918,7 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
 }
 
 /// (a + c) - (b + c) ≡ a - b
-proof fn lemma_add_sub_cancel_common<F: OrderedField>(a: F, b: F, c: F)
+pub proof fn lemma_add_sub_cancel_common<F: OrderedField>(a: F, b: F, c: F)
     ensures
         a.add(c).sub(b.add(c)).eqv(a.sub(b)),
 {
@@ -1103,7 +1103,7 @@ proof fn lemma_two_x_sub_y_sub_y<F: OrderedField>(two: F, x: F, y: F)
 }
 
 /// Exchange lemma: (a + b) + (c + d) ≡ (a + c) + (b + d)
-proof fn lemma_add_exchange<F: OrderedField>(a: F, b: F, c: F, d: F)
+pub proof fn lemma_add_exchange<F: OrderedField>(a: F, b: F, c: F, d: F)
     ensures a.add(b).add(c.add(d)).eqv(a.add(c).add(b.add(d))),
 {
     F::axiom_add_associative(a, b, c.add(d));
