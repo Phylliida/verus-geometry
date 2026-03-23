@@ -1653,4 +1653,385 @@ pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
     };
 }
 
+/// reflect(p, a, b) satisfies midpoint-on-axis:
+/// la*(px+rx) + lb*(py+ry) + 2*lc ≡ 0
+/// where line = line2_from_points(a, b) and r = reflect(p, a, b).
+///
+/// The midpoint of p and r is the projection proj = a + t*d, which lies on line(a,b).
+/// px + rx = 2*proj_x, py + ry = 2*proj_y, so the check is 2*line_eval(line, proj) ≡ 0.
+pub proof fn lemma_reflect_midpoint_on_axis<F: OrderedField>(
+    p: Point2<F>, a: Point2<F>, b: Point2<F>,
+)
+    requires
+        !sub2(b, a).x.mul(sub2(b, a).x).add(sub2(b, a).y.mul(sub2(b, a).y)).eqv(F::zero()),
+    ensures ({
+        let d = sub2(b, a);
+        let r = reflect_point_across_line(p, a, b);
+        let line = line2_from_points(a, b);
+        let two = F::one().add(F::one());
+        line.a.mul(p.x.add(r.x)).add(line.b.mul(p.y.add(r.y))).add(two.mul(line.c)).eqv(F::zero())
+    }),
+{
+    let d = sub2(b, a);
+    let dx = d.x;
+    let dy = d.y;
+    let pa = sub2(p, a);
+    let dot_dd = dx.mul(dx).add(dy.mul(dy));
+    let dot_pad = pa.x.mul(dx).add(pa.y.mul(dy));
+    let t = dot_pad.div(dot_dd);
+    let two = F::one().add(F::one());
+    let proj_x = a.x.add(t.mul(dx));
+    let proj_y = a.y.add(t.mul(dy));
+    let r = reflect_point_across_line(p, a, b);
+    let line = line2_from_points(a, b);
+    let la = line.a; // = -dy = -(by - ay) = ay - by
+    let lb = line.b; // = dx = bx - ax
+
+    // Key fact 1: p.x + r.x ≡ two * proj_x
+    // r.x = two*proj_x - p.x, so p.x + r.x = p.x + two*proj_x - p.x = two*proj_x
+    assert(p.x.add(r.x).eqv(two.mul(proj_x))) by {
+        // r.x == two.mul(proj_x).sub(p.x)
+        assert(r.x == two.mul(proj_x).sub(p.x));
+        // p.x + (two*proj_x - p.x) = p.x + two*proj_x + (-p.x)
+        //                           = two*proj_x + (p.x + (-p.x))  [exchange]
+        //                           = two*proj_x + 0 = two*proj_x
+        F::axiom_sub_is_add_neg(two.mul(proj_x), p.x);
+        // r.x ≡ two*proj_x + (-p.x) (via sub_is_add_neg)
+        lemma_add_congruence_right::<F>(p.x, r.x, two.mul(proj_x).add(p.x.neg()));
+        // p.x + r.x ≡ p.x + (two*proj_x + (-p.x))
+        F::axiom_add_commutative(p.x, two.mul(proj_x).add(p.x.neg()));
+        // ≡ (two*proj_x + (-p.x)) + p.x
+        F::axiom_add_associative(two.mul(proj_x), p.x.neg(), p.x);
+        F::axiom_eqv_symmetric(
+            two.mul(proj_x).add(p.x.neg()).add(p.x),
+            two.mul(proj_x).add(p.x.neg().add(p.x)));
+        // two*proj_x + ((-p.x) + p.x)
+        verus_algebra::lemmas::additive_group_lemmas::lemma_add_inverse_left::<F>(p.x);
+        lemma_add_congruence_right::<F>(two.mul(proj_x), p.x.neg().add(p.x), F::zero());
+        // two*proj_x + 0 ≡ two*proj_x
+        F::axiom_add_commutative(two.mul(proj_x), F::zero());
+        lemma_add_zero_left::<F>(two.mul(proj_x));
+        F::axiom_eqv_transitive(
+            two.mul(proj_x).add(F::zero()),
+            F::zero().add(two.mul(proj_x)),
+            two.mul(proj_x));
+        // Chain: p.x + r.x ≡ p.x + (two*proj_x + (-p.x))
+        //                   ≡ (two*proj_x + (-p.x)) + p.x
+        //                   ≡ two*proj_x + ((-p.x) + p.x)
+        //                   ≡ two*proj_x + 0 ≡ two*proj_x
+        F::axiom_eqv_transitive(p.x.add(r.x),
+            p.x.add(two.mul(proj_x).add(p.x.neg())),
+            two.mul(proj_x).add(p.x.neg()).add(p.x));
+        F::axiom_eqv_transitive(p.x.add(r.x),
+            two.mul(proj_x).add(p.x.neg()).add(p.x),
+            two.mul(proj_x).add(p.x.neg().add(p.x)));
+        F::axiom_eqv_transitive(p.x.add(r.x),
+            two.mul(proj_x).add(p.x.neg().add(p.x)),
+            two.mul(proj_x).add(F::zero()));
+        F::axiom_eqv_transitive(p.x.add(r.x),
+            two.mul(proj_x).add(F::zero()),
+            two.mul(proj_x));
+    };
+
+    // Key fact 2: p.y + r.y ≡ two * proj_y (same argument)
+    assert(p.y.add(r.y).eqv(two.mul(proj_y))) by {
+        assert(r.y == two.mul(proj_y).sub(p.y));
+        F::axiom_sub_is_add_neg(two.mul(proj_y), p.y);
+        lemma_add_congruence_right::<F>(p.y, r.y, two.mul(proj_y).add(p.y.neg()));
+        F::axiom_add_commutative(p.y, two.mul(proj_y).add(p.y.neg()));
+        F::axiom_add_associative(two.mul(proj_y), p.y.neg(), p.y);
+        F::axiom_eqv_symmetric(
+            two.mul(proj_y).add(p.y.neg()).add(p.y),
+            two.mul(proj_y).add(p.y.neg().add(p.y)));
+        verus_algebra::lemmas::additive_group_lemmas::lemma_add_inverse_left::<F>(p.y);
+        lemma_add_congruence_right::<F>(two.mul(proj_y), p.y.neg().add(p.y), F::zero());
+        F::axiom_add_commutative(two.mul(proj_y), F::zero());
+        lemma_add_zero_left::<F>(two.mul(proj_y));
+        F::axiom_eqv_transitive(
+            two.mul(proj_y).add(F::zero()),
+            F::zero().add(two.mul(proj_y)),
+            two.mul(proj_y));
+        F::axiom_eqv_transitive(p.y.add(r.y),
+            p.y.add(two.mul(proj_y).add(p.y.neg())),
+            two.mul(proj_y).add(p.y.neg()).add(p.y));
+        F::axiom_eqv_transitive(p.y.add(r.y),
+            two.mul(proj_y).add(p.y.neg()).add(p.y),
+            two.mul(proj_y).add(p.y.neg().add(p.y)));
+        F::axiom_eqv_transitive(p.y.add(r.y),
+            two.mul(proj_y).add(p.y.neg().add(p.y)),
+            two.mul(proj_y).add(F::zero()));
+        F::axiom_eqv_transitive(p.y.add(r.y),
+            two.mul(proj_y).add(F::zero()),
+            two.mul(proj_y));
+    };
+
+    // Key fact 3: la*(two*proj_x) + lb*(two*proj_y) + two*lc ≡ two*(la*proj_x + lb*proj_y + lc)
+    //           = two * line_eval(line, proj)
+    // By distributing: la*(two*X) = two*(la*X) by commutative+assoc, then factor out two.
+    // line_eval(line, proj) = la*proj_x + lb*proj_y + lc
+
+    // Key fact 4: proj is on line(a,b), so line_eval(line, proj) ≡ 0
+    // line_eval(line, a) = la*ax + lb*ay + lc = 0 by construction
+    // proj_x = ax + t*dx, proj_y = ay + t*dy
+    // line_eval(line, proj) = la*(ax + t*dx) + lb*(ay + t*dy) + lc
+    //   = (la*ax + lb*ay + lc) + t*(la*dx + lb*dy)
+    //   = 0 + t*(-dy*dx + dx*dy) = t*0 = 0
+    //
+    // la*dx + lb*dy = (-dy)*dx + dx*dy: need to show this ≡ 0
+    // (-dy)*dx ≡ -(dy*dx) by mul_neg_left
+    // -(dy*dx) + dx*dy: by commutativity dy*dx = dx*dy, so -(dx*dy) + dx*dy = 0
+
+    // Step: la*dx + lb*dy ≡ 0
+    assert(la.mul(dx).add(lb.mul(dy)).eqv(F::zero())) by {
+        // la = -(by - ay) = -dy (structurally from line2_from_points)
+        // lb = bx - ax = dx
+        // la*dx = (-dy)*dx ≡ -(dy*dx) by mul_neg_left
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_left::<F>(dy, dx);
+        // lb*dy = dx*dy
+        // -(dy*dx) + dx*dy: dy*dx ≡ dx*dy by commutativity
+        F::axiom_mul_commutative(dy, dx);
+        // -(dy*dx) ≡ -(dx*dy)
+        F::axiom_neg_congruence(dy.mul(dx), dx.mul(dy));
+        F::axiom_eqv_transitive(la.mul(dx), dy.mul(dx).neg(), dx.mul(dy).neg());
+        // lb == dx structurally, so lb*dy == dx*dy
+        // -(dx*dy) + dx*dy ≡ 0 by add_inverse_left
+        verus_algebra::lemmas::additive_group_lemmas::lemma_add_inverse_left::<F>(dx.mul(dy));
+        // la*dx ≡ -(dx*dy), lb*dy == dx*dy, so need eqv for both
+        F::axiom_eqv_reflexive(lb.mul(dy));
+        lemma_add_congruence::<F>(la.mul(dx), dx.mul(dy).neg(), lb.mul(dy), lb.mul(dy));
+        F::axiom_eqv_transitive(
+            la.mul(dx).add(lb.mul(dy)),
+            dx.mul(dy).neg().add(lb.mul(dy)),
+            F::zero());
+    };
+
+    // Step: line_eval(line, proj) ≡ 0
+    // line_eval = la*proj_x + lb*proj_y + lc
+    //           = la*(ax + t*dx) + lb*(ay + t*dy) + lc
+    //           = la*ax + la*t*dx + lb*ay + lb*t*dy + lc
+    //           = (la*ax + lb*ay + lc) + t*(la*dx + lb*dy)
+    //           = line_eval(line, a) + t*0
+    //           = 0 + 0 = 0
+    // line_eval(line, a) = 0 by construction of line2_from_points:
+    // lc = -(la*ax + lb*ay), so la*ax + lb*ay + lc = la*ax + lb*ay - (la*ax + lb*ay) = 0
+    let line_eval_a = la.mul(a.x).add(lb.mul(a.y)).add(line.c);
+    assert(line_eval_a.eqv(F::zero())) by {
+        // lc = -(la*ax + lb*ay) by definition of line2_from_points
+        // la*ax + lb*ay + lc = la*ax + lb*ay + (-(la*ax + lb*ay)) = 0
+        F::axiom_add_commutative(la.mul(a.x).add(lb.mul(a.y)), line.c);
+        // lc + (la*ax + lb*ay) ≡ -(la*ax+lb*ay) + (la*ax+lb*ay) ≡ 0
+        verus_algebra::lemmas::additive_group_lemmas::lemma_add_inverse_left::<F>(
+            la.mul(a.x).add(lb.mul(a.y)));
+        F::axiom_eqv_transitive(
+            line_eval_a,
+            line.c.add(la.mul(a.x).add(lb.mul(a.y))),
+            F::zero());
+    };
+
+    // Step: line_eval(line, proj) ≡ line_eval_a + t*(la*dx + lb*dy) ≡ 0 + t*0 ≡ 0
+    // By distribution: la*(ax + t*dx) = la*ax + la*(t*dx) = la*ax + t*(la*dx)
+    // Similarly for lb*(ay + t*dy) = lb*ay + t*(lb*dy)
+    // So line_eval(line, proj) = (la*ax + lb*ay + lc) + t*(la*dx + lb*dy)
+    //                          = line_eval_a + t*(la*dx + lb*dy)
+    let line_eval_proj = la.mul(proj_x).add(lb.mul(proj_y)).add(line.c);
+    assert(line_eval_proj.eqv(F::zero())) by {
+        // Distribute: la*(ax + t*dx) = la*ax + la*t*dx
+        F::axiom_mul_distributes_left(la, a.x, t.mul(dx));
+        F::axiom_mul_distributes_left(lb, a.y, t.mul(dy));
+        // la*(t*dx) = (la*t)*dx... but we need t*(la*dx)
+        // la*t ≡ t*la by commutativity, then (t*la)*dx = t*(la*dx) by assoc
+        // Actually let's just use: la*proj_x + lb*proj_y + lc
+        //   ≡ (la*ax + la*(t*dx)) + (lb*ay + lb*(t*dy)) + lc
+        //   ≡ (la*ax + lb*ay + lc) + (la*(t*dx) + lb*(t*dy))
+        //   = line_eval_a + (la*t*dx + lb*t*dy)
+        //   = line_eval_a + t*(la*dx + lb*dy)    [factor t out]
+        //   ≡ 0 + t*0 = 0
+
+        // la*t*dx = t*(la*dx): la*(t*dx) = (la*t)*dx = (t*la)*dx = t*(la*dx)
+        F::axiom_mul_associative(la, t, dx);
+        F::axiom_mul_commutative(la, t);
+        F::axiom_mul_congruence_left(la.mul(t), t.mul(la), dx);
+        F::axiom_mul_associative(t, la, dx);
+        F::axiom_eqv_transitive(la.mul(t).mul(dx), t.mul(la).mul(dx), t.mul(la.mul(dx)));
+        F::axiom_eqv_symmetric(la.mul(t).mul(dx), la.mul(t.mul(dx)));
+        F::axiom_eqv_transitive(la.mul(t.mul(dx)), la.mul(t).mul(dx), t.mul(la.mul(dx)));
+
+        // lb*t*dy = t*(lb*dy) similarly
+        F::axiom_mul_associative(lb, t, dy);
+        F::axiom_mul_commutative(lb, t);
+        F::axiom_mul_congruence_left(lb.mul(t), t.mul(lb), dy);
+        F::axiom_mul_associative(t, lb, dy);
+        F::axiom_eqv_transitive(lb.mul(t).mul(dy), t.mul(lb).mul(dy), t.mul(lb.mul(dy)));
+        F::axiom_eqv_symmetric(lb.mul(t).mul(dy), lb.mul(t.mul(dy)));
+        F::axiom_eqv_transitive(lb.mul(t.mul(dy)), lb.mul(t).mul(dy), t.mul(lb.mul(dy)));
+
+        // t*(la*dx) + t*(lb*dy) ≡ t*(la*dx + lb*dy) by distribution
+        lemma_add_congruence::<F>(
+            la.mul(t.mul(dx)), t.mul(la.mul(dx)),
+            lb.mul(t.mul(dy)), t.mul(lb.mul(dy)));
+        F::axiom_mul_distributes_left(t, la.mul(dx), lb.mul(dy));
+        F::axiom_eqv_symmetric(
+            t.mul(la.mul(dx).add(lb.mul(dy))),
+            t.mul(la.mul(dx)).add(t.mul(lb.mul(dy))));
+        F::axiom_eqv_transitive(
+            la.mul(t.mul(dx)).add(lb.mul(t.mul(dy))),
+            t.mul(la.mul(dx)).add(t.mul(lb.mul(dy))),
+            t.mul(la.mul(dx).add(lb.mul(dy))));
+
+        // t*(la*dx + lb*dy) ≡ t*0 ≡ 0
+        lemma_mul_congruence_right::<F>(t, la.mul(dx).add(lb.mul(dy)), F::zero());
+        F::axiom_mul_commutative(t, F::zero());
+        lemma_mul_zero_left::<F>(t);
+        F::axiom_eqv_transitive(t.mul(la.mul(dx).add(lb.mul(dy))), t.mul(F::zero()), F::zero().mul(t));
+        F::axiom_eqv_transitive(t.mul(la.mul(dx).add(lb.mul(dy))), F::zero().mul(t), F::zero());
+        F::axiom_eqv_transitive(
+            la.mul(t.mul(dx)).add(lb.mul(t.mul(dy))),
+            t.mul(la.mul(dx).add(lb.mul(dy))),
+            F::zero());
+
+        // line_eval(line, proj):
+        // la*proj_x + lb*proj_y
+        //   = la*(ax + t*dx) + lb*(ay + t*dy)
+        //   ≡ (la*ax + la*(t*dx)) + (lb*ay + lb*(t*dy))  [distribute]
+        //   ≡ (la*ax + lb*ay) + (la*(t*dx) + lb*(t*dy))  [exchange]
+        lemma_add_congruence::<F>(
+            la.mul(proj_x), la.mul(a.x).add(la.mul(t.mul(dx))),
+            lb.mul(proj_y), lb.mul(a.y).add(lb.mul(t.mul(dy))));
+        lemma_add_exchange::<F>(la.mul(a.x), la.mul(t.mul(dx)), lb.mul(a.y), lb.mul(t.mul(dy)));
+        F::axiom_eqv_transitive(
+            la.mul(proj_x).add(lb.mul(proj_y)),
+            la.mul(a.x).add(la.mul(t.mul(dx))).add(lb.mul(a.y).add(lb.mul(t.mul(dy)))),
+            la.mul(a.x).add(lb.mul(a.y)).add(la.mul(t.mul(dx)).add(lb.mul(t.mul(dy)))));
+
+        // + lc:
+        // ((la*ax + lb*ay) + (la*t*dx + lb*t*dy)) + lc
+        // = (la*ax + lb*ay + lc) + (la*t*dx + lb*t*dy)   [assoc]
+        // = line_eval_a + (la*t*dx + lb*t*dy) ≡ 0 + 0 ≡ 0
+        F::axiom_eqv_reflexive(line.c);
+        lemma_add_congruence::<F>(
+            la.mul(proj_x).add(lb.mul(proj_y)),
+            la.mul(a.x).add(lb.mul(a.y)).add(la.mul(t.mul(dx)).add(lb.mul(t.mul(dy)))),
+            line.c, line.c);
+        F::axiom_eqv_reflexive(line.c);
+        F::axiom_add_associative(
+            la.mul(a.x).add(lb.mul(a.y)),
+            la.mul(t.mul(dx)).add(lb.mul(t.mul(dy))),
+            line.c);
+        F::axiom_add_commutative(la.mul(t.mul(dx)).add(lb.mul(t.mul(dy))), line.c);
+        F::axiom_add_congruence_left(
+            la.mul(t.mul(dx)).add(lb.mul(t.mul(dy))).add(line.c),
+            line.c.add(la.mul(t.mul(dx)).add(lb.mul(t.mul(dy)))),
+            la.mul(a.x).add(lb.mul(a.y)));
+        // ((la*ax+lb*ay) + T) + lc where T = la*t*dx + lb*t*dy ≡ 0
+        // by exchange: = (la*ax+lb*ay+lc) + T = line_eval_a + T ≡ 0 + 0 = 0
+        // Use assoc: ((A+B)+T)+lc = (A+B)+(T+lc) = (A+B)+(lc+T) [comm] = ((A+B)+lc)+T [assoc]
+        // Actually: use exchange on (la*ax+lb*ay, T, lc) — but exchange is 4-arg.
+        // Simpler: ((la*ax+lb*ay) + T) + lc
+        //  = (la*ax+lb*ay) + (T + lc)   [assoc]
+        //  = (la*ax+lb*ay) + (lc + T)   [comm T,lc]
+        //  = ((la*ax+lb*ay) + lc) + T   [assoc back]
+        //  = line_eval_a + T
+        let AB = la.mul(a.x).add(lb.mul(a.y));
+        let T = la.mul(t.mul(dx)).add(lb.mul(t.mul(dy)));
+        F::axiom_add_associative(AB, T, line.c);
+        F::axiom_add_commutative(T, line.c);
+        F::axiom_add_congruence_left(T.add(line.c), line.c.add(T), AB);
+        F::axiom_eqv_transitive(AB.add(T.add(line.c)), AB.add(line.c.add(T)), AB.add(line.c.add(T)));
+        F::axiom_add_associative(AB, line.c, T);
+        F::axiom_eqv_symmetric(AB.add(line.c).add(T), AB.add(line.c.add(T)));
+        F::axiom_eqv_transitive(AB.add(T.add(line.c)), AB.add(line.c.add(T)), AB.add(line.c).add(T));
+        F::axiom_eqv_symmetric(AB.add(T).add(line.c), AB.add(T.add(line.c)));
+        F::axiom_eqv_transitive(AB.add(T).add(line.c), AB.add(T.add(line.c)), AB.add(line.c).add(T));
+        // AB.add(T).add(line.c) ≡ (AB + lc) + T = line_eval_a + T
+        // line_eval_a ≡ 0, T ≡ 0
+        // 0 + 0 ≡ 0
+        lemma_add_congruence::<F>(AB.add(line.c), F::zero(), T, F::zero());
+        lemma_add_zero_left::<F>(F::zero());
+        F::axiom_eqv_transitive(AB.add(line.c).add(T), F::zero().add(F::zero()), F::zero());
+        F::axiom_eqv_transitive(AB.add(T).add(line.c), AB.add(line.c).add(T), F::zero());
+        // line_eval_proj ≡ la*proj_x+lb*proj_y+lc ≡ AB+T+lc ≡ 0
+        F::axiom_eqv_transitive(
+            line_eval_proj,
+            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c),
+            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c)); // trivial
+        // Actually line_eval_proj == la*proj_x+lb*proj_y+lc structurally, so:
+        // Need to chain la*proj_x+lb*proj_y ≡ AB+T:
+        F::axiom_eqv_transitive(
+            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c),
+            AB.add(T).add(line.c),
+            F::zero());
+    };
+
+    // Now: la*(px+rx) + lb*(py+ry) + two*lc
+    //    ≡ la*(two*proj_x) + lb*(two*proj_y) + two*lc   [by facts 1,2]
+    //    = two*(la*proj_x) + two*(lb*proj_y) + two*lc    [factor]
+    //    = two*(la*proj_x + lb*proj_y + lc)              [factor]
+    //    = two * line_eval_proj ≡ two * 0 ≡ 0
+    // Congruence from facts 1,2:
+    // la*(px+rx) ≡ la*(two*proj_x) by congruence
+    lemma_mul_congruence_right::<F>(la, p.x.add(r.x), two.mul(proj_x));
+    // la*(two*proj_x) = (la*two)*proj_x = (two*la)*proj_x = two*(la*proj_x)
+    F::axiom_mul_associative(la, two, proj_x);
+    F::axiom_mul_commutative(la, two);
+    F::axiom_mul_congruence_left(la.mul(two), two.mul(la), proj_x);
+    F::axiom_mul_associative(two, la, proj_x);
+    F::axiom_eqv_transitive(la.mul(two).mul(proj_x), two.mul(la).mul(proj_x), two.mul(la.mul(proj_x)));
+    F::axiom_eqv_symmetric(la.mul(two).mul(proj_x), la.mul(two.mul(proj_x)));
+    F::axiom_eqv_transitive(la.mul(two.mul(proj_x)), la.mul(two).mul(proj_x), two.mul(la.mul(proj_x)));
+    F::axiom_eqv_transitive(la.mul(p.x.add(r.x)), la.mul(two.mul(proj_x)), two.mul(la.mul(proj_x)));
+
+    // lb*(py+ry) ≡ two*(lb*proj_y) — same argument
+    lemma_mul_congruence_right::<F>(lb, p.y.add(r.y), two.mul(proj_y));
+    F::axiom_mul_associative(lb, two, proj_y);
+    F::axiom_mul_commutative(lb, two);
+    F::axiom_mul_congruence_left(lb.mul(two), two.mul(lb), proj_y);
+    F::axiom_mul_associative(two, lb, proj_y);
+    F::axiom_eqv_transitive(lb.mul(two).mul(proj_y), two.mul(lb).mul(proj_y), two.mul(lb.mul(proj_y)));
+    F::axiom_eqv_symmetric(lb.mul(two).mul(proj_y), lb.mul(two.mul(proj_y)));
+    F::axiom_eqv_transitive(lb.mul(two.mul(proj_y)), lb.mul(two).mul(proj_y), two.mul(lb.mul(proj_y)));
+    F::axiom_eqv_transitive(lb.mul(p.y.add(r.y)), lb.mul(two.mul(proj_y)), two.mul(lb.mul(proj_y)));
+
+    // Now: la*(px+rx) + lb*(py+ry) + two*lc
+    //    ≡ two*(la*proj_x) + two*(lb*proj_y) + two*lc
+    //    = two*(la*proj_x + lb*proj_y + lc)  [factor]
+    //    = two*line_eval_proj ≡ two*0 ≡ 0
+    lemma_add_congruence::<F>(
+        la.mul(p.x.add(r.x)), two.mul(la.mul(proj_x)),
+        lb.mul(p.y.add(r.y)), two.mul(lb.mul(proj_y)));
+    // two*A + two*B = two*(A+B) by distribution
+    F::axiom_mul_distributes_left(two, la.mul(proj_x), lb.mul(proj_y));
+    F::axiom_eqv_symmetric(
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y))),
+        two.mul(la.mul(proj_x)).add(two.mul(lb.mul(proj_y))));
+    F::axiom_eqv_transitive(
+        la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))),
+        two.mul(la.mul(proj_x)).add(two.mul(lb.mul(proj_y))),
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y))));
+    // + two*lc:
+    lemma_add_congruence::<F>(
+        la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))),
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y))),
+        two.mul(line.c), two.mul(line.c));
+    F::axiom_eqv_reflexive(two.mul(line.c));
+    // two*(A+B) + two*C = two*(A+B+C)
+    F::axiom_mul_distributes_left(two, la.mul(proj_x).add(lb.mul(proj_y)), line.c);
+    F::axiom_eqv_symmetric(
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y)).add(line.c)),
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y))).add(two.mul(line.c)));
+    F::axiom_eqv_transitive(
+        la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))).add(two.mul(line.c)),
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y))).add(two.mul(line.c)),
+        two.mul(la.mul(proj_x).add(lb.mul(proj_y)).add(line.c)));
+    // two * line_eval_proj ≡ two * 0 ≡ 0
+    lemma_mul_congruence_right::<F>(two, line_eval_proj, F::zero());
+    F::axiom_mul_commutative(two, F::zero());
+    lemma_mul_zero_left::<F>(two);
+    F::axiom_eqv_transitive(two.mul(line_eval_proj), two.mul(F::zero()), F::zero().mul(two));
+    F::axiom_eqv_transitive(two.mul(line_eval_proj), F::zero().mul(two), F::zero());
+    F::axiom_eqv_transitive(
+        la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))).add(two.mul(line.c)),
+        two.mul(line_eval_proj),
+        F::zero());
+}
+
 } // verus!
