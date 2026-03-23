@@ -981,4 +981,345 @@ proof fn lemma_add_sub_cancel_common<F: OrderedField>(a: F, b: F, c: F)
         a.sub(b));
 }
 
+// TODO: To complete the Symmetric decomposition proof, prove:
+// 1. lemma_reflect_satisfies_perp: dot(reflect(p,a,b) - p, d) ≡ 0
+// 2. lemma_reflect_midpoint_on_axis: midpoint(p, reflect(p,a,b)) on line(a,b)
+// Then combine with lemma_2x2_trivial_solution to get:
+//   perp(q-p, d) && midpoint_on_axis(p,q) ==> q.eqv(reflect(p,a,b))
+// The algebraic expansion is very tedious (~200 lines of field axiom calls)
+// due to reflect_point_across_line involving division.
+
+/// reflect(p, a, b) satisfies perpendicularity: dot(reflect - p, d) ≡ 0.
+/// INCOMPLETE: the algebraic proof requires expanding the reflect formula
+/// through division and showing cancellation. The key insight is that
+/// t*dot_dd ≡ dot_pad (by div_mul_cancel), which makes dot(r-p, d) = 2*(t*dot_dd - dot_pad) = 0.
+pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
+    p: Point2<F>, a: Point2<F>, b: Point2<F>,
+)
+    requires
+        !sub2(b, a).x.mul(sub2(b, a).x).add(sub2(b, a).y.mul(sub2(b, a).y)).eqv(F::zero()),
+    ensures ({
+        let d = sub2(b, a);
+        let r = reflect_point_across_line(p, a, b);
+        sub2(r, p).x.mul(d.x).add(sub2(r, p).y.mul(d.y)).eqv(F::zero())
+    }),
+{
+    let d = sub2(b, a);
+    let dx = d.x;
+    let dy = d.y;
+    let pa = sub2(p, a);
+    let dot_dd = dx.mul(dx).add(dy.mul(dy));
+    let dot_pad = pa.x.mul(dx).add(pa.y.mul(dy));
+    let t = dot_pad.div(dot_dd);
+    let two = F::one().add(F::one());
+
+    // Key fact: t*dot_dd ≡ dot_pad
+    verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel::<F>(dot_pad, dot_dd);
+    assert(t.mul(dot_dd).eqv(dot_pad));
+
+    // t*dx² ≡ t*dx*dx. By associativity: t*(dx*dx) = (t*dx)*dx
+    F::axiom_mul_associative(t, dx, dx);
+    // t*dy² similarly
+    F::axiom_mul_associative(t, dy, dy);
+    // t*dot_dd = t*(dx²+dy²) = t*dx² + t*dy² by distributivity
+    F::axiom_mul_distributes_left(t, dx.mul(dx), dy.mul(dy));
+    // So t*dx² + t*dy² ≡ dot_pad = pa.x*dx + pa.y*dy
+
+    // The reflect formula:
+    // r.x = two * (a.x + t*dx) - p.x
+    // r.y = two * (a.y + t*dy) - p.y
+    // (r.x - p.x) = two*(a.x + t*dx) - p.x - p.x = two*(a.x + t*dx) - two*p.x
+    //             = two*(a.x + t*dx - p.x) = two*(t*dx - (p.x - a.x)) = two*(t*dx - pa.x)
+    // dot(r-p, d) = (r.x-p.x)*dx + (r.y-p.y)*dy
+    //             = two*(t*dx - pa.x)*dx + two*(t*dy - pa.y)*dy
+    //             = two*(t*dx*dx - pa.x*dx + t*dy*dy - pa.y*dy)
+    //             = two*((t*dx*dx + t*dy*dy) - (pa.x*dx + pa.y*dy))
+    //             = two*(t*dot_dd - dot_pad)
+    //             = two*0 = 0
+
+    // Help Z3 along: assert the sub-result
+    // t*dx*dx + t*dy*dy ≡ t*(dx²+dy²) ≡ dot_pad
+    assert(t.mul(dx.mul(dx)).add(t.mul(dy.mul(dy))).eqv(dot_pad)) by {
+        // t*(dx²+dy²) = t*dx² + t*dy² by distributivity
+        F::axiom_mul_distributes_left(t, dx.mul(dx), dy.mul(dy));
+        // Reverse: t*dx² + t*dy² ≡ t*(dx²+dy²)
+        F::axiom_eqv_symmetric(
+            t.mul(dx.mul(dx).add(dy.mul(dy))),
+            t.mul(dx.mul(dx)).add(t.mul(dy.mul(dy))));
+        // t*(dx²+dy²) = t*dot_dd (structural equality, no axiom needed)
+        // Chain: t*dx²+t*dy² ≡ t*(dx²+dy²) = t*dot_dd ≡ dot_pad
+        F::axiom_eqv_transitive(
+            t.mul(dx.mul(dx)).add(t.mul(dy.mul(dy))),
+            t.mul(dx.mul(dx).add(dy.mul(dy))),
+            dot_pad);
+    };
+
+    // t*dx*dx - pa.x*dx = (t*dx - pa.x)*dx
+    // This is: dx*(t*dx - pa.x) by commutativity
+    // We need to show the full expression equals zero.
+    // sub2(r, p).x = r.x - p.x = two*(a.x + t*dx) - p.x - p.x
+    // sub2(r, p).x = two.mul(a.x.add(t.mul(dx))).sub(p.x).sub(p.x)
+    // Actually sub2(r, p) = Point2 { x: r.x.sub(p.x), y: r.y.sub(p.y) }
+    // r.x = two.mul(proj_x).sub(p.x) where proj_x = a.x.add(t.mul(dx))
+    // so r.x.sub(p.x) = two.mul(a.x.add(t.mul(dx))).sub(p.x).sub(p.x)
+
+    // This is getting very complex with the sub2 expansion.
+    // Let me try a different approach: provide more Z3 hints.
+
+    // Hint: proj_x = a.x + t*dx, proj_y = a.y + t*dy
+    let proj_x = a.x.add(t.mul(dx));
+    let proj_y = a.y.add(t.mul(dy));
+
+    // proj is on line through a in direction d:
+    // proj - a = (t*dx, t*dy), which is parallel to d
+    // So dot(proj - a, d_perp) = 0 where d_perp = (-dy, dx)
+
+    // r = 2*proj - p, so r - p = 2*proj - 2*p = 2*(proj - p)
+    // dot(r-p, d) = 2*dot(proj-p, d) = 2*(dot(proj-a, d) + dot(a-p, d))
+    //             = 2*(dot(proj-a, d) - dot(pa, d))
+    //             = 2*(t*dot_dd - dot_pad) = 2*0 = 0
+    //
+    // dot(proj-a, d) = t*dx*dx + t*dy*dy = t*(dx²+dy²) = t*dot_dd ≡ dot_pad
+    // So dot(proj-a, d) - dot_pad ≡ 0
+
+    // Instead of expanding everything, let me try providing just the key assertions
+    // and let Z3 connect them through the function definitions.
+
+    // Key assertion 1: proj - a = (t*dx, t*dy)
+    // proj_x = a.x + t*dx. proj_x - a.x = (a.x + t*dx) - a.x ≡ t*dx
+    // Use: (a+b)-a ≡ b. Verus has (a+b)-b ≡ a, so need comm first.
+    assert(proj_x.sub(a.x).eqv(t.mul(dx))) by {
+        // proj_x = a.x + t*dx, need: (a.x + t*dx) - a.x ≡ t*dx
+        // Commute: a.x + t*dx ≡ t*dx + a.x
+        F::axiom_add_commutative(a.x, t.mul(dx));
+        // (t*dx + a.x) - a.x ≡ t*dx by add_then_sub_cancel
+        lemma_add_then_sub_cancel::<F>(t.mul(dx), a.x);
+        // sub congruence: proj_x ≡ t*dx + a.x from commutativity
+        // (a.x + t*dx) - a.x ≡ (t*dx + a.x) - a.x = t*dx
+        F::axiom_eqv_reflexive(a.x);
+        lemma_sub_congruence::<F>(
+            a.x.add(t.mul(dx)), t.mul(dx).add(a.x), a.x, a.x);
+        F::axiom_eqv_transitive(
+            a.x.add(t.mul(dx)).sub(a.x),
+            t.mul(dx).add(a.x).sub(a.x),
+            t.mul(dx));
+    };
+    assert(proj_y.sub(a.y).eqv(t.mul(dy))) by {
+        F::axiom_add_commutative(a.y, t.mul(dy));
+        lemma_add_then_sub_cancel::<F>(t.mul(dy), a.y);
+        F::axiom_eqv_reflexive(a.y);
+        lemma_sub_congruence::<F>(
+            a.y.add(t.mul(dy)), t.mul(dy).add(a.y), a.y, a.y);
+        F::axiom_eqv_transitive(
+            a.y.add(t.mul(dy)).sub(a.y),
+            t.mul(dy).add(a.y).sub(a.y),
+            t.mul(dy));
+    };
+
+    // Key assertion 2: dot(proj-a, d) ≡ t*dot_dd
+    assert(proj_x.sub(a.x).mul(dx).add(proj_y.sub(a.y).mul(dy)).eqv(t.mul(dot_dd))) by {
+        // (t*dx)*dx + (t*dy)*dy = t*dx² + t*dy² = t*(dx²+dy²) = t*dot_dd
+        F::axiom_mul_congruence_left(proj_x.sub(a.x), t.mul(dx), dx);
+        F::axiom_mul_congruence_left(proj_y.sub(a.y), t.mul(dy), dy);
+        F::axiom_mul_associative(t, dx, dx);
+        F::axiom_mul_associative(t, dy, dy);
+        F::axiom_eqv_transitive(proj_x.sub(a.x).mul(dx), t.mul(dx).mul(dx), t.mul(dx.mul(dx)));
+        F::axiom_eqv_transitive(proj_y.sub(a.y).mul(dy), t.mul(dy).mul(dy), t.mul(dy.mul(dy)));
+        lemma_add_congruence::<F>(
+            proj_x.sub(a.x).mul(dx), t.mul(dx.mul(dx)),
+            proj_y.sub(a.y).mul(dy), t.mul(dy.mul(dy)));
+        F::axiom_mul_distributes_left(t, dx.mul(dx), dy.mul(dy));
+        F::axiom_eqv_symmetric(
+            t.mul(dx.mul(dx).add(dy.mul(dy))),
+            t.mul(dx.mul(dx)).add(t.mul(dy.mul(dy))));
+        F::axiom_eqv_transitive(
+            proj_x.sub(a.x).mul(dx).add(proj_y.sub(a.y).mul(dy)),
+            t.mul(dx.mul(dx)).add(t.mul(dy.mul(dy))),
+            t.mul(dot_dd));
+    };
+
+    // Key assertion 3: dot(proj-a, d) ≡ dot_pad (from t*dot_dd ≡ dot_pad)
+    assert(proj_x.sub(a.x).mul(dx).add(proj_y.sub(a.y).mul(dy)).eqv(dot_pad)) by {
+        F::axiom_eqv_transitive(
+            proj_x.sub(a.x).mul(dx).add(proj_y.sub(a.y).mul(dy)),
+            t.mul(dot_dd),
+            dot_pad);
+    };
+
+    // Key assertion 4: dot(proj-a, d) - dot_pad ≡ 0
+    let dot_proj_a_d = proj_x.sub(a.x).mul(dx).add(proj_y.sub(a.y).mul(dy));
+    // dot_proj_a_d ≡ dot_pad (from assertion 3 above)
+    // dot_proj_a_d - dot_pad ≡ dot_pad - dot_pad ≡ 0
+    F::axiom_eqv_reflexive(dot_pad);
+    lemma_sub_congruence::<F>(dot_proj_a_d, dot_pad, dot_pad, dot_pad);
+    lemma_sub_self::<F>(dot_pad);
+    F::axiom_eqv_transitive(dot_proj_a_d.sub(dot_pad), dot_pad.sub(dot_pad), F::zero());
+
+    // Now bridge to the postcondition.
+    // sub2(r, p).x = r.x - p.x = (two*proj_x - p.x) - p.x
+    // We need: sub2(r,p).x ≡ two*(proj_x - p.x) = two*((proj_x-a.x) - pa.x) = two*(t*dx - pa.x)
+    //
+    // Step 5: (two*proj_x - p.x) - p.x ≡ two*proj_x - two*p.x
+    // = two*(proj_x - p.x) by distribution (factoring two out)
+    //
+    // Actually, sub2(r, p).x.mul(dx) + sub2(r,p).y.mul(dy)
+    // = (two*proj_x - px - px)*dx + (two*proj_y - py - py)*dy
+    //
+    // Let's try: prove that the result ≡ two*(dot_proj_a_d - dot_pad) ≡ two*0 ≡ 0.
+    //
+    // dot(r-p, d) = (r.x-p.x)*dx + (r.y-p.y)*dy
+    //
+    // r.x-p.x = two*proj_x - p.x - p.x
+    //         ≡ two*proj_x - two*p.x  [need to prove this]
+    //         = two*(proj_x - p.x)     [need distribution]
+    //
+    // For now, let's try asserting the key subgoal and see if Z3 connects:
+
+    // Step 5: sub2(r,p).x ≡ two.mul(proj_x.sub(p.x))
+    let rx_sub_px = sub2(reflect_point_across_line(p, a, b), p).x;
+    assert(rx_sub_px.eqv(two.mul(proj_x.sub(p.x)))) by {
+        // rx_sub_px = (two*proj_x - p.x) - p.x
+        // two*proj_x - p.x - p.x = (two*proj_x - p.x) + (-p.x)
+        // = two*proj_x + (-p.x) + (-p.x)    [sub = add neg]
+        // = two*proj_x + ((-p.x) + (-p.x))   [assoc]
+        // = two*proj_x - (p.x + p.x)         [neg distributes back]
+        // = two*proj_x - two*p.x             [1+1 = two, p.x + p.x = two*p.x... hmm]
+        //
+        // Actually simpler: two*(proj_x - p.x) = two*proj_x - two*p.x by distribution
+        // two*proj_x - two*p.x ≡ (two*proj_x - p.x) - p.x? Yes:
+        // (a - b) - b = a - 2b vs a - 2b. Same thing.
+        // Need: (two*proj_x - p.x) - p.x ≡ two*proj_x - two*p.x
+        //
+        // sub(sub(a, b), b) ≡ sub(a, add(b, b))
+        // sub(a, add(b, b)) ≡ sub(a, two*b) when add(b,b) ≡ two*b
+
+        // Let's try: two*(proj_x - p.x) = two*proj_x - two*p.x by mul_distributes_left... wait
+        // Actually: two.mul(proj_x.sub(p.x)) = two.mul(proj_x.add(p.x.neg()))
+        // By distribution: = two.mul(proj_x).add(two.mul(p.x.neg()))
+        // two.mul(p.x.neg()) = -(two.mul(p.x)) by mul_neg_right
+        // So = two*proj_x + (-(two*p.x)) = two*proj_x - two*p.x
+
+        // And rx_sub_px = (two*proj_x - p.x) - p.x
+        // = (two*proj_x - p.x) + (-p.x) = two*proj_x + (-p.x) + (-p.x)
+        // = two*proj_x + (-p.x + -p.x)
+        // -p.x + -p.x ≡ -(p.x + p.x) by neg_add reversed... hmm
+        // Actually: -(p.x) + -(p.x) ≡ -(p.x + p.x) by neg distributes over add
+
+        // So we need: -(p.x + p.x) ≡ -(two * p.x)
+        // i.e. p.x + p.x ≡ two * p.x
+        // p.x + p.x = 1*p.x + 1*p.x = (1+1)*p.x = two*p.x by distribution
+
+        // This is doable but takes many steps. Let Z3 try with a strong hint:
+        F::axiom_sub_is_add_neg(two.mul(proj_x).sub(p.x), p.x);
+        F::axiom_sub_is_add_neg(two.mul(proj_x), p.x);
+        F::axiom_sub_is_add_neg(proj_x, p.x);
+        F::axiom_mul_distributes_left(two, proj_x, p.x.neg());
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(two, p.x);
+    };
+
+    let ry_sub_py = sub2(reflect_point_across_line(p, a, b), p).y;
+    assert(ry_sub_py.eqv(two.mul(proj_y.sub(p.y)))) by {
+        F::axiom_sub_is_add_neg(two.mul(proj_y).sub(p.y), p.y);
+        F::axiom_sub_is_add_neg(two.mul(proj_y), p.y);
+        F::axiom_sub_is_add_neg(proj_y, p.y);
+        F::axiom_mul_distributes_left(two, proj_y, p.y.neg());
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(two, p.y);
+    };
+
+    // Step 6: dot(r-p, d) ≡ two * dot(proj-p, d)
+    // = two * ((proj_x-p.x)*dx + (proj_y-p.y)*dy)
+    // proj_x - p.x = (proj_x - a.x) - (p.x - a.x) = t*dx - pa.x
+    // So dot(proj-p, d) = (t*dx - pa.x)*dx + (t*dy - pa.y)*dy
+    //                   = t*dx² - pa.x*dx + t*dy² - pa.y*dy
+    //                   = (t*dx² + t*dy²) - (pa.x*dx + pa.y*dy)
+    //                   = t*dot_dd - dot_pad ≡ 0
+    // So dot(r-p, d) ≡ two * 0 ≡ 0
+
+    // Hmm, this is still complex. Let me try providing just rx_sub_px ≡ two*(proj_x - p.x)
+    // and let Z3 handle the rest through distribution.
+
+    // Actually, let me try: assert the full dot product using the sub-results
+    assert(rx_sub_px.mul(dx).add(ry_sub_py.mul(dy)).eqv(
+        two.mul(proj_x.sub(p.x).mul(dx).add(proj_y.sub(p.y).mul(dy))))) by {
+        // rx_sub_px ≡ two*(proj_x - p.x), so rx_sub_px * dx ≡ two*(proj_x-p.x) * dx
+        F::axiom_mul_congruence_left(rx_sub_px, two.mul(proj_x.sub(p.x)), dx);
+        F::axiom_mul_associative(two, proj_x.sub(p.x), dx);
+        F::axiom_eqv_transitive(
+            rx_sub_px.mul(dx),
+            two.mul(proj_x.sub(p.x)).mul(dx),
+            two.mul(proj_x.sub(p.x).mul(dx)));
+
+        F::axiom_mul_congruence_left(ry_sub_py, two.mul(proj_y.sub(p.y)), dy);
+        F::axiom_mul_associative(two, proj_y.sub(p.y), dy);
+        F::axiom_eqv_transitive(
+            ry_sub_py.mul(dy),
+            two.mul(proj_y.sub(p.y)).mul(dy),
+            two.mul(proj_y.sub(p.y).mul(dy)));
+
+        lemma_add_congruence::<F>(
+            rx_sub_px.mul(dx), two.mul(proj_x.sub(p.x).mul(dx)),
+            ry_sub_py.mul(dy), two.mul(proj_y.sub(p.y).mul(dy)));
+
+        // two*A + two*B = two*(A+B)
+        F::axiom_mul_distributes_left(two, proj_x.sub(p.x).mul(dx), proj_y.sub(p.y).mul(dy));
+        F::axiom_eqv_symmetric(
+            two.mul(proj_x.sub(p.x).mul(dx).add(proj_y.sub(p.y).mul(dy))),
+            two.mul(proj_x.sub(p.x).mul(dx)).add(two.mul(proj_y.sub(p.y).mul(dy))));
+        F::axiom_eqv_transitive(
+            rx_sub_px.mul(dx).add(ry_sub_py.mul(dy)),
+            two.mul(proj_x.sub(p.x).mul(dx)).add(two.mul(proj_y.sub(p.y).mul(dy))),
+            two.mul(proj_x.sub(p.x).mul(dx).add(proj_y.sub(p.y).mul(dy))));
+    };
+
+    // Step 7: proj_x - p.x = (proj_x - a.x) - (p.x - a.x) = (proj_x - a.x) - pa.x
+    // So dot(proj-p, d) = (proj_x-p.x)*dx + (proj_y-p.y)*dy
+    // proj_x - p.x = (proj_x - a.x) + (a.x - p.x) = (proj_x - a.x) - pa.x
+    // Need: (proj_x-p.x)*dx ≡ (proj_x-a.x)*dx - pa.x*dx
+    // i.e. proj_x.sub(p.x).mul(dx) ≡ proj_x.sub(a.x).mul(dx).sub(pa.x.mul(dx))
+    // This follows from: proj_x - p.x = (proj_x - a.x) - pa.x by additive group
+    //   and then distributing mul.
+    //
+    // Alternatively: dot(proj-p, d) = dot(proj-a, d) - dot(pa, d) = dot_proj_a_d - dot_pad
+    // dot_proj_a_d - dot_pad ≡ 0 (proved above)
+
+    // Let me try: assert dot(proj-p, d) ≡ dot_proj_a_d - dot_pad
+    let dot_proj_p_d = proj_x.sub(p.x).mul(dx).add(proj_y.sub(p.y).mul(dy));
+    assert(dot_proj_p_d.eqv(dot_proj_a_d.sub(dot_pad))) by {
+        // proj_x - p.x = (proj_x - a.x) - (p.x - a.x)
+        // (proj_x - a.x) - pa.x
+        // proj_x - p.x ≡ (proj_x - a.x) + (a.x - p.x)
+        // a.x - p.x = -(p.x - a.x) = -pa.x
+        // So proj_x - p.x = (proj_x - a.x) - pa.x
+        lemma_sub_then_add_cancel::<F>(p.x, a.x);
+        // (p.x - a.x) + a.x ≡ p.x, i.e. pa.x + a.x ≡ p.x
+        // proj_x - p.x = proj_x - (pa.x + a.x) = proj_x - pa.x - a.x = (proj_x - a.x) - pa.x
+        // This is getting complicated. Let me just let Z3 try with the sub_is_add_neg expansions.
+        F::axiom_sub_is_add_neg(proj_x, p.x);
+        F::axiom_sub_is_add_neg(proj_x, a.x);
+        F::axiom_sub_is_add_neg(dot_proj_a_d, dot_pad);
+    };
+
+    // Step 8: dot(r-p, d) ≡ two * (dot_proj_a_d - dot_pad) ≡ two * 0 ≡ 0
+    assert(rx_sub_px.mul(dx).add(ry_sub_py.mul(dy)).eqv(F::zero())) by {
+        // From step 6: dot(r-p,d) ≡ two * dot(proj-p, d)
+        // From step 7: dot(proj-p, d) ≡ dot_proj_a_d - dot_pad
+        // From step 4: dot_proj_a_d - dot_pad ≡ 0
+        // So: two * dot(proj-p,d) ≡ two * 0 ≡ 0
+        lemma_mul_congruence_right::<F>(two, dot_proj_p_d, dot_proj_a_d.sub(dot_pad));
+        lemma_mul_congruence_right::<F>(two, dot_proj_a_d.sub(dot_pad), F::zero());
+        F::axiom_eqv_transitive(
+            two.mul(dot_proj_p_d),
+            two.mul(dot_proj_a_d.sub(dot_pad)),
+            two.mul(F::zero()));
+        F::axiom_mul_commutative(two, F::zero());
+        lemma_mul_zero_left::<F>(two);
+        F::axiom_eqv_transitive(two.mul(F::zero()), F::zero().mul(two), F::zero());
+        F::axiom_eqv_transitive(two.mul(dot_proj_p_d), two.mul(F::zero()), F::zero());
+        F::axiom_eqv_transitive(
+            rx_sub_px.mul(dx).add(ry_sub_py.mul(dy)),
+            two.mul(dot_proj_p_d),
+            F::zero());
+    };
+}
+
 } // verus!
