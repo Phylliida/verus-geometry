@@ -1933,33 +1933,35 @@ pub proof fn lemma_reflect_midpoint_on_axis<F: OrderedField>(
         //  = line_eval_a + T
         let AB = la.mul(a.x).add(lb.mul(a.y));
         let T = la.mul(t.mul(dx)).add(lb.mul(t.mul(dy)));
+        // Rearrange: (AB + T) + lc ≡ (AB + lc) + T
+        // by assoc: (AB+T)+lc ≡ AB+(T+lc)
         F::axiom_add_associative(AB, T, line.c);
+        F::axiom_eqv_symmetric(AB.add(T).add(line.c), AB.add(T.add(line.c)));
+        // comm: T+lc ≡ lc+T
         F::axiom_add_commutative(T, line.c);
-        F::axiom_add_congruence_left(T.add(line.c), line.c.add(T), AB);
-        F::axiom_eqv_transitive(AB.add(T.add(line.c)), AB.add(line.c.add(T)), AB.add(line.c.add(T)));
+        lemma_add_congruence_right::<F>(AB, T.add(line.c), line.c.add(T));
+        // assoc back: AB+(lc+T) ≡ (AB+lc)+T
         F::axiom_add_associative(AB, line.c, T);
         F::axiom_eqv_symmetric(AB.add(line.c).add(T), AB.add(line.c.add(T)));
+        // Chain: (AB+T)+lc ≡ AB+(T+lc) ≡ AB+(lc+T) ≡ (AB+lc)+T
         F::axiom_eqv_transitive(AB.add(T.add(line.c)), AB.add(line.c.add(T)), AB.add(line.c).add(T));
-        F::axiom_eqv_symmetric(AB.add(T).add(line.c), AB.add(T.add(line.c)));
         F::axiom_eqv_transitive(AB.add(T).add(line.c), AB.add(T.add(line.c)), AB.add(line.c).add(T));
-        // AB.add(T).add(line.c) ≡ (AB + lc) + T = line_eval_a + T
-        // line_eval_a ≡ 0, T ≡ 0
-        // 0 + 0 ≡ 0
+
+        // (AB+lc) ≡ line_eval_a ≡ 0, and T ≡ 0
+        // So (AB+lc) + T ≡ 0 + 0 ≡ 0
         lemma_add_congruence::<F>(AB.add(line.c), F::zero(), T, F::zero());
         lemma_add_zero_left::<F>(F::zero());
         F::axiom_eqv_transitive(AB.add(line.c).add(T), F::zero().add(F::zero()), F::zero());
         F::axiom_eqv_transitive(AB.add(T).add(line.c), AB.add(line.c).add(T), F::zero());
-        // line_eval_proj ≡ la*proj_x+lb*proj_y+lc ≡ AB+T+lc ≡ 0
-        F::axiom_eqv_transitive(
-            line_eval_proj,
-            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c),
-            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c)); // trivial
-        // Actually line_eval_proj == la*proj_x+lb*proj_y+lc structurally, so:
-        // Need to chain la*proj_x+lb*proj_y ≡ AB+T:
-        F::axiom_eqv_transitive(
-            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c),
-            AB.add(T).add(line.c),
-            F::zero());
+
+        // la*proj_x + lb*proj_y ≡ AB + T (from distribution + exchange above)
+        // So la*proj_x+lb*proj_y+lc ≡ AB+T+lc ≡ 0
+        lemma_add_congruence::<F>(
+            la.mul(proj_x).add(lb.mul(proj_y)), AB.add(T),
+            line.c, line.c);
+        F::axiom_eqv_reflexive(line.c);
+        // Already have la*proj_x+lb*proj_y ≡ AB+T from step above (line 1904)
+        // The add_congruence should give us line_eval_proj ≡ AB+T+lc ≡ 0
     };
 
     // Now: la*(px+rx) + lb*(py+ry) + two*lc
