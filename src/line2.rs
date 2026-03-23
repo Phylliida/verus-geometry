@@ -637,8 +637,9 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     // From eq1: dx*u + dy*v ≡ 0
     // Multiply by dx: dx²*u + dx*dy*v ≡ 0
     lemma_mul_congruence_right::<F>(dx, dx.mul(u).add(dy.mul(v)), F::zero());
+    // dx * 0 ≡ 0: use commutative + mul_zero_left
+    F::axiom_mul_commutative(dx, F::zero());
     lemma_mul_zero_left::<F>(dx);
-    F::axiom_mul_commutative(F::zero(), dx);
     F::axiom_eqv_transitive(dx.mul(F::zero()), F::zero().mul(dx), F::zero());
     F::axiom_eqv_transitive(
         dx.mul(dx.mul(u).add(dy.mul(v))),
@@ -671,8 +672,8 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     // Multiply by dy: -dy²*u + dx*dy*v ≡ 0
     // Actually multiply eq2 by dy: dy*(-dy*u + dx*v) ≡ 0
     lemma_mul_congruence_right::<F>(dy, dy.neg().mul(u).add(dx.mul(v)), F::zero());
+    F::axiom_mul_commutative(dy, F::zero());
     lemma_mul_zero_left::<F>(dy);
-    F::axiom_mul_commutative(F::zero(), dy);
     F::axiom_eqv_transitive(dy.mul(F::zero()), F::zero().mul(dy), F::zero());
     F::axiom_eqv_transitive(
         dy.mul(dy.neg().mul(u).add(dx.mul(v))),
@@ -712,11 +713,10 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     lemma_add_congruence::<F>(
         dy.mul(dy.neg()).mul(u), dy.mul(dy).neg().mul(u),
         dy.mul(dx).mul(v), dx.mul(dy).mul(v));
-    F::axiom_eqv_transitive(
+    // Chain: -(dy²)*u + (dx*dy)*v ≡ (dy*-dy)*u + (dy*dx)*v ≡ 0
+    F::axiom_eqv_symmetric(
         dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)),
-        dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)),
         dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)));
-    // Chain to zero:
     F::axiom_eqv_transitive(
         dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v)),
         dy.mul(dy.neg()).mul(u).add(dy.mul(dx).mul(v)),
@@ -783,15 +783,26 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(
         dx.mul(dx), dy.mul(dy), u);
 
-    // Chain: dot_dd * u ≡ dx²*u + dy²*u ≡ dx²*u.sub(neg_dy²*u) ≡ 0
+    // Chain to dot_dd*u ≡ 0:
+    // We have: dx²*u.sub(-(dy²)*u) ≡ (A+C).sub(B+C) ≡ 0
+    // (from lemma_add_sub_cancel_common + sub_congruence)
+    // And: dx²*u.sub(-(dy²)*u) ≡ dx²*u + dy²*u (from sub-neg = add above)
+    // And: dx²*u + dy²*u ≡ dot_dd*u (from distributes_right)
+    // So: dot_dd*u ≡ dx²*u + dy²*u ≡ dx²*u.sub(-(dy²)*u)
+    //     And: dx²*u.sub(-(dy²)*u) ≡ (A+C).sub(B+C) ≡ 0
+    // Combine:
+    F::axiom_eqv_symmetric(
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
+        dx.mul(dx).mul(u).add(dy.mul(dy).mul(u)));
     F::axiom_eqv_transitive(
         dot_dd.mul(u),
         dx.mul(dx).mul(u).add(dy.mul(dy).mul(u)),
         dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)));
+    // dx²*u.sub(-(dy²)*u) ≡ (A+C)-(B+C) by cancel_common
     F::axiom_eqv_symmetric(
-        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
         dx.mul(dx).mul(u).add(dx.mul(dy).mul(v)).sub(
-            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))));
+            dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))),
+        dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)));
     F::axiom_eqv_transitive(
         dot_dd.mul(u),
         dx.mul(dx).mul(u).sub(dy.mul(dy).neg().mul(u)),
@@ -802,12 +813,15 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
             dy.mul(dy).neg().mul(u).add(dx.mul(dy).mul(v))),
         F::zero());
 
-    // dot_dd * u ≡ 0 and dot_dd ≢ 0 → u ≡ 0
-    // dot_dd * u ≡ dot_dd * 0
+    // dot_dd * u ≡ 0, dot_dd ≢ 0 → u ≡ 0
+    // Need: dot_dd.mul(u).eqv(dot_dd.mul(F::zero()))
+    F::axiom_mul_commutative(dot_dd, F::zero());
     lemma_mul_zero_left::<F>(dot_dd);
-    F::axiom_mul_commutative(F::zero(), dot_dd);
+    F::axiom_eqv_symmetric(F::zero().mul(dot_dd), F::zero());
+    F::axiom_eqv_transitive(dot_dd.mul(F::zero()), F::zero().mul(dot_dd), F::zero());
+    F::axiom_eqv_symmetric(dot_dd.mul(F::zero()), F::zero());
+    // dot_dd*u ≡ 0 ≡ dot_dd*0
     F::axiom_eqv_transitive(dot_dd.mul(u), F::zero(), dot_dd.mul(F::zero()));
-    F::axiom_eqv_symmetric(dot_dd.mul(u), dot_dd.mul(F::zero()));
     verus_algebra::lemmas::field_lemmas::lemma_mul_cancel_left::<F>(u, F::zero(), dot_dd);
 
     // Now v: substitute u ≡ 0 into eq1: dx*0 + dy*v ≡ 0 → dy*v ≡ 0
@@ -823,22 +837,21 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     F::axiom_eqv_transitive(dx.mul(u), dx.mul(F::zero()), F::zero().mul(dx));
     F::axiom_eqv_transitive(dx.mul(u), F::zero().mul(dx), F::zero());
     // eq1: dx*u + dy*v ≡ 0, dx*u ≡ 0, so 0 + dy*v ≡ 0 → dy*v ≡ 0
-    F::axiom_eqv_symmetric(dx.mul(u), F::zero());
-    lemma_add_congruence::<F>(dx.mul(u), F::zero(), dy.mul(v), dy.mul(v));
+    // dx*u ≡ 0 (already proved), dy*v ≡ dy*v (reflexive)
     F::axiom_eqv_reflexive(dy.mul(v));
-    F::axiom_eqv_transitive(
-        dx.mul(u).add(dy.mul(v)),
-        F::zero().add(dy.mul(v)),
-        F::zero().add(dy.mul(v)));
+    lemma_add_congruence::<F>(dx.mul(u), F::zero(), dy.mul(v), dy.mul(v));
+    // dx*u + dy*v ≡ 0 + dy*v
+    // 0 + dy*v ≡ dy*v
     lemma_add_zero_left::<F>(dy.mul(v));
-    F::axiom_eqv_transitive(F::zero().add(dy.mul(v)), dy.mul(v), dy.mul(v));
     // Chain: dy*v ≡ 0+dy*v ≡ dx*u+dy*v ≡ 0
+    F::axiom_eqv_symmetric(dx.mul(u).add(dy.mul(v)), F::zero().add(dy.mul(v)));
+    F::axiom_eqv_transitive(
+        F::zero().add(dy.mul(v)),
+        dx.mul(u).add(dy.mul(v)),
+        F::zero());
     F::axiom_eqv_symmetric(F::zero().add(dy.mul(v)), dy.mul(v));
-    F::axiom_eqv_transitive(dy.mul(v), F::zero().add(dy.mul(v)),
-        dx.mul(u).add(dy.mul(v)));
-    F::axiom_eqv_symmetric(dx.mul(u).add(dy.mul(v)), F::zero());
-    F::axiom_eqv_symmetric(dy.mul(v), dx.mul(u).add(dy.mul(v)));
-    F::axiom_eqv_transitive(dy.mul(v), dx.mul(u).add(dy.mul(v)), F::zero());
+    F::axiom_eqv_symmetric(dy.mul(v), F::zero().add(dy.mul(v)));
+    F::axiom_eqv_transitive(dy.mul(v), F::zero().add(dy.mul(v)), F::zero());
 
     // Similarly dx*v ≡ 0 from eq2
     lemma_mul_congruence_right::<F>(dy.neg(), u, F::zero());
@@ -847,16 +860,18 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     F::axiom_eqv_transitive(dy.neg().mul(u), dy.neg().mul(F::zero()),
         F::zero().mul(dy.neg()));
     F::axiom_eqv_transitive(dy.neg().mul(u), F::zero().mul(dy.neg()), F::zero());
-    F::axiom_eqv_symmetric(dy.neg().mul(u), F::zero());
+    // neg_dy*u ≡ 0 (already proved on line above)
     F::axiom_eqv_reflexive(dx.mul(v));
     lemma_add_congruence::<F>(dy.neg().mul(u), F::zero(), dx.mul(v), dx.mul(v));
+    // neg_dy*u + dx*v ≡ 0 + dx*v
     lemma_add_zero_left::<F>(dx.mul(v));
+    // Chain: dx*v ≡ 0+dx*v ≡ neg_dy*u+dx*v ≡ 0
+    F::axiom_eqv_symmetric(dy.neg().mul(u).add(dx.mul(v)), F::zero().add(dx.mul(v)));
+    F::axiom_eqv_transitive(F::zero().add(dx.mul(v)),
+        dy.neg().mul(u).add(dx.mul(v)), F::zero());
     F::axiom_eqv_symmetric(F::zero().add(dx.mul(v)), dx.mul(v));
-    F::axiom_eqv_transitive(dx.mul(v), F::zero().add(dx.mul(v)),
-        dy.neg().mul(u).add(dx.mul(v)));
-    F::axiom_eqv_symmetric(dy.neg().mul(u).add(dx.mul(v)), F::zero());
-    F::axiom_eqv_symmetric(dx.mul(v), dy.neg().mul(u).add(dx.mul(v)));
-    F::axiom_eqv_transitive(dx.mul(v), dy.neg().mul(u).add(dx.mul(v)), F::zero());
+    F::axiom_eqv_symmetric(dx.mul(v), F::zero().add(dx.mul(v)));
+    F::axiom_eqv_transitive(dx.mul(v), F::zero().add(dx.mul(v)), F::zero());
 
     // Now: dy*v ≡ 0 and dx*v ≡ 0
     // dot_dd * v = (dx²+dy²)*v = dx²*v + dy²*v
@@ -879,14 +894,11 @@ proof fn lemma_2x2_trivial_solution<F: OrderedField>(
     F::axiom_eqv_transitive(dy.mul(dy).mul(v), dy.mul(dy.mul(v)), F::zero());
 
     // dot_dd * v = dx²*v + dy²*v ≡ 0 + 0 ≡ 0
-    F::axiom_eqv_symmetric(dx.mul(dx).mul(v), F::zero());
-    F::axiom_eqv_symmetric(dy.mul(dy).mul(v), F::zero());
+    // dx²*v ≡ 0, dy²*v ≡ 0 (already proved)
     lemma_add_congruence::<F>(
-        F::zero(), dx.mul(dx).mul(v),
-        F::zero(), dy.mul(dy).mul(v));
+        dx.mul(dx).mul(v), F::zero(),
+        dy.mul(dy).mul(v), F::zero());
     lemma_add_zero_left::<F>(F::zero());
-    F::axiom_eqv_symmetric(
-        F::zero().add(F::zero()), F::zero());
     F::axiom_eqv_transitive(
         dx.mul(dx).mul(v).add(dy.mul(dy).mul(v)),
         F::zero().add(F::zero()),
