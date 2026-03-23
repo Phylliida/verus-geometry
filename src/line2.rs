@@ -1956,12 +1956,15 @@ pub proof fn lemma_reflect_midpoint_on_axis<F: OrderedField>(
 
         // la*proj_x + lb*proj_y ≡ AB + T (from distribution + exchange above)
         // So la*proj_x+lb*proj_y+lc ≡ AB+T+lc ≡ 0
+        F::axiom_eqv_reflexive(line.c);
         lemma_add_congruence::<F>(
             la.mul(proj_x).add(lb.mul(proj_y)), AB.add(T),
             line.c, line.c);
-        F::axiom_eqv_reflexive(line.c);
-        // Already have la*proj_x+lb*proj_y ≡ AB+T from step above (line 1904)
-        // The add_congruence should give us line_eval_proj ≡ AB+T+lc ≡ 0
+        // line_eval_proj = la*proj_x+lb*proj_y+lc ≡ (AB+T)+lc ≡ 0
+        F::axiom_eqv_transitive(
+            la.mul(proj_x).add(lb.mul(proj_y)).add(line.c),
+            AB.add(T).add(line.c),
+            F::zero());
     };
 
     // Now: la*(px+rx) + lb*(py+ry) + two*lc
@@ -2010,11 +2013,11 @@ pub proof fn lemma_reflect_midpoint_on_axis<F: OrderedField>(
         two.mul(la.mul(proj_x)).add(two.mul(lb.mul(proj_y))),
         two.mul(la.mul(proj_x).add(lb.mul(proj_y))));
     // + two*lc:
+    F::axiom_eqv_reflexive(two.mul(line.c));
     lemma_add_congruence::<F>(
         la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))),
         two.mul(la.mul(proj_x).add(lb.mul(proj_y))),
         two.mul(line.c), two.mul(line.c));
-    F::axiom_eqv_reflexive(two.mul(line.c));
     // two*(A+B) + two*C = two*(A+B+C)
     F::axiom_mul_distributes_left(two, la.mul(proj_x).add(lb.mul(proj_y)), line.c);
     F::axiom_eqv_symmetric(
