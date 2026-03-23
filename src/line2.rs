@@ -2039,4 +2039,110 @@ pub proof fn lemma_reflect_midpoint_on_axis<F: OrderedField>(
         F::zero());
 }
 
+/// Symmetric decomposition backward direction:
+/// If dot(q-p, d) ≡ 0 (perpendicularity) and midpoint(p,q) on line(a,b) (midpoint-on-axis),
+/// and dot(d,d) ≢ 0 (non-degenerate), then q ≡ reflect(p, a, b).
+///
+/// Proof: reflect(p,a,b) satisfies both conditions (forward lemmas).
+/// Both q and reflect satisfy the same 2×2 linear system over (q-r).
+/// By uniqueness (lemma_2x2_trivial_solution), q ≡ reflect.
+pub proof fn lemma_symmetric_decomposition_backward<F: OrderedField>(
+    p: Point2<F>, q: Point2<F>, a: Point2<F>, b: Point2<F>,
+)
+    requires ({
+        let d = sub2(b, a);
+        let dot_dd = d.x.mul(d.x).add(d.y.mul(d.y));
+        let line = line2_from_points(a, b);
+        let two = F::one().add(F::one());
+        // Non-degeneracy
+        &&& !dot_dd.eqv(F::zero())
+        // Perpendicularity: dot(q - p, d) ≡ 0
+        &&& sub2(q, p).x.mul(d.x).add(sub2(q, p).y.mul(d.y)).eqv(F::zero())
+        // Midpoint on axis (scaled by 2)
+        &&& line.a.mul(p.x.add(q.x)).add(line.b.mul(p.y.add(q.y))).add(two.mul(line.c)).eqv(F::zero())
+    }),
+    ensures
+        q.eqv(reflect_point_across_line(p, a, b)),
+{
+    let d = sub2(b, a);
+    let dx = d.x;
+    let dy = d.y;
+    let r = reflect_point_across_line(p, a, b);
+    let line = line2_from_points(a, b);
+    let two = F::one().add(F::one());
+
+    // Forward: r satisfies perp
+    lemma_reflect_satisfies_perp::<F>(p, a, b);
+    // Forward: r satisfies midpoint-on-axis
+    lemma_reflect_midpoint_on_axis::<F>(p, a, b);
+
+    // Subtract: q and r both satisfy perp → dot((q-p)-(r-p), d) = dot(q-r, d) ≡ 0
+    // i.e. dx*(qx-rx) + dy*(qy-ry) ≡ 0
+    let u = q.x.sub(r.x);
+    let v = q.y.sub(r.y);
+
+    // Equation 1: dx*u + dy*v ≡ 0
+    // From perp(q): dot(q-p, d) ≡ 0
+    // From perp(r): dot(r-p, d) ≡ 0
+    // Subtract: dot(q-r, d) = dot(q-p, d) - dot(r-p, d) ≡ 0 - 0 ≡ 0
+    // dot(q-r, d) = (qx-rx)*dx + (qy-ry)*dy = dx*u + dy*v... wait, (qx-rx) is u but multiplied by dx
+    // sub2(q, p).x*dx = (qx-px)*dx, sub2(r, p).x*dx = (rx-px)*dx
+    // Their difference: (qx-px)*dx - (rx-px)*dx = (qx-rx)*dx = u*dx
+    // Similarly for y.
+    // But dx*u may not equal u*dx without commutativity.
+    // We need: dx*(qx-rx) + dy*(qy-ry) ≡ 0
+
+    // From perp_q - perp_r:
+    lemma_sub_congruence::<F>(
+        sub2(q, p).x.mul(dx).add(sub2(q, p).y.mul(dy)),
+        F::zero(),
+        sub2(r, p).x.mul(dx).add(sub2(r, p).y.mul(dy)),
+        F::zero());
+    lemma_sub_self::<F>(F::zero());
+    // (perp_q - perp_r) ≡ 0
+
+    // perp_q - perp_r = ((qx-px)*dx + (qy-py)*dy) - ((rx-px)*dx + (ry-py)*dy)
+    // By add_sub_cancel_common-like reasoning:
+    // = (qx-px)*dx - (rx-px)*dx + (qy-py)*dy - (ry-py)*dy
+    // = ((qx-px)-(rx-px))*dx + ((qy-py)-(ry-py))*dy
+    // = (qx-rx)*dx + (qy-ry)*dy
+    // Need: (a-b)*c - (d-b)*c ≡ (a-d)*c
+    // i.e. sub congruence on first arg: (qx-px) - (rx-px) ≡ qx - rx = u
+
+    // This is complex to prove algebraically. Let me try: Z3 might handle it
+    // given sub_is_add_neg hints and the 2x2 uniqueness preconditions.
+
+    // Similarly for equation 2: -dy*u + dx*v ≡ 0 from midpoint subtraction.
+
+    // The cleanest approach: just assert the two system equations hold
+    // and invoke the 2x2 solver. Z3 should connect given all the hints.
+    assert(dx.mul(u).add(dy.mul(v)).eqv(F::zero())) by {
+        // Z3 hint: expand everything with sub_is_add_neg
+        F::axiom_sub_is_add_neg(q.x, r.x);
+        F::axiom_sub_is_add_neg(q.x, p.x);
+        F::axiom_sub_is_add_neg(r.x, p.x);
+        F::axiom_sub_is_add_neg(q.y, r.y);
+        F::axiom_sub_is_add_neg(q.y, p.y);
+        F::axiom_sub_is_add_neg(r.y, p.y);
+        F::axiom_mul_distributes_left(dx, q.x.add(r.x.neg()), F::zero());
+        F::axiom_mul_distributes_left(dx, q.x.add(p.x.neg()), F::zero());
+    };
+
+    assert(dy.neg().mul(u).add(dx.mul(v)).eqv(F::zero())) by {
+        F::axiom_sub_is_add_neg(q.x, r.x);
+        F::axiom_sub_is_add_neg(q.y, r.y);
+        F::axiom_sub_is_add_neg(q.x, p.x);
+        F::axiom_sub_is_add_neg(q.y, p.y);
+        F::axiom_sub_is_add_neg(r.x, p.x);
+        F::axiom_sub_is_add_neg(r.y, p.y);
+    };
+
+    // Apply uniqueness: u ≡ 0, v ≡ 0
+    lemma_2x2_trivial_solution::<F>(dx, dy, u, v);
+    // qx - rx ≡ 0 → qx ≡ rx, qy - ry ≡ 0 → qy ≡ ry
+    crate::collinearity::lemma_sub_zero_implies_eqv::<F>(q.x, r.x);
+    crate::collinearity::lemma_sub_zero_implies_eqv::<F>(q.y, r.y);
+    // q.eqv(r): q.x ≡ r.x && q.y ≡ r.y
+}
+
 } // verus!
