@@ -2116,25 +2116,254 @@ pub proof fn lemma_symmetric_decomposition_backward<F: OrderedField>(
 
     // The cleanest approach: just assert the two system equations hold
     // and invoke the 2x2 solver. Z3 should connect given all the hints.
-    assert(dx.mul(u).add(dy.mul(v)).eqv(F::zero())) by {
-        // Z3 hint: expand everything with sub_is_add_neg
+    // Equation 1: dx*u + dy*v ≡ 0
+    // perp_q: (qx-px)*dx + (qy-py)*dy ≡ 0
+    // perp_r: (rx-px)*dx + (ry-py)*dy ≡ 0
+    // Difference: ((qx-px)-(rx-px))*dx + ((qy-py)-(ry-py))*dy
+    //           = (qx-rx)*dx + (qy-ry)*dy = u*dx + v*dy
+    // u*dx ≡ dx*u by commutativity, similarly v*dy ≡ dy*v.
+    let perp_q = sub2(q, p).x.mul(dx).add(sub2(q, p).y.mul(dy));
+    let perp_r = sub2(r, p).x.mul(dx).add(sub2(r, p).y.mul(dy));
+    lemma_sub_congruence::<F>(perp_q, F::zero(), perp_r, F::zero());
+    lemma_sub_self::<F>(F::zero());
+    F::axiom_eqv_transitive(perp_q.sub(perp_r), F::zero().sub(F::zero()), F::zero());
+    // perp_q - perp_r ≡ 0
+
+    // perp_q - perp_r = ((qx-px)*dx + (qy-py)*dy) - ((rx-px)*dx + (ry-py)*dy)
+    // By add_sub_cancel_common-type reasoning:
+    // = (qx-px)*dx - (rx-px)*dx + (qy-py)*dy - (ry-py)*dy
+    // = ((qx-px)-(rx-px))*dx + ((qy-py)-(ry-py))*dy
+    // (qx-px)-(rx-px) = qx-rx = u (by additive group: (a-c)-(b-c) = a-b)
+    // Similarly for y.
+    // Then u*dx + v*dy = dx*u + dy*v by commutativity.
+
+    // Expand using add_sub_cancel_common:
+    lemma_add_sub_cancel_common::<F>(sub2(q, p).x.mul(dx), sub2(r, p).x.mul(dx), sub2(q, p).y.mul(dy));
+    // (perp_q - perp_r) ≡ (qx-px)*dx*dx - (rx-px)*dx ... no, that's wrong.
+    // add_sub_cancel_common: (A+C) - (B+C) ≡ A - B where A=(qx-px)*dx, B=(rx-px)*dx, C=(qy-py)*dy
+    // Wait, perp_q = A+C_q and perp_r = B+C_r where C_q ≠ C_r.
+    // That lemma doesn't directly apply because the second components differ.
+
+    // Instead: perp_q - perp_r = (A_q + C_q) - (A_r + C_r)
+    // where A_q = (qx-px)*dx, C_q = (qy-py)*dy, A_r = (rx-px)*dx, C_r = (ry-py)*dy
+    // = (A_q - A_r) + (C_q - C_r) by... actually this is (a+b) - (c+d) = (a-c) + (b-d)
+    // Which is: sub(add(a,b), add(c,d)) ≡ add(sub(a,c), sub(b,d))
+    // This is another algebraic identity. Let Z3 try with distribution hints:
+    // (A_q - A_r) = ((qx-px) - (rx-px)) * dx by distribution
+    // (qx-px) - (rx-px): sub(sub(q.x, p.x), sub(r.x, p.x)) = q.x - r.x = u
+    // So (A_q - A_r) = u * dx
+
+    // Let me try a simpler approach: just assert u*dx + v*dy ≡ 0 and provide
+    // the distributes_right hint so Z3 can expand dx*u = u*dx:
+    // Equation 1: dx*u + dy*v ≡ 0
+    // Strategy: dx*u + dy*v ≡ (dx*qx+dy*qy) + (-(dx*rx+dy*ry))
+    //         ≡ (dx*qx+dy*qy) - (dx*rx+dy*ry) ≡ 0
+    // because both dx*qx+dy*qy and dx*rx+dy*ry ≡ dx*px+dy*py (from perp eqs).
+
+    // Step A: dx*u ≡ dx*qx + (-(dx*rx))
+    assert(dx.mul(u).eqv(dx.mul(q.x).add(dx.mul(r.x).neg()))) by {
         F::axiom_sub_is_add_neg(q.x, r.x);
-        F::axiom_sub_is_add_neg(q.x, p.x);
-        F::axiom_sub_is_add_neg(r.x, p.x);
-        F::axiom_sub_is_add_neg(q.y, r.y);
-        F::axiom_sub_is_add_neg(q.y, p.y);
-        F::axiom_sub_is_add_neg(r.y, p.y);
-        F::axiom_mul_distributes_left(dx, q.x.add(r.x.neg()), F::zero());
-        F::axiom_mul_distributes_left(dx, q.x.add(p.x.neg()), F::zero());
+        lemma_mul_congruence_right::<F>(dx, u, q.x.add(r.x.neg()));
+        F::axiom_mul_distributes_left(dx, q.x, r.x.neg());
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(dx, r.x);
+        lemma_add_congruence_right::<F>(dx.mul(q.x), dx.mul(r.x.neg()), dx.mul(r.x).neg());
+        F::axiom_eqv_transitive(
+            dx.mul(q.x.add(r.x.neg())),
+            dx.mul(q.x).add(dx.mul(r.x.neg())),
+            dx.mul(q.x).add(dx.mul(r.x).neg()));
+        F::axiom_eqv_transitive(dx.mul(u), dx.mul(q.x.add(r.x.neg())),
+            dx.mul(q.x).add(dx.mul(r.x).neg()));
     };
 
-    assert(dy.neg().mul(u).add(dx.mul(v)).eqv(F::zero())) by {
-        F::axiom_sub_is_add_neg(q.x, r.x);
+    // Step B: dy*v ≡ dy*qy + (-(dy*ry))
+    assert(dy.mul(v).eqv(dy.mul(q.y).add(dy.mul(r.y).neg()))) by {
         F::axiom_sub_is_add_neg(q.y, r.y);
+        lemma_mul_congruence_right::<F>(dy, v, q.y.add(r.y.neg()));
+        F::axiom_mul_distributes_left(dy, q.y, r.y.neg());
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(dy, r.y);
+        lemma_add_congruence_right::<F>(dy.mul(q.y), dy.mul(r.y.neg()), dy.mul(r.y).neg());
+        F::axiom_eqv_transitive(
+            dy.mul(q.y.add(r.y.neg())),
+            dy.mul(q.y).add(dy.mul(r.y.neg())),
+            dy.mul(q.y).add(dy.mul(r.y).neg()));
+        F::axiom_eqv_transitive(dy.mul(v), dy.mul(q.y.add(r.y.neg())),
+            dy.mul(q.y).add(dy.mul(r.y).neg()));
+    };
+
+    // Step C: dx*u + dy*v ≡ (dx*qx + dy*qy) + (-(dx*rx) + -(dy*ry)) [exchange]
+    lemma_add_congruence::<F>(
+        dx.mul(u), dx.mul(q.x).add(dx.mul(r.x).neg()),
+        dy.mul(v), dy.mul(q.y).add(dy.mul(r.y).neg()));
+    lemma_add_exchange::<F>(dx.mul(q.x), dx.mul(r.x).neg(), dy.mul(q.y), dy.mul(r.y).neg());
+    F::axiom_eqv_transitive(
+        dx.mul(u).add(dy.mul(v)),
+        dx.mul(q.x).add(dx.mul(r.x).neg()).add(dy.mul(q.y).add(dy.mul(r.y).neg())),
+        dx.mul(q.x).add(dy.mul(q.y)).add(dx.mul(r.x).neg().add(dy.mul(r.y).neg())));
+
+    // Step D: -(dx*rx) + -(dy*ry) ≡ -(dx*rx + dy*ry) [neg_add]
+    verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add::<F>(dx.mul(r.x), dy.mul(r.y));
+    F::axiom_eqv_symmetric(dx.mul(r.x).neg().add(dy.mul(r.y).neg()),
+        dx.mul(r.x).add(dy.mul(r.y)).neg());
+    lemma_add_congruence_right::<F>(
+        dx.mul(q.x).add(dy.mul(q.y)),
+        dx.mul(r.x).neg().add(dy.mul(r.y).neg()),
+        dx.mul(r.x).add(dy.mul(r.y)).neg());
+    F::axiom_eqv_transitive(
+        dx.mul(u).add(dy.mul(v)),
+        dx.mul(q.x).add(dy.mul(q.y)).add(dx.mul(r.x).neg().add(dy.mul(r.y).neg())),
+        dx.mul(q.x).add(dy.mul(q.y)).add(dx.mul(r.x).add(dy.mul(r.y)).neg()));
+
+    // Step E: (dx*qx+dy*qy) + (-(dx*rx+dy*ry)) = (dx*qx+dy*qy) - (dx*rx+dy*ry)
+    F::axiom_sub_is_add_neg(dx.mul(q.x).add(dy.mul(q.y)), dx.mul(r.x).add(dy.mul(r.y)));
+    F::axiom_eqv_symmetric(
+        dx.mul(q.x).add(dy.mul(q.y)).sub(dx.mul(r.x).add(dy.mul(r.y))),
+        dx.mul(q.x).add(dy.mul(q.y)).add(dx.mul(r.x).add(dy.mul(r.y)).neg()));
+    F::axiom_eqv_transitive(
+        dx.mul(u).add(dy.mul(v)),
+        dx.mul(q.x).add(dy.mul(q.y)).add(dx.mul(r.x).add(dy.mul(r.y)).neg()),
+        dx.mul(q.x).add(dy.mul(q.y)).sub(dx.mul(r.x).add(dy.mul(r.y))));
+
+    // Step F: Show dx*qx+dy*qy ≡ dx*rx+dy*ry using perp equations.
+    // From perp_q: sub2(q,p).x*dx + sub2(q,p).y*dy ≡ 0
+    // (qx-px)*dx + (qy-py)*dy ≡ 0
+    // Expanding with distributes_left: dx*(qx-px) ≡ dx*qx - dx*px etc.
+    // So (dx*qx - dx*px) + (dy*qy - dy*py) ≡ 0
+    // By exchange: (dx*qx + dy*qy) + (-(dx*px) + -(dy*py)) ≡ 0
+    // So (dx*qx + dy*qy) ≡ dx*px + dy*py [by adding (dx*px + dy*py) to both sides]
+    // Actually: (dx*qx+dy*qy) - (dx*px+dy*py) ≡ 0 → dx*qx+dy*qy ≡ dx*px+dy*py
+    // Similarly from perp_r: dx*rx+dy*ry ≡ dx*px+dy*py.
+    // So dx*qx+dy*qy ≡ dx*rx+dy*ry.
+    // And (dx*qx+dy*qy) - (dx*rx+dy*ry) ≡ 0.
+    lemma_sub_congruence::<F>(
+        dx.mul(q.x).add(dy.mul(q.y)),
+        dx.mul(r.x).add(dy.mul(r.y)),
+        dx.mul(r.x).add(dy.mul(r.y)),
+        dx.mul(r.x).add(dy.mul(r.y)));
+
+    // Wait, I need to PROVE dx*qx+dy*qy ≡ dx*rx+dy*ry first.
+    // Both ≡ dx*px+dy*py.
+    // Let me establish this using perp_q and perp_r.
+
+    // From perp_q, expanding: perp_q = sub2(q,p).x*dx + sub2(q,p).y*dy ≡ 0
+    // sub2(q,p).x = qx - px. sub2(q,p).x * dx = (qx-px)*dx.
+    // Use distributes_right: (qx-px)*dx = (qx + (-px))*dx = qx*dx + (-px)*dx = qx*dx - px*dx
+    // Actually we want dx*(qx-px) which is distributes_left.
+    // But sub2(q,p).x.mul(dx) = (qx-px).mul(dx) — this uses mul with sub2(q,p).x on left.
+    // (qx-px)*dx = qx*dx + (-px)*dx by distributes_right
+    // = qx*dx - px*dx
+
+    // This is still tedious. Let me just use a simpler fact:
+    // perp_q ≡ 0 and perp_r ≡ 0 → perp_q ≡ perp_r.
+    // perp_q - perp_r ≡ 0.
+    // And perp_q - perp_r structurally equals ... well it doesn't directly equal dx*u + dy*v.
+
+    // SIMPLEST approach: just assert sub_self
+    F::axiom_eqv_reflexive(dx.mul(r.x).add(dy.mul(r.y)));
+    lemma_sub_self::<F>(dx.mul(q.x).add(dy.mul(q.y)));
+
+    // I need to show dx*qx+dy*qy ≡ dx*rx+dy*ry.
+    // From perp_q ≡ 0 and perp_r ≡ 0: perp_q ≡ perp_r.
+    F::axiom_eqv_symmetric(perp_r, F::zero());
+    F::axiom_eqv_transitive(perp_q, F::zero(), perp_r);
+    F::axiom_eqv_symmetric(perp_q, perp_r);
+    // perp_r ≡ perp_q
+
+    // perp_q = (qx-px)*dx + (qy-py)*dy
+    // perp_r = (rx-px)*dx + (ry-py)*dy
+    // These have the same "- px*dx - py*dy" parts.
+    // (qx-px)*dx + (qy-py)*dy = qx*dx - px*dx + qy*dy - py*dy = (qx*dx+qy*dy) - (px*dx+py*dy)
+    // (rx-px)*dx + (ry-py)*dy = (rx*dx+ry*dy) - (px*dx+py*dy)
+    // If A - C ≡ B - C, then A ≡ B (by add_right_cancel: A-C ≡ B-C → A ≡ B)
+    // Wait, I need this fact. Let me just check: does sub_congruence give us enough?
+    // A - C ≡ B - C → A ≡ B is add_right_cancel (proven in additive_group_lemmas).
+
+    // But I don't have "perp_q = (qx*dx+qy*dy) - (px*dx+py*dy)" structurally.
+    // perp_q = sub2(q,p).x.mul(dx) + sub2(q,p).y.mul(dy)
+    //        = (qx-px).mul(dx) + (qy-py).mul(dy)
+    // This is NOT structurally "(qx*dx+qy*dy) - (px*dx+py*dy)".
+
+    // OK let me just give up on being elegant and provide the DIRECT path:
+    // perp_q ≡ perp_r (proved above), and both ≡ 0.
+    // dx*u + dy*v ≡ (dx*qx+dy*qy) - (dx*rx+dy*ry) (proved in steps A-E).
+    // I need (dx*qx+dy*qy) - (dx*rx+dy*ry) ≡ 0.
+    // Use: perp_q ≡ perp_r, expand both into (dx*qx+dy*qy)-(dx*px+dy*py)
+    // and (dx*rx+dy*ry)-(dx*px+dy*py), get (A-C)≡(B-C), cancel C to get A≡B, then A-B≡0.
+
+    // This needs ~30 more lines. Let me try just asserting the intermediate
+    // and seeing if Z3 handles it with the perp_q ≡ perp_r fact:
+    assert(dx.mul(q.x).add(dy.mul(q.y)).sub(dx.mul(r.x).add(dy.mul(r.y))).eqv(F::zero())) by {
+        // perp_q ≡ perp_r ≡ 0
+        // perp_q - perp_r ≡ 0
+        lemma_sub_congruence::<F>(perp_q, F::zero(), perp_r, F::zero());
+        lemma_sub_self::<F>(F::zero());
+        F::axiom_eqv_transitive(perp_q.sub(perp_r), F::zero().sub(F::zero()), F::zero());
+        // perp_q - perp_r = ((qx-px)*dx+(qy-py)*dy) - ((rx-px)*dx+(ry-py)*dy)
+        // By add_sub_cancel_common-like reasoning with distribution...
+        // These are complex. Let Z3 try with distribution hints.
         F::axiom_sub_is_add_neg(q.x, p.x);
         F::axiom_sub_is_add_neg(q.y, p.y);
         F::axiom_sub_is_add_neg(r.x, p.x);
         F::axiom_sub_is_add_neg(r.y, p.y);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(q.x, p.x.neg(), dx);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(q.y, p.y.neg(), dy);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(r.x, p.x.neg(), dx);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_distributes_right::<F>(r.y, p.y.neg(), dy);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_left::<F>(p.x, dx);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_left::<F>(p.y, dy);
+        F::axiom_sub_is_add_neg(dx.mul(q.x).add(dy.mul(q.y)), dx.mul(r.x).add(dy.mul(r.y)));
+        F::axiom_mul_commutative(q.x, dx);
+        F::axiom_mul_commutative(q.y, dy);
+        F::axiom_mul_commutative(r.x, dx);
+        F::axiom_mul_commutative(r.y, dy);
+        F::axiom_mul_commutative(p.x, dx);
+        F::axiom_mul_commutative(p.y, dy);
+    };
+
+    F::axiom_eqv_transitive(
+        dx.mul(u).add(dy.mul(v)),
+        dx.mul(q.x).add(dy.mul(q.y)).sub(dx.mul(r.x).add(dy.mul(r.y))),
+        F::zero());
+
+    // Equation 2: -dy*u + dx*v ≡ 0
+    // Similar but using the midpoint equations.
+    // midpoint_q: la*(px+qx) + lb*(py+qy) + two*lc ≡ 0
+    // midpoint_r: la*(px+rx) + lb*(py+ry) + two*lc ≡ 0
+    // la = -dy, lb = dx
+    // Difference: la*(qx-rx) + lb*(qy-ry) = -dy*u + dx*v
+    // midpoint_q - midpoint_r:
+    // (la*(px+qx)+lb*(py+qy)+two*lc) - (la*(px+rx)+lb*(py+ry)+two*lc)
+    // = la*(px+qx) - la*(px+rx) + lb*(py+qy) - lb*(py+ry)
+    // = la*((px+qx)-(px+rx)) + lb*((py+qy)-(py+ry))
+    // = la*(qx-rx) + lb*(qy-ry) = la*u + lb*v = (-dy)*u + dx*v
+    let la = line.a;
+    let lb = line.b;
+    let mid_q = la.mul(p.x.add(q.x)).add(lb.mul(p.y.add(q.y))).add(two.mul(line.c));
+    let mid_r = la.mul(p.x.add(r.x)).add(lb.mul(p.y.add(r.y))).add(two.mul(line.c));
+    assert(dy.neg().mul(u).add(dx.mul(v)).eqv(F::zero())) by {
+        // mid_q ≡ 0 (given) and mid_r ≡ 0 (from forward lemma)
+        // mid_q - mid_r ≡ 0
+        lemma_sub_congruence::<F>(mid_q, F::zero(), mid_r, F::zero());
+        lemma_sub_self::<F>(F::zero());
+        F::axiom_eqv_transitive(mid_q.sub(mid_r), F::zero().sub(F::zero()), F::zero());
+        // Expand: distribution + cancel common terms
+        F::axiom_mul_distributes_left(la, p.x, q.x);
+        F::axiom_mul_distributes_left(la, p.x, r.x);
+        F::axiom_mul_distributes_left(lb, p.y, q.y);
+        F::axiom_mul_distributes_left(lb, p.y, r.y);
+        F::axiom_sub_is_add_neg(q.x, r.x);
+        F::axiom_sub_is_add_neg(q.y, r.y);
+        F::axiom_sub_is_add_neg(p.x.add(q.x), p.x.add(r.x));
+        F::axiom_sub_is_add_neg(p.y.add(q.y), p.y.add(r.y));
+        F::axiom_mul_distributes_left(la, q.x, r.x.neg());
+        F::axiom_mul_distributes_left(lb, q.y, r.y.neg());
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(la, r.x);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_neg_right::<F>(lb, r.y);
+        // la = dy.neg(), lb = dx structurally
+        F::axiom_sub_is_add_neg(dx.mul(q.y).add(dy.mul(q.y)), dx.mul(r.y).add(dy.mul(r.y)));
+        F::axiom_mul_commutative(q.x, la);
+        F::axiom_mul_commutative(r.x, la);
+        F::axiom_mul_commutative(q.y, lb);
+        F::axiom_mul_commutative(r.y, lb);
     };
 
     // Apply uniqueness: u ≡ 0, v ≡ 0
