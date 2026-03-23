@@ -1102,10 +1102,28 @@ proof fn lemma_two_x_sub_y_sub_y<F: OrderedField>(two: F, x: F, y: F)
         two.mul(x.sub(y)));
 }
 
+/// Exchange lemma: (a + b) + (c + d) ≡ (a + c) + (b + d)
+proof fn lemma_add_exchange<F: OrderedField>(a: F, b: F, c: F, d: F)
+    ensures a.add(b).add(c.add(d)).eqv(a.add(c).add(b.add(d))),
+{
+    F::axiom_add_associative(a, b, c.add(d));
+    F::axiom_add_associative(b, c, d);
+    F::axiom_eqv_symmetric(b.add(c).add(d), b.add(c.add(d)));
+    lemma_add_congruence_right::<F>(a, b.add(c.add(d)), b.add(c).add(d));
+    F::axiom_add_commutative(b, c);
+    F::axiom_add_congruence_left(b.add(c), c.add(b), d);
+    lemma_add_congruence_right::<F>(a, b.add(c).add(d), c.add(b).add(d));
+    F::axiom_add_associative(c, b, d);
+    lemma_add_congruence_right::<F>(a, c.add(b).add(d), c.add(b.add(d)));
+    F::axiom_add_associative(a, c, b.add(d));
+    F::axiom_eqv_transitive(a.add(b).add(c.add(d)), a.add(b.add(c.add(d))), a.add(b.add(c).add(d)));
+    F::axiom_eqv_transitive(a.add(b).add(c.add(d)), a.add(b.add(c).add(d)), a.add(c.add(b).add(d)));
+    F::axiom_eqv_transitive(a.add(b).add(c.add(d)), a.add(c.add(b).add(d)), a.add(c.add(b.add(d))));
+    F::axiom_eqv_symmetric(a.add(c).add(b.add(d)), a.add(c.add(b.add(d))));
+    F::axiom_eqv_transitive(a.add(b).add(c.add(d)), a.add(c.add(b.add(d))), a.add(c).add(b.add(d)));
+}
+
 /// reflect(p, a, b) satisfies perpendicularity: dot(reflect - p, d) ≡ 0.
-/// INCOMPLETE: the algebraic proof requires expanding the reflect formula
-/// through division and showing cancellation. The key insight is that
-/// t*dot_dd ≡ dot_pad (by div_mul_cancel), which makes dot(r-p, d) = 2*(t*dot_dd - dot_pad) = 0.
 pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
     p: Point2<F>, a: Point2<F>, b: Point2<F>,
 )
@@ -1520,20 +1538,6 @@ pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
 
     // Let me write a helper for a - (b + c) ≡ (a - b) - c
     // and use it here.
-    // Helper: (A - B) + (C - D) ≡ (A + C) - (B + D)
-    // Proof by expansion to add+neg and rearrangement.
-    // We need this for: (a*dx - b*dx) + (a*dy - b*dy) = (a*dx+a*dy) - (b*dx+b*dy)
-    //
-    // Actually, a simpler approach: use the add_sub_cancel_common we proved.
-    // (A-B)*C ≡ A*C - B*C from (A + (-B))*C = A*C + (-B)*C = A*C - B*C.
-    //
-    // So (proj_x-p.x)*dx ≡ (proj_x-a.x-pa.x)*dx ≡ (proj_x-a.x)*dx - pa.x*dx
-    //    (proj_y-p.y)*dy ≡ (proj_y-a.y)*dy - pa.y*dy
-    // Sum: ((proj_x-a.x)*dx - pa.x*dx) + ((proj_y-a.y)*dy - pa.y*dy)
-    //    = ((proj_x-a.x)*dx + (proj_y-a.y)*dy) + (-(pa.x*dx) + -(pa.y*dy))
-    //    = dot_proj_a_d + (-(pa.x*dx + pa.y*dy))
-    //    = dot_proj_a_d - dot_pad
-
     assert(dot_proj_p_d.eqv(dot_proj_a_d.sub(dot_pad))) by {
         // Step 7b: (A-B)*C ≡ A*C - B*C for each component
         // x: (proj_x.sub(a.x).sub(pa.x))*dx ≡ proj_x.sub(a.x)*dx - pa.x*dx
@@ -1595,30 +1599,35 @@ pub proof fn lemma_reflect_satisfies_perp<F: OrderedField>(
                 proj_y.sub(a.y).mul(dy).add(pa.y.mul(dy).neg())));
 
         // Step 7d: rearrange (A+(-B)) + (C+(-D)) ≡ (A+C) + ((-B)+(-D)) ≡ (A+C) - (B+D)
-        // Use lemma_add_sub_cancel_common or manual rearrangement.
-        // (A+(-B)) + (C+(-D)):
         let ax = proj_x.sub(a.x).mul(dx);
-        let bx = pa.x.mul(dx);
+        let bx_neg = pa.x.mul(dx).neg();
         let ay = proj_y.sub(a.y).mul(dy);
-        let by_ = pa.y.mul(dy);
-        // We need: (ax + (-bx)) + (ay + (-by)) ≡ (ax + ay) + ((-bx) + (-by))
-        // = (ax + ay) + (-(bx + by)) = (ax + ay) - (bx + by) = dot_proj_a_d - dot_pad
-
-        // Rearrange using assoc + comm:
-        // (ax + (-bx)) + (ay + (-by))
-        // = ax + ((-bx) + (ay + (-by)))     [assoc]
-        // = ax + (ay + ((-bx) + (-by)))     [comm (-bx) with ay, then assoc]
-        // = (ax + ay) + ((-bx) + (-by))     [assoc]
-        F::axiom_add_associative(ax, bx.neg(), ay.add(by_.neg()));
-        F::axiom_add_commutative(bx.neg(), ay.add(by_.neg()));
-        F::axiom_add_commutative(bx.neg(), ay);
-        F::axiom_add_associative(ay, bx.neg(), by_.neg());
-        F::axiom_eqv_symmetric(ay.add(bx.neg()).add(by_.neg()), ay.add(bx.neg().add(by_.neg())));
-        lemma_add_congruence_right::<F>(ay, bx.neg().add(by_.neg()), ay.add(by_.neg()));
-        // Hmm this is getting unwieldy. Let me try just giving Z3 the associativity hints:
-        F::axiom_add_associative(ax, ay, bx.neg().add(by_.neg()));
-        verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add::<F>(bx, by_);
-        F::axiom_sub_is_add_neg(ax.add(ay), bx.add(by_));
+        let by_neg = pa.y.mul(dy).neg();
+        // Use exchange lemma: (ax + bx_neg) + (ay + by_neg) ≡ (ax + ay) + (bx_neg + by_neg)
+        lemma_add_exchange::<F>(ax, bx_neg, ay, by_neg);
+        // (bx_neg + by_neg) = (-(pa.x*dx)) + (-(pa.y*dy)) ≡ -(pa.x*dx + pa.y*dy) by neg_add
+        verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add::<F>(pa.x.mul(dx), pa.y.mul(dy));
+        F::axiom_eqv_symmetric(bx_neg.add(by_neg), pa.x.mul(dx).add(pa.y.mul(dy)).neg());
+        lemma_add_congruence_right::<F>(ax.add(ay), bx_neg.add(by_neg),
+            pa.x.mul(dx).add(pa.y.mul(dy)).neg());
+        // (ax+ay) + (-(dot_pad)) = (ax+ay) - dot_pad = dot_proj_a_d - dot_pad
+        F::axiom_eqv_transitive(
+            ax.add(bx_neg).add(ay.add(by_neg)),
+            ax.add(ay).add(bx_neg.add(by_neg)),
+            ax.add(ay).add(dot_pad.neg()));
+        F::axiom_sub_is_add_neg(dot_proj_a_d, dot_pad);
+        F::axiom_eqv_symmetric(dot_proj_a_d.sub(dot_pad), dot_proj_a_d.add(dot_pad.neg()));
+        F::axiom_eqv_transitive(
+            ax.add(bx_neg).add(ay.add(by_neg)),
+            ax.add(ay).add(dot_pad.neg()),
+            dot_proj_a_d.sub(dot_pad));
+        // Connect dot_proj_p_d to ax.add(bx_neg).add(ay.add(by_neg)):
+        // dot_proj_p_d ≡ ... ≡ ax.add(bx_neg).add(ay.add(by_neg))
+        // (from step 7c chaining)
+        F::axiom_eqv_transitive(
+            dot_proj_p_d,
+            ax.add(bx_neg).add(ay.add(by_neg)),
+            dot_proj_a_d.sub(dot_pad));
     };
 
     // Step 8: dot(r-p, d) ≡ two * (dot_proj_a_d - dot_pad) ≡ two * 0 ≡ 0
