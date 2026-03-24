@@ -1962,4 +1962,263 @@ pub proof fn lemma_cl_displacement_sign_determines_order<F: OrderedField, R: Pos
     lemma_cl_sq_dist_sign_from_im::<F, R>(circle, line, target);
 }
 
+/// Negative scaled displacement: v*(a/A) - u*(b/A) < 0 when neg(b)*u + a*v < 0 and A > 0.
+/// Mirror of lemma_scaled_disp_positive.
+#[verifier::rlimit(30)]
+proof fn lemma_scaled_disp_negative<F: OrderedField>(
+    u: F, v: F, a: F, b: F, big_a: F,
+)
+    requires
+        F::zero().lt(big_a),
+        b.neg().mul(u).add(a.mul(v)).lt(F::zero()),
+    ensures
+        v.mul(a.div(big_a)).sub(u.mul(b.div(big_a))).lt(F::zero()),
+{
+    let numer = b.neg().mul(u).add(a.mul(v));
+    let result = v.mul(a.div(big_a)).sub(u.mul(b.div(big_a)));
+
+    // result ≡ numer/A
+    assert(result.eqv(numer.div(big_a))) by {
+        F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
+        F::axiom_eqv_symmetric(F::zero(), big_a);
+        lemma_scaled_disp_eqv::<F>(u, v, a, b, big_a);
+    };
+
+    // numer < 0, so -numer > 0
+    use verus_algebra::lemmas::ordered_ring_lemmas::lemma_lt_neg_flip;
+    lemma_lt_neg_flip::<F>(numer, F::zero());
+    // zero.neg() ≡ zero
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_neg_zero;
+    lemma_neg_zero::<F>();
+    F::axiom_lt_iff_le_and_not_eqv(F::zero().neg(), numer.neg());
+    F::axiom_eqv_reflexive(numer.neg());
+    F::axiom_le_congruence(F::zero().neg(), F::zero(), numer.neg(), numer.neg());
+    if F::zero().eqv(numer.neg()) {
+        F::axiom_eqv_symmetric(F::zero(), numer.neg());
+        F::axiom_eqv_symmetric(F::zero().neg(), F::zero());
+        F::axiom_eqv_transitive(numer.neg(), F::zero(), F::zero().neg());
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer.neg());
+
+    // (-numer)/A ≥ 0 (nonneg_div_pos)
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer.neg());
+    verus_algebra::lemmas::ordered_field_lemmas::lemma_nonneg_div_pos::<F>(numer.neg(), big_a);
+
+    // (-numer)/A ≡ -(numer/A) (div_neg_numerator)
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
+    F::axiom_eqv_symmetric(F::zero(), big_a);
+    verus_algebra::lemmas::field_lemmas::lemma_div_neg_numerator::<F>(numer, big_a);
+
+    // 0 ≤ -(numer/A) via le_congruence
+    F::axiom_eqv_reflexive(F::zero());
+    F::axiom_le_congruence(F::zero(), F::zero(), numer.neg().div(big_a), numer.div(big_a).neg());
+
+    // -(numer/A) ≥ 0 means numer/A ≤ 0 (neg_nonneg_iff)
+    use verus_algebra::lemmas::ordered_ring_lemmas::lemma_neg_nonpos_iff;
+    lemma_neg_nonpos_iff::<F>(numer.div(big_a));
+
+    // Transfer result ≡ numer/A ≤ 0 via le_congruence
+    F::axiom_eqv_symmetric(result, numer.div(big_a));
+    F::axiom_le_congruence(numer.div(big_a), result, F::zero(), F::zero());
+
+    // result ≢ 0 (same div_mul_cancel argument as positive case)
+    if result.eqv(F::zero()) {
+        // result ≡ 0 → numer/A ≡ 0 (chain through result ≡ numer/A)
+        F::axiom_eqv_symmetric(result, F::zero());
+        F::axiom_eqv_transitive(F::zero(), result, numer.div(big_a));
+        F::axiom_eqv_symmetric(F::zero(), numer.div(big_a));
+        // (numer/A)*A ≡ numer, 0*A ≡ 0, numer/A ≡ 0 → numer ≡ 0
+        verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel::<F>(numer, big_a);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_zero_left::<F>(big_a);
+        F::axiom_mul_congruence_left(numer.div(big_a), F::zero(), big_a);
+        F::axiom_eqv_transitive(numer.div(big_a).mul(big_a), F::zero().mul(big_a), F::zero());
+        F::axiom_eqv_symmetric(numer, numer.div(big_a).mul(big_a));
+        F::axiom_eqv_transitive(numer, numer.div(big_a).mul(big_a), F::zero());
+        F::axiom_eqv_symmetric(numer, F::zero());
+        // numer ≡ 0 contradicts numer < 0
+        F::axiom_lt_iff_le_and_not_eqv(numer, F::zero());
+    }
+
+    // result ≤ 0 and result ≢ 0, so result < 0
+    if F::zero().eqv(result) {
+        F::axiom_eqv_symmetric(F::zero(), result);
+    }
+    F::axiom_lt_iff_le_and_not_eqv(result, F::zero());
+}
+
+/// Negative case: cl_displacement_sign < 0 ⟹ P_minus is farther.
+///
+/// Strategy: diff_fwd.im ≡ 4*scaled. When sign < 0, scaled < 0, so neg(scaled) > 0.
+/// Build neg(4*scaled) = (ns+ns)+(ns+ns) > 0. Then diff_rev.im ≡ neg(diff_fwd.im)
+/// ≡ neg(4*scaled) > 0. Combined with diff_rev.re ≡ 0, get zero.lt(diff_rev).
+#[verifier::rlimit(80)]
+pub proof fn lemma_cl_displacement_sign_determines_order_negative<F: OrderedField, R: PositiveRadicand<F>>(
+    circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
+)
+    requires
+        line2_nondegenerate(line),
+        cl_displacement_sign(circle, line, target).lt(F::zero()),
+    ensures
+        SpecQuadExt::<F, R>::zero().lt(
+            sq_dist_2d::<SpecQuadExt<F, R>>(
+                cl_intersection_point(circle, line, false), lift_point2(target))
+            .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+                cl_intersection_point(circle, line, true), lift_point2(target)))),
+{
+    // Step A: diff_fwd.im ≡ 4*scaled
+    lemma_cl_sq_dist_im_eqv_scaled::<F, R>(circle, line, target);
+
+    let p = cl_intersection_point::<F, R>(circle, line, true);
+    let big_a = cl_quad_a(line);
+    lemma_cl_quad_a_positive(line);
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
+    F::axiom_eqv_symmetric(F::zero(), big_a);
+
+    let dx_re = p.x.re.sub(target.x);
+    let dy_re = p.y.re.sub(target.y);
+    let scaled = dy_re.mul(line.a.div(big_a)).sub(dx_re.mul(line.b.div(big_a)));
+
+    // Step B: scaled < 0 (via cancellation + scaled_disp_negative)
+    let h = cl_signed_dist_num(circle, line);
+    let v = line.a.mul(h).div(big_a);
+    let w = line.b.mul(h).div(big_a);
+    let t = h.div(big_a);
+    crate::line_intersection::lemma_mul_div_assoc::<F>(line.a, h, big_a);
+    F::axiom_eqv_symmetric(line.a.mul(h.div(big_a)), v);
+    crate::line_intersection::lemma_mul_div_assoc::<F>(line.b, h, big_a);
+    F::axiom_eqv_symmetric(line.b.mul(h.div(big_a)), w);
+
+    lemma_cl_displacement_cancellation(
+        line.a, line.b, circle.center.x, circle.center.y,
+        target.x, target.y, v, w, t);
+
+    let disp_expr = line.b.neg().mul(dx_re).add(line.a.mul(dy_re));
+    let sign_val = cl_displacement_sign(circle, line, target);
+    F::axiom_eqv_symmetric(disp_expr, sign_val);
+    F::axiom_eqv_reflexive(F::zero());
+    F::axiom_lt_iff_le_and_not_eqv(sign_val, F::zero());
+    F::axiom_le_congruence(sign_val, disp_expr, F::zero(), F::zero());
+    if disp_expr.eqv(F::zero()) {
+        F::axiom_eqv_transitive(sign_val, disp_expr, F::zero());
+        F::axiom_eqv_symmetric(sign_val, F::zero());
+    }
+    F::axiom_lt_iff_le_and_not_eqv(disp_expr, F::zero());
+
+    lemma_scaled_disp_negative(dx_re, dy_re, line.a, line.b, big_a);
+
+    // Step C: neg(scaled) > 0, then build (ns+ns)+(ns+ns) > 0
+    use verus_algebra::lemmas::ordered_ring_lemmas::lemma_lt_neg_flip;
+    use verus_algebra::lemmas::ordered_ring_lemmas::lemma_add_pos_nonneg;
+    use verus_algebra::lemmas::additive_group_lemmas::{lemma_neg_zero, lemma_neg_add};
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_neg_congruence;
+
+    // neg(scaled) > 0 (from scaled < 0)
+    lemma_lt_neg_flip::<F>(scaled, F::zero());
+    lemma_neg_zero::<F>();
+    F::axiom_lt_iff_le_and_not_eqv(F::zero().neg(), scaled.neg());
+    F::axiom_eqv_reflexive(scaled.neg());
+    F::axiom_le_congruence(F::zero().neg(), F::zero(), scaled.neg(), scaled.neg());
+    if F::zero().eqv(scaled.neg()) {
+        F::axiom_eqv_symmetric(F::zero(), scaled.neg());
+        F::axiom_eqv_symmetric(F::zero().neg(), F::zero());
+        F::axiom_eqv_transitive(scaled.neg(), F::zero(), F::zero().neg());
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled.neg());
+
+    // neg(scaled) + neg(scaled) > 0 and doubled > 0
+    assert(F::zero().le(scaled.neg()));
+    assert(F::zero().lt(scaled.neg()));
+    lemma_add_pos_nonneg::<F>(scaled.neg(), scaled.neg());
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled.neg().add(scaled.neg()));
+    lemma_add_pos_nonneg::<F>(scaled.neg().add(scaled.neg()), scaled.neg().add(scaled.neg()));
+
+    // Step D: neg(4*scaled) ≡ (neg(s)+neg(s))+(neg(s)+neg(s))
+    lemma_neg_add::<F>(scaled, scaled);
+    lemma_neg_add::<F>(scaled.add(scaled), scaled.add(scaled));
+    lemma_add_congruence::<F>(
+        scaled.add(scaled).neg(), scaled.neg().add(scaled.neg()),
+        scaled.add(scaled).neg(), scaled.neg().add(scaled.neg()));
+    let four_scaled = scaled.add(scaled).add(scaled.add(scaled));
+    F::axiom_eqv_transitive(
+        four_scaled.neg(),
+        scaled.add(scaled).neg().add(scaled.add(scaled).neg()),
+        scaled.neg().add(scaled.neg()).add(scaled.neg().add(scaled.neg())));
+
+    // Step E: Transfer positivity to neg(4*scaled)
+    F::axiom_eqv_symmetric(four_scaled.neg(),
+        scaled.neg().add(scaled.neg()).add(scaled.neg().add(scaled.neg())));
+    F::axiom_eqv_reflexive(F::zero());
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(),
+        scaled.neg().add(scaled.neg()).add(scaled.neg().add(scaled.neg())));
+    F::axiom_le_congruence(F::zero(), F::zero(),
+        scaled.neg().add(scaled.neg()).add(scaled.neg().add(scaled.neg())),
+        four_scaled.neg());
+    if F::zero().eqv(four_scaled.neg()) {
+        F::axiom_eqv_transitive(F::zero(), four_scaled.neg(),
+            scaled.neg().add(scaled.neg()).add(scaled.neg().add(scaled.neg())));
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), four_scaled.neg());
+
+    // Step F: neg(diff_fwd.im) ≡ neg(4*scaled) (by neg_congruence from diff_fwd.im ≡ 4*scaled)
+    let diff_fwd_im = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, true), lift_point2(target))
+        .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false), lift_point2(target))).im;
+    lemma_neg_congruence::<F>(diff_fwd_im, four_scaled);
+    // Transfer: 0 < neg(4*scaled), neg(4*scaled) ≡ neg(diff_fwd.im) → 0 < neg(diff_fwd.im)
+    F::axiom_eqv_symmetric(diff_fwd_im.neg(), four_scaled.neg());
+    F::axiom_le_congruence(F::zero(), F::zero(), four_scaled.neg(), diff_fwd_im.neg());
+    if F::zero().eqv(diff_fwd_im.neg()) {
+        F::axiom_eqv_transitive(F::zero(), diff_fwd_im.neg(), four_scaled.neg());
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), diff_fwd_im.neg());
+
+    // Step G: diff_rev.im ≡ neg(diff_fwd.im) (by neg_sub: (a-b).neg() ≡ b-a)
+    let diff_rev = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, false), lift_point2(target))
+        .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, true), lift_point2(target)));
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_neg_sub;
+    lemma_neg_sub::<F>(
+        sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, true), lift_point2(target)).im,
+        sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false), lift_point2(target)).im);
+    // Transfer: 0 < neg(diff_fwd.im) ≡ diff_rev.im
+    F::axiom_eqv_symmetric(diff_fwd_im.neg(), diff_rev.im);
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), diff_fwd_im.neg());
+    F::axiom_le_congruence(F::zero(), F::zero(), diff_fwd_im.neg(), diff_rev.im);
+    if F::zero().eqv(diff_rev.im) {
+        F::axiom_eqv_symmetric(diff_rev.im, diff_fwd_im.neg());
+        F::axiom_eqv_transitive(F::zero(), diff_rev.im, diff_fwd_im.neg());
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), diff_rev.im);
+
+    // Step H: diff_rev.re ≡ 0
+    lemma_cl_sq_dist_re_equal::<F, R>(circle, line, target);
+    let d_plus_re = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, true), lift_point2(target)).re;
+    let d_minus_re = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, false), lift_point2(target)).re;
+    F::axiom_eqv_symmetric(d_plus_re, d_minus_re);
+    F::axiom_eqv_reflexive(d_plus_re);
+    lemma_sub_congruence::<F>(d_minus_re, d_plus_re, d_plus_re, d_plus_re);
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_sub_self;
+    lemma_sub_self::<F>(d_plus_re);
+    F::axiom_eqv_transitive(diff_rev.re, d_plus_re.sub(d_plus_re), F::zero());
+
+    // Step I: diff_rev.re ≡ 0 ∧ diff_rev.im > 0 → zero.lt(diff_rev)
+    verus_quadratic_extension::ordered::lemma_qe_nonneg_pure_im::<F, R>(diff_rev.im);
+    F::axiom_eqv_reflexive(diff_rev.im);
+    F::axiom_eqv_symmetric(diff_rev.re, F::zero());
+    verus_quadratic_extension::ordered::lemma_nonneg_congruence::<F, R>(
+        qext::<F, R>(F::zero(), diff_rev.im), diff_rev);
+    lemma_sub_zero::<F>(diff_rev.re);
+    lemma_sub_zero::<F>(diff_rev.im);
+    F::axiom_eqv_symmetric(diff_rev.re.sub(F::zero()), diff_rev.re);
+    F::axiom_eqv_symmetric(diff_rev.im.sub(F::zero()), diff_rev.im);
+    verus_quadratic_extension::ordered::lemma_nonneg_congruence::<F, R>(
+        diff_rev, qe_sub::<F, R>(diff_rev, qe_zero::<F, R>()));
+}
+
 } // verus!
