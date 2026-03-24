@@ -73,38 +73,6 @@ pub open spec fn cl_intersection_count<T: OrderedRing>(
     else { 0 }
 }
 
-/// Circle-line intersection parameter t (the ± root of the quadratic).
-/// t = (-B ± sqrt(D)) / (2A)
-/// where B = -2 * (a*(cx - p0x) + b*(cy - p0y)) for a chosen base point p0 on the line.
-///
-/// Using the direct formula with the signed distance:
-/// t_± = (-(a*cx + b*cy + c) ± sqrt(D)) / A
-///   ... wait, this isn't right. Let me derive properly.
-///
-/// Parametrize: p(t) = center + t_perp * n_hat + t_along * dir_hat
-/// Actually, for Cramer's rule style, use:
-///
-/// The t parameter along the line direction from the foot of perpendicular.
-/// If we parametrize as p(t) = p0 + t * dir where p0 is the foot of
-/// perpendicular from center to line, then:
-///   p0 = center - ((a*cx+b*cy+c)/(a²+b²)) * (a, b)
-///   t_± = ± sqrt(D) / A
-///
-/// For the general parametrization from an arbitrary base point on the line,
-/// the formula is more complex. Let's use the standard quadratic approach.
-///
-/// Substituting p(t) = (x0 - b*t, y0 + a*t) into ||p - center||² = r²:
-/// (x0 - b*t - cx)² + (y0 + a*t - cy)² = r²
-/// Let u = x0 - cx, v = y0 - cy
-/// (u - bt)² + (v + at)² = r²
-/// u² - 2ubt + b²t² + v² + 2vat + a²t² = r²
-/// (a²+b²)t² + 2(va - ub)t + (u²+v² - r²) = 0
-///
-/// For p0 on the line: a*x0 + b*y0 + c = 0
-///
-/// We don't fix p0; instead express everything in terms of the line and circle.
-/// The intersection points as coordinates in F(sqrt(disc)):
-
 /// Intersection point of a circle and line.
 /// Returns coordinates as SpecQuadExt<F, R> where R::value() encodes the discriminant.
 ///
