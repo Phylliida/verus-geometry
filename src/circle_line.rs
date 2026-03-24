@@ -1644,22 +1644,25 @@ proof fn lemma_scaled_disp_positive<F: OrderedField>(
 /// Helper: the im part of the sq_dist difference is positive when cl_displacement_sign > 0.
 /// Extracted as a separate lemma to reduce Z3 context size.
 #[verifier::rlimit(120)]
-/// The im part of the sq_dist difference is positive when cl_displacement_sign > 0.
-/// Combines the im expansion (conjugate structure) with the cancellation identity
-/// and scaled_disp_positive to establish diff.im > 0.
-#[verifier::rlimit(60)]
-proof fn lemma_cl_sq_dist_im_positive<F: OrderedField, R: PositiveRadicand<F>>(
+/// Im expansion: diff.im ≡ scaled + scaled, where scaled = dy_re*(a/A) - dx_re*(b/A).
+/// This is the pure algebraic expansion without ordering.
+#[verifier::rlimit(40)]
+proof fn lemma_cl_sq_dist_im_eqv_scaled<F: OrderedField, R: PositiveRadicand<F>>(
     circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
 )
-    requires
-        line2_nondegenerate(line),
-        F::zero().lt(cl_displacement_sign(circle, line, target)),
-    ensures
-        F::zero().lt(
-            sq_dist_2d::<SpecQuadExt<F, R>>(
-                cl_intersection_point(circle, line, true), lift_point2(target))
-            .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
-                cl_intersection_point(circle, line, false), lift_point2(target))).im),
+    requires line2_nondegenerate(line),
+    ensures ({
+        let p = cl_intersection_point::<F, R>(circle, line, true);
+        let big_a = cl_quad_a(line);
+        let dx_re = p.x.re.sub(target.x);
+        let dy_re = p.y.re.sub(target.y);
+        let scaled = dy_re.mul(line.a.div(big_a)).sub(dx_re.mul(line.b.div(big_a)));
+        sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, true), lift_point2(target))
+        .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false), lift_point2(target))).im
+        .eqv(scaled.add(scaled))
+    }),
 {
     let p_plus = cl_intersection_point::<F, R>(circle, line, true);
     let p_minus = cl_intersection_point::<F, R>(circle, line, false);
@@ -1736,16 +1739,113 @@ proof fn lemma_cl_sq_dist_im_positive<F: OrderedField, R: PositiveRadicand<F>>(
     // Connection: neg(X)+Y-(X+neg(Y)) = 2(Y-X) = 4*(dy_re*(a/A)-dx_re*(b/A)) > 0
     // since X = 2*dx_re*(b/A) and Y = 2*dy_re*(a/A) by commutativity.
 
-    assert(F::zero().lt(dy_re.mul(a_over_a).sub(dx_re.mul(b_over_a)))) by {
-        lemma_scaled_disp_positive::<F>(dx_re, dy_re, line.a, line.b, big_a);
+    // Establish disp_expr > 0 from cl_displacement_sign > 0
+    assert(F::zero().lt(line.b.neg().mul(dx_re).add(line.a.mul(dy_re)))) by {
+        let h = cl_signed_dist_num(circle, line);
+        let v = line.a.mul(h).div(big_a);
+        let w = line.b.mul(h).div(big_a);
+        let t = h.div(big_a);
+        F::axiom_div_is_mul_recip(line.a.mul(h), big_a);
+        F::axiom_div_is_mul_recip(h, big_a);
+        F::axiom_eqv_symmetric(t, h.mul(big_a.recip()));
+        F::axiom_mul_associative(line.a, h, big_a.recip());
+        F::axiom_eqv_symmetric(line.a.mul(h.mul(big_a.recip())), line.a.mul(h).mul(big_a.recip()));
+        F::axiom_eqv_transitive(v, line.a.mul(h).mul(big_a.recip()), line.a.mul(h.mul(big_a.recip())));
+        lemma_mul_congruence_right::<F>(line.a, h.mul(big_a.recip()), t);
+        F::axiom_eqv_transitive(v, line.a.mul(h.mul(big_a.recip())), line.a.mul(t));
+        F::axiom_div_is_mul_recip(line.b.mul(h), big_a);
+        F::axiom_mul_associative(line.b, h, big_a.recip());
+        F::axiom_eqv_symmetric(line.b.mul(h.mul(big_a.recip())), line.b.mul(h).mul(big_a.recip()));
+        F::axiom_eqv_transitive(w, line.b.mul(h).mul(big_a.recip()), line.b.mul(h.mul(big_a.recip())));
+        lemma_mul_congruence_right::<F>(line.b, h.mul(big_a.recip()), t);
+        F::axiom_eqv_transitive(w, line.b.mul(h.mul(big_a.recip())), line.b.mul(t));
+        lemma_cl_displacement_cancellation(
+            line.a, line.b, circle.center.x, circle.center.y,
+            target.x, target.y, v, w, t);
+        let disp = line.b.neg().mul(dx_re).add(line.a.mul(dy_re));
+        let sign_val = cl_displacement_sign(circle, line, target);
+        F::axiom_eqv_symmetric(disp, sign_val);
+        F::axiom_eqv_reflexive(F::zero());
+        F::axiom_lt_iff_le_and_not_eqv(F::zero(), sign_val);
+        F::axiom_le_congruence(F::zero(), F::zero(), sign_val, disp);
+        F::axiom_eqv_symmetric(F::zero(), sign_val);
+        if F::zero().eqv(disp) { F::axiom_eqv_transitive(F::zero(), disp, sign_val); }
+        F::axiom_lt_iff_le_and_not_eqv(F::zero(), disp);
     };
 
-    // Z3 needs to connect: scaled positive → neg(X)+Y-(X+neg(Y)) > 0 → diff.im > 0
-    // The eqv chain from diff.im to neg(X)+Y-(X+neg(Y)) is established above.
-    // The connection from that to dy_re*(a/A)-dx_re*(b/A) goes through commutativity:
-    //   (b/A)*dx_re ≡ dx_re*(b/A), (a/A)*dy_re ≡ dy_re*(a/A)
+    // Now use scaled_disp_positive
+    lemma_scaled_disp_positive::<F>(dx_re, dy_re, line.a, line.b, big_a);
+
+    // neg(X)+Y-(X+neg(Y)) = (neg(X)+Y) + neg(X+neg(Y))
+    //                      = (neg(X)+Y) + (neg(X)+neg(neg(Y)))  [neg_add]
+    //                      = (neg(X)+Y) + (neg(X)+Y)            [neg_involution: neg(neg(Y))=Y]
+    // If neg(X)+Y > 0, then sum of two positives > 0.
+    //
+    // neg(X)+Y = Y+neg(X) = Y-X. And Y-X = (dy_aA_im)-(dx_bA_im).
+    // dy_aA_im = dy_re*(a/A) + (a/A)*dy_re ≡ 2*dy_re*(a/A) (by commutativity)
+    // dx_bA_im = dx_re*(b/A) + (b/A)*dx_re ≡ 2*dx_re*(b/A) (by commutativity)
+    // Y - X ≡ 2*(dy_re*(a/A) - dx_re*(b/A)) > 0 (from scaled_disp_positive, times 2)
+    //
+    // Actually let me just show neg(X)+Y > 0 directly.
+    // neg(X) = neg(dx_bA_im) where dx_bA_im = dx_re*b/A + b/A*dx_re
+    // Y = dy_aA_im = dy_re*a/A + a/A*dy_re
+    // neg(X)+Y = neg(dx_re*b/A + b/A*dx_re) + (dy_re*a/A + a/A*dy_re)
+    //          = neg(dx_re*b/A) + neg(b/A*dx_re) + dy_re*a/A + a/A*dy_re
+    //          ≡ neg(dx_re*b/A) + neg(dx_re*b/A) + dy_re*a/A + dy_re*a/A  [commutativity]
+    //          = 2*(dy_re*a/A - dx_re*b/A) > 0
+    //
+    // This still requires explicit steps. Let me use nonneg_add for the final step.
+
+    // Y - X > 0:
     F::axiom_mul_commutative(b_over_a, dx_re);
     F::axiom_mul_commutative(a_over_a, dy_re);
+    // dx_bA_im = dx_re*b/A + b/A*dx_re ≡ dx_re*b/A + dx_re*b/A
+    lemma_add_congruence_right::<F>(dx_re.mul(b_over_a), b_over_a.mul(dx_re), dx_re.mul(b_over_a));
+    // dy_aA_im = dy_re*a/A + a/A*dy_re ≡ dy_re*a/A + dy_re*a/A
+    lemma_add_congruence_right::<F>(dy_re.mul(a_over_a), a_over_a.mul(dy_re), dy_re.mul(a_over_a));
+    // Y - X ≡ (dy_re*a/A + dy_re*a/A) - (dx_re*b/A + dx_re*b/A)
+    // = 2*dy_re*a/A - 2*dx_re*b/A = 2*(dy_re*a/A - dx_re*b/A) > 0
+    // since dy_re*a/A - dx_re*b/A > 0.
+    // 2*positive > 0 by nonneg_add (positive + positive >= 0, + nonzero).
+
+    // Actually, the simplest path: use le_congruence to transfer from the
+    // scaled_disp_positive result through the eqv chain to diff.im.
+    // But the eqv chain goes: diff.im ≡ neg(X)+Y-(X+neg(Y)) ≡ ... ≡ 4*scaled.
+    // Without the full chain, we can't transfer.
+    //
+    // Let me try one more thing: give Z3 just the two key facts in a clean scope:
+    // 1. diff.im ≡ neg(X)+Y-(X+neg(Y))  [from the expansion above]
+    // 2. Y-X is eqv to something positive  [from commutativity + scaled_disp_positive]
+    // And let Z3 do the 2*(Y-X) > 0 arithmetic.
+
+    // Actually — Y.sub(X) ≡ 2*(dy_re*(a/A) - dx_re*(b/A)) which is positive.
+    // And neg(X)+Y = Y+neg(X) = Y-X (by sub_is_add_neg reversed).
+    // So neg(X)+Y > 0.
+    // And neg(X+neg(Y)) ≡ neg(X)+Y > 0 (by neg_add + involution, same expression).
+    // Sum of two positives is positive.
+
+    // Y.sub(X):
+    let y_sub_x = dy_aA_im.sub(dx_bA_im);
+    // y_sub_x ≡ (dy_re*a/A+dy_re*a/A) - (dx_re*b/A+dx_re*b/A)
+    // This involves add_self terms. Let me just assert Y-X > 0 using le_congruence
+    // from scaled_disp_positive.
+
+    // Actually, the scaled_disp_positive already proved
+    // dy_re*(a/A) - dx_re*(b/A) > 0.
+    // And Y = dy_re*(a/A)+dy_re*(a/A) and X = dx_re*(b/A)+dx_re*(b/A) (by comm).
+    // Y - X = (dy_re*(a/A)+dy_re*(a/A)) - (dx_re*(b/A)+dx_re*(b/A))
+    // = (dy_re*(a/A) - dx_re*(b/A)) + (dy_re*(a/A) - dx_re*(b/A))  [by rearranging]
+    // This is positive + positive = positive by nonneg_add.
+
+    // nonneg_add:
+    let scaled = dy_re.mul(a_over_a).sub(dx_re.mul(b_over_a));
+    // scaled > 0 (from lemma_scaled_disp_positive)
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled);
+    verus_algebra::inequalities::lemma_nonneg_add::<F>(scaled, scaled);
+    // scaled + scaled ≥ 0. Also nonzero since scaled > 0.
+    // scaled + scaled > 0.
+    // Now need: diff.im ≡ scaled + scaled (via the eqv chain).
+    // This is the missing connection. Let Z3 try with all these facts.
 }
 
 /// Main theorem: cl_displacement_sign > 0 ⟹ sq_dist(P_plus, Q) > sq_dist(P_minus, Q).
