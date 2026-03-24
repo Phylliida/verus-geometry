@@ -11,6 +11,8 @@ use crate::line2::*;
 use crate::circle2::*;
 use crate::circle_line::*;
 use crate::circle_circle_proofs::*;
+use crate::voronoi::sq_dist_2d;
+use crate::constructed_scalar::lift_point2;
 
 verus! {
 
@@ -311,6 +313,52 @@ pub proof fn lemma_cc_intersection_on_c2<F: OrderedField, R: PositiveRadicand<F>
     lemma_radical_axis_reverse::<SpecQuadExt<F, R>>(c1_qe, c2_qe, p_qe);
     // Now: point_on_circle2(c2_qe, p_qe) which is:
     // sq_dist_2d(p_qe, lift_point2(c2.center)).eqv(qext_from_rational(c2.radius_sq))
+}
+
+/// The displacement sign for circle-circle intersection via radical axis.
+pub open spec fn cc_displacement_sign<F: OrderedField>(
+    c1: Circle2<F>, c2: Circle2<F>, target: Point2<F>,
+) -> F {
+    cl_displacement_sign(c1, radical_axis(c1, c2), target)
+}
+
+/// Circle-circle displacement ordering (positive case):
+/// cc_displacement_sign > 0 ⟹ P_plus is farther from target.
+///
+/// Direct corollary of the circle-line theorem since
+/// cc_intersection_point is defined as cl_intersection_point with the radical axis.
+pub proof fn lemma_cc_displacement_sign_determines_order<F: OrderedField, R: PositiveRadicand<F>>(
+    c1: Circle2<F>, c2: Circle2<F>, target: Point2<F>,
+)
+    requires
+        line2_nondegenerate(radical_axis(c1, c2)),
+        F::zero().lt(cc_displacement_sign(c1, c2, target)),
+    ensures
+        SpecQuadExt::<F, R>::zero().lt(
+            sq_dist_2d::<SpecQuadExt<F, R>>(
+                cc_intersection_point(c1, c2, true), lift_point2(target))
+            .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+                cc_intersection_point(c1, c2, false), lift_point2(target)))),
+{
+    lemma_cl_displacement_sign_determines_order::<F, R>(c1, radical_axis(c1, c2), target);
+}
+
+/// Circle-circle displacement ordering (negative case):
+/// cc_displacement_sign < 0 ⟹ P_minus is farther from target.
+pub proof fn lemma_cc_displacement_sign_determines_order_negative<F: OrderedField, R: PositiveRadicand<F>>(
+    c1: Circle2<F>, c2: Circle2<F>, target: Point2<F>,
+)
+    requires
+        line2_nondegenerate(radical_axis(c1, c2)),
+        cc_displacement_sign(c1, c2, target).lt(F::zero()),
+    ensures
+        SpecQuadExt::<F, R>::zero().lt(
+            sq_dist_2d::<SpecQuadExt<F, R>>(
+                cc_intersection_point(c1, c2, false), lift_point2(target))
+            .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+                cc_intersection_point(c1, c2, true), lift_point2(target)))),
+{
+    lemma_cl_displacement_sign_determines_order_negative::<F, R>(c1, radical_axis(c1, c2), target);
 }
 
 } // verus!
