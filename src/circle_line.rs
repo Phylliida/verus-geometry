@@ -1560,128 +1560,36 @@ proof fn lemma_scaled_disp_positive<F: OrderedField>(
     ensures
         F::zero().lt(v.mul(a.div(big_a)).sub(u.mul(b.div(big_a)))),
 {
-    // v*(a/A) = v*a/A by div_mul_cancel-like property
-    // u*(b/A) = u*b/A
-    // v*(a/A) - u*(b/A) = (v*a - u*b)/A = (a*v - b*u)/A
-    // neg(b)*u + a*v = a*v + neg(b)*u = a*v - b*u (since neg(b)*u = -(b*u))
-    // So v*(a/A) - u*(b/A) = (neg(b)*u + a*v) / A
-    // positive / positive = positive.
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
     F::axiom_eqv_symmetric(F::zero(), big_a);
-
     let numer = b.neg().mul(u).add(a.mul(v));
-    F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
-    F::axiom_eqv_symmetric(F::zero(), big_a);
-    F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer);
+    let result = v.mul(a.div(big_a)).sub(u.mul(b.div(big_a)));
+
+    // result ≡ numer/A (algebraic identity)
+    lemma_scaled_disp_eqv::<F>(u, v, a, b, big_a);
 
     // numer/A ≥ 0 (nonneg / pos)
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer);
     verus_algebra::lemmas::ordered_field_lemmas::lemma_nonneg_div_pos::<F>(numer, big_a);
-    // numer/A ≠ 0 (because numer ≠ 0 and A ≠ 0 → numer/A ≠ 0)
-    // numer * (1/A) ≠ 0 since neither is 0
-    // if numer/A ≡ 0, then numer ≡ 0 * A = 0, contradiction
+
+    // numer/A ≠ 0: if it were, then numer ≡ (numer/A)*A ≡ 0*A ≡ 0, contradiction
     if numer.div(big_a).eqv(F::zero()) {
         verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel::<F>(numer, big_a);
-        // numer/A * A ≡ numer
         verus_algebra::lemmas::ring_lemmas::lemma_mul_zero_left::<F>(big_a);
-        // 0 * A ≡ 0
         F::axiom_mul_congruence_left(numer.div(big_a), F::zero(), big_a);
-        // numer/A * A ≡ 0 * A ≡ 0
         F::axiom_eqv_transitive(numer.div(big_a).mul(big_a), F::zero().mul(big_a), F::zero());
-        // numer ≡ numer/A * A ≡ 0
         F::axiom_eqv_symmetric(numer, numer.div(big_a).mul(big_a));
         F::axiom_eqv_transitive(numer, numer.div(big_a).mul(big_a), F::zero());
-        // But numer > 0 means !numer.eqv(0), contradiction
     }
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer.div(big_a));
-    // Now: numer/A > 0
+    // numer/A > 0
 
-    // v*(a/A) - u*(b/A) ≡ numer/A
-    // Step 1: v*(a/A) ≡ (v*a)/A by mul_div_assoc
-    crate::line_intersection::lemma_mul_div_assoc::<F>(v, a, big_a);
-    crate::line_intersection::lemma_mul_div_assoc::<F>(u, b, big_a);
-
-    // Step 2: (v*a)/A - (u*b)/A ≡ (v*a - u*b)/A
-    // Use div_add_same_denom for the neg version
-    lemma_div_neg_numerator::<F>(u.mul(b), big_a);
-    F::axiom_eqv_symmetric(u.mul(b).neg().div(big_a), u.mul(b).div(big_a).neg());
-    lemma_add_congruence_right::<F>(v.mul(a).div(big_a),
-        u.mul(b).div(big_a).neg(), u.mul(b).neg().div(big_a));
-    lemma_div_add_same_denom::<F>(v.mul(a), u.mul(b).neg(), big_a);
-
-    // Step 3: (v*a - u*b) ≡ numer
-    F::axiom_mul_commutative(v, a);
-    F::axiom_mul_commutative(u, b);
-    lemma_neg_congruence::<F>(u.mul(b), b.mul(u));
-    lemma_mul_neg_left::<F>(b, u);
-    F::axiom_eqv_symmetric(b.neg().mul(u), b.mul(u).neg());
-    F::axiom_eqv_transitive(u.mul(b).neg(), b.mul(u).neg(), b.neg().mul(u));
-    lemma_add_congruence::<F>(v.mul(a), a.mul(v), u.mul(b).neg(), b.neg().mul(u));
-    F::axiom_add_commutative(a.mul(v), b.neg().mul(u));
-    F::axiom_eqv_transitive(
-        v.mul(a).add(u.mul(b).neg()), a.mul(v).add(b.neg().mul(u)), numer);
-
-    // Step 4: (v*a - u*b)/A ≡ numer/A
-    F::axiom_sub_is_add_neg(v.mul(a), u.mul(b));
-    F::axiom_eqv_transitive(v.mul(a).sub(u.mul(b)), v.mul(a).add(u.mul(b).neg()), numer);
-    F::axiom_eqv_reflexive(big_a);
-    verus_algebra::quadratic::lemma_div_congruence::<F>(
-        v.mul(a).sub(u.mul(b)), numer, big_a, big_a);
-
-    // Step 5: Assemble the eqv chain: v*(a/A)-u*(b/A) ≡ ... ≡ numer/A
-    // v*(a/A)-u*(b/A) ≡ (v*a)/A - (u*b)/A  [by mul_div_assoc]
-    lemma_sub_congruence::<F>(
-        v.mul(a.div(big_a)), v.mul(a).div(big_a),
-        u.mul(b.div(big_a)), u.mul(b).div(big_a));
-    // (v*a)/A - (u*b)/A = (v*a)/A + neg((u*b)/A) ≡ (v*a + neg(u*b))/A
-    F::axiom_sub_is_add_neg(v.mul(a).div(big_a), u.mul(b).div(big_a));
-    // (v*a + neg(u*b))/A = (v*a - u*b)/A ≡ numer/A
-    // Chain: v*(a/A)-u*(b/A) ≡ (v*a)/A-(u*b)/A
-    //   and (v*a)/A-(u*b)/A ≡ (v*a)/A+neg((u*b)/A)
-    //   and (v*a)/A+neg((u*b)/A) ≡ (v*a)/A+neg(u*b)/A [from div_neg bridge]
-    //   and (v*a)/A+neg(u*b)/A ≡ (v*a+neg(u*b))/A [from div_add_same_denom]
-    //   and (v*a+neg(u*b))/A ≡ numer/A [from v*a+neg(u*b) ≡ numer + div_congruence]
-
-    // Build explicit chain to numer/A:
-    let result = v.mul(a.div(big_a)).sub(u.mul(b.div(big_a)));
-    let step1 = v.mul(a).div(big_a).sub(u.mul(b).div(big_a));
-    let step2 = v.mul(a).div(big_a).add(u.mul(b).div(big_a).neg());
-    let step3 = v.mul(a).div(big_a).add(u.mul(b).neg().div(big_a));
-    let step4 = v.mul(a).add(u.mul(b).neg()).div(big_a);
-    let step5 = numer.div(big_a);
-
-    // result ≡ step1 (from sub_congruence above)
-    // step1 ≡ step2 (sub = add neg)
-    F::axiom_sub_is_add_neg(v.mul(a).div(big_a), u.mul(b).div(big_a));
-    // step2 ≡ step3 (neg bridge)
-    // step3 ≡ step4 (div_add_same_denom)
-    // step4 ≡ step5 (div_congruence with v*a+neg(u*b) ≡ numer)
-
-    // Verify each link
-    assert(result.eqv(step1)); // sub_congruence
-    assert(step1.eqv(step2)); // sub_is_add_neg
-    assert(step2.eqv(step3)); // add_congruence_right (neg bridge)
-    assert(step3.eqv(step4)); // div_add_same_denom
-    // step4 ≡ step5: (v*a + neg(u*b))/A ≡ numer/A
-    // Need: v*a + neg(u*b) ≡ numer
-    // We proved: v*a.sub(u*b) ≡ numer, i.e., v*a + neg(u*b) ≡ numer (sub = add neg)
-    // And div_congruence: if numerator ≡, then quotient ≡
-    // But step4 = (v*a + neg(u*b))/A, not (v*a - u*b)/A
-    // v*a.sub(u*b) = v*a.add(u*b.neg()) structurally (by sub impl)
-    // Actually step4 = v.mul(a).add(u.mul(b).neg()).div(big_a) which IS structurally
-    // the same as what div_congruence operates on.
-
-    F::axiom_eqv_transitive(result, step1, step2);
-    F::axiom_eqv_transitive(result, step2, step3);
-    F::axiom_eqv_transitive(result, step3, step4);
-    F::axiom_eqv_transitive(result, step4, step5);
-
-    // Transfer positivity: numer/A > 0 and result ≡ numer/A → result > 0
-    F::axiom_eqv_symmetric(result, step5);
+    // Transfer: result ≡ numer/A > 0 → result > 0
+    F::axiom_eqv_symmetric(result, numer.div(big_a));
     F::axiom_eqv_reflexive(F::zero());
-    F::axiom_le_congruence(F::zero(), F::zero(), step5, result);
-    // Also transfer !eqv(0):
+    F::axiom_le_congruence(F::zero(), F::zero(), numer.div(big_a), result);
     if F::zero().eqv(result) {
-        F::axiom_eqv_transitive(F::zero(), result, step5);
+        F::axiom_eqv_transitive(F::zero(), result, numer.div(big_a));
     }
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), result);
 }
