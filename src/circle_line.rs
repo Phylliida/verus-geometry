@@ -1644,6 +1644,76 @@ proof fn lemma_scaled_disp_positive<F: OrderedField>(
 /// Helper: the im part of the sq_dist difference is positive when cl_displacement_sign > 0.
 /// Extracted as a separate lemma to reduce Z3 context size.
 #[verifier::rlimit(120)]
+/// neg(x)+y - (x+neg(y)) ≡ (y-x) + (y-x) for any additive group elements.
+proof fn lemma_neg_plus_minus_double<A: AdditiveGroup>(x: A, y: A)
+    ensures x.neg().add(y).sub(x.add(y.neg())).eqv(y.sub(x).add(y.sub(x))),
+{
+    // neg(x+neg(y)) ≡ neg(x) + neg(neg(y)) ≡ neg(x) + y
+    use verus_algebra::lemmas::additive_group_lemmas::{lemma_neg_add, lemma_neg_involution};
+    lemma_neg_add::<A>(x, y.neg());
+    lemma_neg_involution::<A>(y);
+    lemma_add_congruence_right::<A>(x.neg(), y.neg().neg(), y);
+    A::axiom_eqv_symmetric(x.add(y.neg()).neg(), x.neg().add(y.neg().neg()));
+    A::axiom_eqv_transitive(x.add(y.neg()).neg(), x.neg().add(y.neg().neg()), x.neg().add(y));
+
+    // neg(x)+y - (x+neg(y)) = neg(x)+y + neg(x+neg(y)) ≡ neg(x)+y + neg(x)+y
+    A::axiom_sub_is_add_neg(x.neg().add(y), x.add(y.neg()));
+    lemma_add_congruence_right::<A>(x.neg().add(y), x.add(y.neg()).neg(), x.neg().add(y));
+
+    // neg(x)+y ≡ y+neg(x) ≡ y-x (by add_commutative + sub_is_add_neg)
+    A::axiom_add_commutative(x.neg(), y);
+    A::axiom_sub_is_add_neg(y, x);
+    A::axiom_eqv_symmetric(y.sub(x), y.add(x.neg()));
+    A::axiom_eqv_transitive(x.neg().add(y), y.add(x.neg()), y.sub(x));
+
+    // (neg(x)+y) + (neg(x)+y) ≡ (y-x) + (y-x)
+    lemma_add_congruence::<A>(x.neg().add(y), y.sub(x), x.neg().add(y), y.sub(x));
+    // Chain: lhs ≡ neg(x)+y + neg(x)+y ≡ (y-x)+(y-x)
+    A::axiom_eqv_transitive(
+        x.neg().add(y).sub(x.add(y.neg())),
+        x.neg().add(y).add(x.neg().add(y)),
+        y.sub(x).add(y.sub(x)));
+}
+
+/// (t+t)-(s+s) ≡ (t-s)+(t-s) for any additive group elements.
+proof fn lemma_double_sub_double<A: AdditiveGroup>(t: A, s: A)
+    ensures t.add(t).sub(s.add(s)).eqv(t.sub(s).add(t.sub(s))),
+{
+    // (t+t)-(s+s) = (t+t)+neg(s+s) = (t+t)+(neg(s)+neg(s))
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add;
+    lemma_neg_add::<A>(s, s);
+    A::axiom_eqv_symmetric(s.add(s).neg(), s.neg().add(s.neg()));
+
+    A::axiom_sub_is_add_neg(t.add(t), s.add(s));
+    lemma_add_congruence_right::<A>(t.add(t), s.add(s).neg(), s.neg().add(s.neg()));
+
+    // (t+t)+(neg(s)+neg(s)) ≡ (t+neg(s))+(t+neg(s)) by 4-way exchange
+    crate::line2::lemma_add_exchange::<A>(t, t, s.neg(), s.neg());
+    A::axiom_eqv_transitive(
+        t.add(t).add(s.add(s).neg()),
+        t.add(t).add(s.neg().add(s.neg())),
+        t.add(s.neg()).add(t.add(s.neg())));
+
+    // t+neg(s) ≡ t-s
+    A::axiom_sub_is_add_neg(t, s);
+    A::axiom_eqv_symmetric(t.sub(s), t.add(s.neg()));
+    lemma_add_congruence::<A>(t.add(s.neg()), t.sub(s), t.add(s.neg()), t.sub(s));
+    A::axiom_eqv_transitive(
+        t.add(s.neg()).add(t.add(s.neg())),
+        t.sub(s).add(t.sub(s)),
+        t.sub(s).add(t.sub(s)));
+
+    // Full chain
+    A::axiom_eqv_transitive(
+        t.add(t).sub(s.add(s)),
+        t.add(t).add(s.add(s).neg()),
+        t.add(s.neg()).add(t.add(s.neg())));
+    A::axiom_eqv_transitive(
+        t.add(t).sub(s.add(s)),
+        t.add(s.neg()).add(t.add(s.neg())),
+        t.sub(s).add(t.sub(s)));
+}
+
 /// Im expansion: diff.im ≡ scaled + scaled, where scaled = dy_re*(a/A) - dx_re*(b/A).
 /// This is the pure algebraic expansion without ordering.
 #[verifier::rlimit(40)]
@@ -1661,7 +1731,7 @@ proof fn lemma_cl_sq_dist_im_eqv_scaled<F: OrderedField, R: PositiveRadicand<F>>
             cl_intersection_point(circle, line, true), lift_point2(target))
         .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
             cl_intersection_point(circle, line, false), lift_point2(target))).im
-        .eqv(scaled.add(scaled))
+        .eqv(scaled.add(scaled).add(scaled.add(scaled)))
     }),
 {
     let p_plus = cl_intersection_point::<F, R>(circle, line, true);
@@ -1734,118 +1804,64 @@ proof fn lemma_cl_sq_dist_im_eqv_scaled<F: OrderedField, R: PositiveRadicand<F>>
         dx_plus_actual_im.add(dy_plus_actual_im), dx_bA_im.neg().add(dy_aA_im),
         dx_minus_actual_im.add(dy_minus_actual_im), dx_bA_im.add(dy_aA_im.neg()));
 
-    // diff.im ≡ neg(X)+Y-(X+neg(Y)) where X=dx_bA_im, Y=dy_aA_im.
-    // From scaled_disp_positive: dy_re*(a/A) - dx_re*(b/A) > 0.
-    // Connection: neg(X)+Y-(X+neg(Y)) = 2(Y-X) = 4*(dy_re*(a/A)-dx_re*(b/A)) > 0
-    // since X = 2*dx_re*(b/A) and Y = 2*dy_re*(a/A) by commutativity.
-
-    // Establish disp_expr > 0 from cl_displacement_sign > 0
-    assert(F::zero().lt(line.b.neg().mul(dx_re).add(line.a.mul(dy_re)))) by {
-        let h = cl_signed_dist_num(circle, line);
-        let v = line.a.mul(h).div(big_a);
-        let w = line.b.mul(h).div(big_a);
-        let t = h.div(big_a);
-        F::axiom_div_is_mul_recip(line.a.mul(h), big_a);
-        F::axiom_div_is_mul_recip(h, big_a);
-        F::axiom_eqv_symmetric(t, h.mul(big_a.recip()));
-        F::axiom_mul_associative(line.a, h, big_a.recip());
-        F::axiom_eqv_symmetric(line.a.mul(h.mul(big_a.recip())), line.a.mul(h).mul(big_a.recip()));
-        F::axiom_eqv_transitive(v, line.a.mul(h).mul(big_a.recip()), line.a.mul(h.mul(big_a.recip())));
-        lemma_mul_congruence_right::<F>(line.a, h.mul(big_a.recip()), t);
-        F::axiom_eqv_transitive(v, line.a.mul(h.mul(big_a.recip())), line.a.mul(t));
-        F::axiom_div_is_mul_recip(line.b.mul(h), big_a);
-        F::axiom_mul_associative(line.b, h, big_a.recip());
-        F::axiom_eqv_symmetric(line.b.mul(h.mul(big_a.recip())), line.b.mul(h).mul(big_a.recip()));
-        F::axiom_eqv_transitive(w, line.b.mul(h).mul(big_a.recip()), line.b.mul(h.mul(big_a.recip())));
-        lemma_mul_congruence_right::<F>(line.b, h.mul(big_a.recip()), t);
-        F::axiom_eqv_transitive(w, line.b.mul(h.mul(big_a.recip())), line.b.mul(t));
-        lemma_cl_displacement_cancellation(
-            line.a, line.b, circle.center.x, circle.center.y,
-            target.x, target.y, v, w, t);
-        let disp = line.b.neg().mul(dx_re).add(line.a.mul(dy_re));
-        let sign_val = cl_displacement_sign(circle, line, target);
-        F::axiom_eqv_symmetric(disp, sign_val);
-        F::axiom_eqv_reflexive(F::zero());
-        F::axiom_lt_iff_le_and_not_eqv(F::zero(), sign_val);
-        F::axiom_le_congruence(F::zero(), F::zero(), sign_val, disp);
-        F::axiom_eqv_symmetric(F::zero(), sign_val);
-        if F::zero().eqv(disp) { F::axiom_eqv_transitive(F::zero(), disp, sign_val); }
-        F::axiom_lt_iff_le_and_not_eqv(F::zero(), disp);
-    };
-
-    // Now use scaled_disp_positive
-    lemma_scaled_disp_positive::<F>(dx_re, dy_re, line.a, line.b, big_a);
-
-    // neg(X)+Y-(X+neg(Y)) = (neg(X)+Y) + neg(X+neg(Y))
-    //                      = (neg(X)+Y) + (neg(X)+neg(neg(Y)))  [neg_add]
-    //                      = (neg(X)+Y) + (neg(X)+Y)            [neg_involution: neg(neg(Y))=Y]
-    // If neg(X)+Y > 0, then sum of two positives > 0.
-    //
-    // neg(X)+Y = Y+neg(X) = Y-X. And Y-X = (dy_aA_im)-(dx_bA_im).
-    // dy_aA_im = dy_re*(a/A) + (a/A)*dy_re ≡ 2*dy_re*(a/A) (by commutativity)
-    // dx_bA_im = dx_re*(b/A) + (b/A)*dx_re ≡ 2*dx_re*(b/A) (by commutativity)
-    // Y - X ≡ 2*(dy_re*(a/A) - dx_re*(b/A)) > 0 (from scaled_disp_positive, times 2)
-    //
-    // Actually let me just show neg(X)+Y > 0 directly.
-    // neg(X) = neg(dx_bA_im) where dx_bA_im = dx_re*b/A + b/A*dx_re
-    // Y = dy_aA_im = dy_re*a/A + a/A*dy_re
-    // neg(X)+Y = neg(dx_re*b/A + b/A*dx_re) + (dy_re*a/A + a/A*dy_re)
-    //          = neg(dx_re*b/A) + neg(b/A*dx_re) + dy_re*a/A + a/A*dy_re
-    //          ≡ neg(dx_re*b/A) + neg(dx_re*b/A) + dy_re*a/A + dy_re*a/A  [commutativity]
-    //          = 2*(dy_re*a/A - dx_re*b/A) > 0
-    //
-    // This still requires explicit steps. Let me use nonneg_add for the final step.
-
-    // Y - X > 0:
+    // diff.im ≡ neg(X)+Y-(X+neg(Y)) where X = dx_bA_im, Y = dy_aA_im.
+    // X = dx_re*(b/A) + (b/A)*dx_re, Y = dy_re*(a/A) + (a/A)*dy_re.
+    // By commutativity: X ≡ dx_re*(b/A) + dx_re*(b/A), Y ≡ dy_re*(a/A) + dy_re*(a/A).
     F::axiom_mul_commutative(b_over_a, dx_re);
     F::axiom_mul_commutative(a_over_a, dy_re);
-    // dx_bA_im = dx_re*b/A + b/A*dx_re ≡ dx_re*b/A + dx_re*b/A
     lemma_add_congruence_right::<F>(dx_re.mul(b_over_a), b_over_a.mul(dx_re), dx_re.mul(b_over_a));
-    // dy_aA_im = dy_re*a/A + a/A*dy_re ≡ dy_re*a/A + dy_re*a/A
     lemma_add_congruence_right::<F>(dy_re.mul(a_over_a), a_over_a.mul(dy_re), dy_re.mul(a_over_a));
-    // Y - X ≡ (dy_re*a/A + dy_re*a/A) - (dx_re*b/A + dx_re*b/A)
-    // = 2*dy_re*a/A - 2*dx_re*b/A = 2*(dy_re*a/A - dx_re*b/A) > 0
-    // since dy_re*a/A - dx_re*b/A > 0.
-    // 2*positive > 0 by nonneg_add (positive + positive >= 0, + nonzero).
+    // X ≡ s + s where s = dx_re*(b/A), Y ≡ t + t where t = dy_re*(a/A)
 
-    // Actually, the simplest path: use le_congruence to transfer from the
-    // scaled_disp_positive result through the eqv chain to diff.im.
-    // But the eqv chain goes: diff.im ≡ neg(X)+Y-(X+neg(Y)) ≡ ... ≡ 4*scaled.
-    // Without the full chain, we can't transfer.
-    //
-    // Let me try one more thing: give Z3 just the two key facts in a clean scope:
-    // 1. diff.im ≡ neg(X)+Y-(X+neg(Y))  [from the expansion above]
-    // 2. Y-X is eqv to something positive  [from commutativity + scaled_disp_positive]
-    // And let Z3 do the 2*(Y-X) > 0 arithmetic.
-
-    // Actually — Y.sub(X) ≡ 2*(dy_re*(a/A) - dx_re*(b/A)) which is positive.
-    // And neg(X)+Y = Y+neg(X) = Y-X (by sub_is_add_neg reversed).
-    // So neg(X)+Y > 0.
-    // And neg(X+neg(Y)) ≡ neg(X)+Y > 0 (by neg_add + involution, same expression).
-    // Sum of two positives is positive.
-
-    // Y.sub(X):
-    let y_sub_x = dy_aA_im.sub(dx_bA_im);
-    // y_sub_x ≡ (dy_re*a/A+dy_re*a/A) - (dx_re*b/A+dx_re*b/A)
-    // This involves add_self terms. Let me just assert Y-X > 0 using le_congruence
-    // from scaled_disp_positive.
-
-    // Actually, the scaled_disp_positive already proved
-    // dy_re*(a/A) - dx_re*(b/A) > 0.
-    // And Y = dy_re*(a/A)+dy_re*(a/A) and X = dx_re*(b/A)+dx_re*(b/A) (by comm).
-    // Y - X = (dy_re*(a/A)+dy_re*(a/A)) - (dx_re*(b/A)+dx_re*(b/A))
-    // = (dy_re*(a/A) - dx_re*(b/A)) + (dy_re*(a/A) - dx_re*(b/A))  [by rearranging]
-    // This is positive + positive = positive by nonneg_add.
-
-    // nonneg_add:
     let scaled = dy_re.mul(a_over_a).sub(dx_re.mul(b_over_a));
-    // scaled > 0 (from lemma_scaled_disp_positive)
-    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled);
-    verus_algebra::inequalities::lemma_nonneg_add::<F>(scaled, scaled);
-    // scaled + scaled ≥ 0. Also nonzero since scaled > 0.
-    // scaled + scaled > 0.
-    // Now need: diff.im ≡ scaled + scaled (via the eqv chain).
-    // This is the missing connection. Let Z3 try with all these facts.
+    let t = dy_re.mul(a_over_a);
+    let s = dx_re.mul(b_over_a);
+
+    // Step 1: neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X)
+    lemma_neg_plus_minus_double::<F>(dx_bA_im, dy_aA_im);
+
+    // Step 2: Y ≡ t+t and X ≡ s+s (from commutativity, already established above)
+    // So Y-X ≡ (t+t)-(s+s)
+    lemma_sub_congruence::<F>(dy_aA_im, t.add(t), dx_bA_im, s.add(s));
+
+    // Step 3: (t+t)-(s+s) ≡ (t-s)+(t-s) = scaled+scaled
+    lemma_double_sub_double::<F>(t, s);
+
+    // Chain Y-X ≡ (t+t)-(s+s) ≡ scaled+scaled
+    F::axiom_eqv_transitive(dy_aA_im.sub(dx_bA_im), t.add(t).sub(s.add(s)), scaled.add(scaled));
+
+    // Chain (Y-X)+(Y-X) ≡ scaled+scaled + scaled+scaled... wait, we need:
+    // neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X) [step 1]
+    // (Y-X)+(Y-X) ≡ scaled+scaled+scaled+scaled... no.
+    // (Y-X) ≡ scaled+scaled? No. Y-X ≡ (t+t)-(s+s) ≡ (t-s)+(t-s) = scaled+scaled.
+    // So (Y-X)+(Y-X) ≡ (scaled+scaled)+(scaled+scaled). But we want scaled+scaled, not doubled.
+    // Wait — scaled = t-s. Y-X ≡ scaled+scaled = (t-s)+(t-s).
+    // neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X) ≡ (scaled+scaled)+(scaled+scaled).
+    // That's 4*scaled, not 2*scaled. Hmm.
+    //
+    // Actually the ensures says diff.im ≡ scaled+scaled.
+    // neg(X)+Y-(X+neg(Y)) is the im of the diff.
+    // neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X) where Y-X ≡ (t+t)-(s+s) ≡ (t-s)+(t-s) = scaled+scaled.
+    // So neg(X)+Y-(X+neg(Y)) ≡ (scaled+scaled)+(scaled+scaled) = 4*scaled.
+    // But the ensures wants diff.im ≡ scaled+scaled, which is 2*scaled.
+    // This is WRONG — diff.im = 4*scaled, not 2*scaled!
+    //
+    // The ensures should be diff.im ≡ scaled.add(scaled).add(scaled.add(scaled))
+    // or equivalently, the ensures should just be diff.im > 0 (which follows from
+    // 4*scaled > 0 since scaled > 0).
+    //
+    // Let me change the ensures to just gt(0) and use the positivity directly.
+
+    // (Y-X)+(Y-X): each Y-X ≡ scaled+scaled. Sum ≡ (scaled+scaled)+(scaled+scaled).
+    lemma_add_congruence::<F>(
+        dy_aA_im.sub(dx_bA_im), scaled.add(scaled),
+        dy_aA_im.sub(dx_bA_im), scaled.add(scaled));
+
+    // Full chain: diff.im ≡ neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X) ≡ (scaled+scaled)+(scaled+scaled)
+    F::axiom_eqv_transitive(
+        dx_bA_im.neg().add(dy_aA_im).sub(dx_bA_im.add(dy_aA_im.neg())),
+        dy_aA_im.sub(dx_bA_im).add(dy_aA_im.sub(dx_bA_im)),
+        scaled.add(scaled).add(scaled.add(scaled)));
 }
 
 /// Main theorem: cl_displacement_sign > 0 ⟹ sq_dist(P_plus, Q) > sq_dist(P_minus, Q).
