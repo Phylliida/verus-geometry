@@ -1668,7 +1668,11 @@ proof fn lemma_neg_plus_minus_double<A: AdditiveGroup>(x: A, y: A)
 
     // (neg(x)+y) + (neg(x)+y) ≡ (y-x) + (y-x)
     lemma_add_congruence::<A>(x.neg().add(y), y.sub(x), x.neg().add(y), y.sub(x));
-    // Chain: lhs ≡ neg(x)+y + neg(x)+y ≡ (y-x)+(y-x)
+    // Chain: lhs ≡ add(neg(...)) ≡ neg(x)+y + neg(x)+y ≡ (y-x)+(y-x)
+    A::axiom_eqv_transitive(
+        x.neg().add(y).sub(x.add(y.neg())),
+        x.neg().add(y).add(x.add(y.neg()).neg()),
+        x.neg().add(y).add(x.neg().add(y)));
     A::axiom_eqv_transitive(
         x.neg().add(y).sub(x.add(y.neg())),
         x.neg().add(y).add(x.neg().add(y)),
@@ -1698,10 +1702,6 @@ proof fn lemma_double_sub_double<F: OrderedField>(t: F, s: F)
     F::axiom_sub_is_add_neg(t, s);
     F::axiom_eqv_symmetric(t.sub(s), t.add(s.neg()));
     lemma_add_congruence::<F>(t.add(s.neg()), t.sub(s), t.add(s.neg()), t.sub(s));
-    F::axiom_eqv_transitive(
-        t.add(s.neg()).add(t.add(s.neg())),
-        t.sub(s).add(t.sub(s)),
-        t.sub(s).add(t.sub(s)));
 
     // Full chain
     F::axiom_eqv_transitive(
