@@ -825,7 +825,7 @@ proof fn lemma_mul_sub_left<R: Ring>(k: R, a: R, b: R)
 {
     // a - b ≡ a + neg(b)
     R::axiom_sub_is_add_neg(a, b);
-    R::axiom_mul_congruence_left(a.sub(b), a.add(b.neg()), k);
+    lemma_mul_congruence_right::<R>(k, a.sub(b), a.add(b.neg()));
     // k*(a+neg(b)) ≡ k*a + k*neg(b)
     R::axiom_mul_distributes_left(k, a, b.neg());
     // k*neg(b) ≡ neg(k*b)
@@ -843,37 +843,45 @@ proof fn lemma_mul_sub_left<R: Ring>(k: R, a: R, b: R)
 /// The key cancellation: neg(b)·neg(v) + a·neg(w) ≡ 0
 /// when v = a·t and w = b·t (so neg(b)·neg(a·t) = b·a·t and a·neg(b·t) = neg(a·b·t),
 /// and b·a·t ≡ a·b·t by commutativity, so they cancel).
-proof fn lemma_cross_term_cancel<R: Ring>(a: R, b: R, t: R)
-    ensures
-        b.neg().mul(a.mul(t).neg()).add(a.mul(b.mul(t).neg())).eqv(R::zero()),
+/// b*(a*t) ≡ a*(b*t) — commutativity of the first two factors.
+proof fn lemma_mul_swap_first_two<R: Ring>(a: R, b: R, t: R)
+    ensures b.mul(a.mul(t)).eqv(a.mul(b.mul(t))),
 {
-    // neg(b)*neg(a*t) ≡ b*(a*t) by neg*neg
-    lemma_neg_mul_neg::<R>(b, a.mul(t));
-    // b*(a*t) ≡ (b*a)*t by associativity
+    // b*(a*t) ≡ (b*a)*t  by assoc (reverse)
     R::axiom_mul_associative(b, a, t);
-    // (b*a)*t ≡ (a*b)*t by commutativity of b*a
+    R::axiom_eqv_symmetric(b.mul(a).mul(t), b.mul(a.mul(t)));
+    // (b*a)*t ≡ (a*b)*t  by comm on first two
     R::axiom_mul_commutative(b, a);
     R::axiom_mul_congruence_left(b.mul(a), a.mul(b), t);
-    // (a*b)*t ≡ a*(b*t) by associativity
+    // (a*b)*t ≡ a*(b*t)  by assoc
     R::axiom_mul_associative(a, b, t);
-    R::axiom_eqv_symmetric(a.mul(b.mul(t)), a.mul(b).mul(t));
-    // Chain: neg(b)*neg(a*t) ≡ b*(a*t) ≡ (b*a)*t ≡ (a*b)*t ≡ a*(b*t)
-    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), b.mul(a.mul(t)), b.mul(a).mul(t));
-    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), b.mul(a).mul(t), a.mul(b).mul(t));
-    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), a.mul(b).mul(t), a.mul(b.mul(t)));
+    // Chain: b*(a*t) ≡ (b*a)*t ≡ (a*b)*t ≡ a*(b*t)
+    R::axiom_eqv_transitive(b.mul(a.mul(t)), b.mul(a).mul(t), a.mul(b).mul(t));
+    R::axiom_eqv_transitive(b.mul(a.mul(t)), a.mul(b).mul(t), a.mul(b.mul(t)));
+}
 
-    // a*neg(b*t) ≡ neg(a*(b*t))
-    lemma_mul_neg_right::<R>(a, b.mul(t));
-
-    // So LHS = a*(b*t) + neg(a*(b*t)) ≡ 0
+/// neg(b)*(a*t) + a*(b*t) ≡ 0  (cross terms cancel by commutativity).
+proof fn lemma_cross_term_cancel<R: Ring>(a: R, b: R, t: R)
+    ensures
+        b.neg().mul(a.mul(t)).add(a.mul(b.mul(t))).eqv(R::zero()),
+{
+    // neg(b)*(a*t) ≡ neg(b*(a*t))  by mul_neg_left
+    lemma_mul_neg_left::<R>(b, a.mul(t));
+    // b*(a*t) ≡ a*(b*t)  by swap
+    lemma_mul_swap_first_two::<R>(a, b, t);
+    // So neg(b)*(a*t) ≡ neg(a*(b*t))
+    lemma_neg_congruence::<R>(b.mul(a.mul(t)), a.mul(b.mul(t)));
+    R::axiom_eqv_transitive(b.neg().mul(a.mul(t)), b.mul(a.mul(t)).neg(), a.mul(b.mul(t)).neg());
+    // neg(a*(b*t)) + a*(b*t) ≡ 0
+    lemma_add_inverse_left::<R>(a.mul(b.mul(t)));
+    // Chain: neg(b)*(a*t) + a*(b*t) ≡ neg(a*(b*t)) + a*(b*t) ≡ 0
+    R::axiom_eqv_reflexive(a.mul(b.mul(t)));
     lemma_add_congruence::<R>(
-        b.neg().mul(a.mul(t).neg()), a.mul(b.mul(t)),
-        a.mul(b.mul(t).neg()), a.mul(b.mul(t)).neg());
-    // a*(b*t) + neg(a*(b*t)) ≡ 0
-    R::axiom_add_inverse_right(a.mul(b.mul(t)));
+        b.neg().mul(a.mul(t)), a.mul(b.mul(t)).neg(),
+        a.mul(b.mul(t)), a.mul(b.mul(t)));
     R::axiom_eqv_transitive(
-        b.neg().mul(a.mul(t).neg()).add(a.mul(b.mul(t).neg())),
-        a.mul(b.mul(t)).add(a.mul(b.mul(t)).neg()),
+        b.neg().mul(a.mul(t)).add(a.mul(b.mul(t))),
+        a.mul(b.mul(t)).neg().add(a.mul(b.mul(t))),
         R::zero());
 }
 
@@ -885,8 +893,8 @@ proof fn lemma_sub_sub_swap<A: AdditiveGroup>(a: A, b: A, c: A)
     A::axiom_sub_is_add_neg(a, b);
     A::axiom_sub_is_add_neg(a.sub(b), c);
     // a.sub(b).sub(c) ≡ (a+neg(b))+neg(c) = a+(neg(b)+neg(c))
-    lemma_add_congruence::<A>(a.sub(b), a.add(b.neg()), c.neg(), c.neg());
     A::axiom_eqv_reflexive(c.neg());
+    lemma_add_congruence::<A>(a.sub(b), a.add(b.neg()), c.neg(), c.neg());
     A::axiom_add_associative(a, b.neg(), c.neg());
     A::axiom_eqv_transitive(a.sub(b).sub(c), a.sub(b).add(c.neg()), a.add(b.neg()).add(c.neg()));
     A::axiom_eqv_transitive(a.sub(b).sub(c), a.add(b.neg()).add(c.neg()), a.add(b.neg().add(c.neg())));
@@ -933,8 +941,8 @@ proof fn lemma_cl_displacement_cancellation<F: OrderedField>(
     lemma_sub_sub_swap::<F>(cy, w, qy);
 
     // Step 2: neg(b)*(cx-v-qx) ≡ neg(b)*(u1-v),  a*(cy-w-qy) ≡ a*(u2-w)
-    F::axiom_mul_congruence_left(cx.sub(v).sub(qx), u1.sub(v), b.neg());
-    F::axiom_mul_congruence_left(cy.sub(w).sub(qy), u2.sub(w), a);
+    lemma_mul_congruence_right::<F>(b.neg(), cx.sub(v).sub(qx), u1.sub(v));
+    lemma_mul_congruence_right::<F>(a, cy.sub(w).sub(qy), u2.sub(w));
     lemma_add_congruence::<F>(
         b.neg().mul(cx.sub(v).sub(qx)), b.neg().mul(u1.sub(v)),
         a.mul(cy.sub(w).sub(qy)), a.mul(u2.sub(w)));
@@ -953,39 +961,16 @@ proof fn lemma_cl_displacement_cancellation<F: OrderedField>(
         a.mul(u2.sub(w)), rr.sub(ss));
 
     // Step 4: Show qq + ss ≡ 0  (the cross-term cancellation)
-    // qq = neg(b)*v ≡ neg(b)*(a*t)  and  ss = a*w ≡ a*(b*t)
-    F::axiom_mul_congruence_left(v, a.mul(t), b.neg());
-    F::axiom_mul_congruence_left(w, b.mul(t), a);
-
-    // neg(b)*(a*t) ≡ neg(b*(a*t))
-    lemma_mul_neg_left::<F>(b, a.mul(t));
-    // b*(a*t) ≡ a*(b*t)  by assoc + comm
-    F::axiom_mul_associative(b, a, t);
-    F::axiom_mul_commutative(b, a);
-    F::axiom_mul_congruence_left(b.mul(a), a.mul(b), t);
-    F::axiom_mul_associative(a, b, t);
-    F::axiom_eqv_symmetric(a.mul(b.mul(t)), a.mul(b).mul(t));
-    F::axiom_eqv_transitive(b.mul(a.mul(t)), b.mul(a).mul(t), a.mul(b).mul(t));
-    F::axiom_eqv_transitive(b.mul(a.mul(t)), a.mul(b).mul(t), a.mul(b.mul(t)));
-
-    // neg(b)*(a*t) ≡ neg(a*(b*t))
-    lemma_neg_congruence::<F>(b.mul(a.mul(t)), a.mul(b.mul(t)));
-    F::axiom_eqv_transitive(
-        b.neg().mul(a.mul(t)), b.mul(a.mul(t)).neg(), a.mul(b.mul(t)).neg());
-
-    // qq ≡ neg(b)*(a*t) ≡ neg(a*(b*t)) = neg(ss_inner)
-    // So qq + ss ≡ neg(a*(b*t)) + a*(b*t) ≡ 0
+    // qq = neg(b)*v, v ≡ a*t → neg(b)*v ≡ neg(b)*(a*t)
+    lemma_mul_congruence_right::<F>(b.neg(), v, a.mul(t));
+    // ss = a*w, w ≡ b*t → a*w ≡ a*(b*t)
+    lemma_mul_congruence_right::<F>(a, w, b.mul(t));
+    // neg(b)*(a*t) + a*(b*t) ≡ 0  by lemma_cross_term_cancel
+    lemma_cross_term_cancel::<F>(a, b, t);
+    // qq + ss ≡ neg(b)*(a*t) + a*(b*t) ≡ 0
     lemma_add_congruence::<F>(qq, b.neg().mul(a.mul(t)), ss, a.mul(b.mul(t)));
-    lemma_add_congruence::<F>(
-        b.neg().mul(a.mul(t)), a.mul(b.mul(t)).neg(),
-        a.mul(b.mul(t)), a.mul(b.mul(t)));
-    F::axiom_eqv_reflexive(a.mul(b.mul(t)));
-    lemma_add_inverse_left::<F>(a.mul(b.mul(t)));
     F::axiom_eqv_transitive(qq.add(ss),
         b.neg().mul(a.mul(t)).add(a.mul(b.mul(t))),
-        a.mul(b.mul(t)).neg().add(a.mul(b.mul(t))));
-    F::axiom_eqv_transitive(qq.add(ss),
-        a.mul(b.mul(t)).neg().add(a.mul(b.mul(t))),
         F::zero());
 
     // Step 5: (P - Q) + (R - S) ≡ P + R  when Q + S ≡ 0
@@ -1003,6 +988,7 @@ proof fn lemma_cl_displacement_cancellation<F: OrderedField>(
 
     // neg(qq) + neg(ss) ≡ neg(qq + ss) ≡ neg(0) ≡ 0
     lemma_neg_add::<F>(qq, ss);
+    F::axiom_eqv_symmetric(qq.add(ss).neg(), qq.neg().add(ss.neg()));
     lemma_neg_congruence::<F>(qq.add(ss), F::zero());
     verus_algebra::lemmas::additive_group_lemmas::lemma_neg_zero::<F>();
     F::axiom_eqv_transitive(qq.neg().add(ss.neg()), qq.add(ss).neg(), F::zero().neg());
