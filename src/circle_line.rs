@@ -11,6 +11,7 @@ use crate::line2::*;
 use crate::circle2::*;
 use crate::circle_circle::{radical_axis, cc_intersection_point};
 use crate::voronoi::sq_dist_2d;
+use crate::constructed_scalar::lift_point2;
 use verus_linalg::vec2::Vec2;
 use verus_linalg::vec2::ops::norm_sq;
 
@@ -1064,6 +1065,119 @@ pub proof fn lemma_cc_displacement_sign_consistent<F: OrderedField, R: PositiveR
         // which cc_intersection_point is closer.
 {
     // Both follow directly from the definition of cc_intersection_point.
+}
+
+/// Squaring conjugates: the re part of (a+b√d)² ≡ the re part of (a-b√d)².
+/// Both equal a²+b²d, since (-b)(-b) ≡ b*b.
+proof fn lemma_qe_sq_re_conjugate<F: OrderedField, R: PositiveRadicand<F>>(
+    a: F, b: F,
+)
+    ensures
+        qe_mul::<F, R>(qext(a, b), qext(a, b)).re.eqv(
+            qe_mul::<F, R>(qext(a, b.neg()), qext(a, b.neg())).re),
+{
+    // qe_mul(qext(a,b), qext(a,b)).re = a*a + b*b*d
+    // qe_mul(qext(a,-b), qext(a,-b)).re = a*a + (-b)*(-b)*d
+    // Need: a*a + b*b*d ≡ a*a + (-b)*(-b)*d
+    // i.e., b*b*d ≡ (-b)*(-b)*d
+    // i.e., b*b ≡ (-b)*(-b) (by mul_congruence_left)
+    // (-b)*(-b) ≡ b*b by lemma_neg_mul_neg
+    use verus_algebra::lemmas::ring_lemmas::lemma_neg_mul_neg;
+    lemma_neg_mul_neg::<F>(b, b);
+    // b.neg().mul(b.neg()) ≡ b.mul(b)
+    F::axiom_eqv_symmetric(b.neg().mul(b.neg()), b.mul(b));
+    // b.mul(b) ≡ b.neg().mul(b.neg())  — wait, we need the other direction.
+    // Actually lemma_neg_mul_neg gives: b.neg().mul(b.neg()).eqv(b.mul(b))
+    // We want: a*a + b*b*d ≡ a*a + neg(b)*neg(b)*d
+    // Since b.neg().mul(b.neg()) ≡ b.mul(b), and mul_congruence_left:
+    //   b.neg().mul(b.neg()).mul(d) ≡ b.mul(b).mul(d)
+    F::axiom_mul_congruence_left(b.neg().mul(b.neg()), b.mul(b), R::value());
+    // So neg(b)*neg(b)*d ≡ b*b*d
+    // Therefore a*a + neg(b)*neg(b)*d ≡ a*a + b*b*d
+    F::axiom_eqv_symmetric(b.neg().mul(b.neg()).mul(R::value()), b.mul(b).mul(R::value()));
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_add_congruence_right;
+    lemma_add_congruence_right::<F>(
+        a.mul(a),
+        b.mul(b).mul(R::value()),
+        b.neg().mul(b.neg()).mul(R::value()));
+    F::axiom_eqv_symmetric(
+        a.mul(a).add(b.mul(b).mul(R::value())),
+        a.mul(a).add(b.neg().mul(b.neg()).mul(R::value())));
+}
+
+/// Squaring conjugates: the im part negates. im of (a+b√d)² = 2ab, im of (a-b√d)² = -2ab.
+proof fn lemma_qe_sq_im_conjugate<F: OrderedField, R: PositiveRadicand<F>>(
+    a: F, b: F,
+)
+    ensures
+        // im of qe_mul(qext(a,b), qext(a,b)) = a*b + b*a
+        // im of qe_mul(qext(a,-b), qext(a,-b)) = a*(-b) + (-b)*a
+        // These are negatives of each other: a*(-b) + (-b)*a ≡ -(a*b + b*a)
+        qe_mul::<F, R>(qext(a, b.neg()), qext(a, b.neg())).im.eqv(
+            qe_mul::<F, R>(qext(a, b), qext(a, b)).im.neg()),
+{
+    // im_plus = a*b + b*a
+    // im_minus = a*neg(b) + neg(b)*a
+    // a*neg(b) ≡ neg(a*b), neg(b)*a ≡ neg(b*a)
+    // So im_minus ≡ neg(a*b) + neg(b*a) ≡ neg(a*b + b*a) = neg(im_plus)
+    use verus_algebra::lemmas::ring_lemmas::{lemma_mul_neg_right, lemma_mul_neg_left};
+    use verus_algebra::lemmas::additive_group_lemmas::{lemma_add_congruence, lemma_neg_add};
+    lemma_mul_neg_right::<F>(a, b); // a*neg(b) ≡ neg(a*b)
+    lemma_mul_neg_left::<F>(b, a); // neg(b)*a ≡ neg(b*a)
+    lemma_add_congruence::<F>(
+        a.mul(b.neg()), a.mul(b).neg(),
+        b.neg().mul(a), b.mul(a).neg());
+    // a*neg(b) + neg(b)*a ≡ neg(a*b) + neg(b*a)
+    // neg(a*b) + neg(b*a) ≡ neg(a*b + b*a) by neg_add
+    lemma_neg_add::<F>(a.mul(b), b.mul(a));
+    F::axiom_eqv_symmetric(a.mul(b).add(b.mul(a)).neg(), a.mul(b).neg().add(b.mul(a).neg()));
+    // Chain: im_minus ≡ neg(a*b) + neg(b*a) ≡ neg(a*b + b*a) = neg(im_plus)
+    F::axiom_eqv_transitive(
+        a.mul(b.neg()).add(b.neg().mul(a)),
+        a.mul(b).neg().add(b.mul(a).neg()),
+        a.mul(b).add(b.mul(a)).neg());
+}
+
+/// For two QExt points that share re parts but have negated im parts,
+/// their squared distances to a rational target have eqv re parts.
+///
+/// This is the geometric consequence of P_plus/P_minus being QExt conjugates.
+/// The proof uses lemma_qe_sq_re_conjugate for each coordinate.
+#[verifier::rlimit(80)]
+pub proof fn lemma_conjugate_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
+    re_x: F, re_y: F, im_x: F, im_y: F, qx: F, qy: F,
+)
+    ensures ({
+        let p_plus = Point2 { x: qext::<F, R>(re_x, im_x), y: qext::<F, R>(re_y, im_y) };
+        let p_minus = Point2 { x: qext::<F, R>(re_x, im_x.neg()), y: qext::<F, R>(re_y, im_y.neg()) };
+        let q = Point2 { x: qext::<F, R>(qx, F::zero()), y: qext::<F, R>(qy, F::zero()) };
+        sq_dist_2d::<SpecQuadExt<F, R>>(p_plus, q).re.eqv(
+            sq_dist_2d::<SpecQuadExt<F, R>>(p_minus, q).re)
+    }),
+{
+    // sq_dist(p, q) = (p.x - q.x)² + (p.y - q.y)²
+    // For QExt sub: qext(a,b).sub(qext(c,d)) = qext(a-c, b-d)
+    // p_plus.x - q.x = qext(re_x - qx, im_x - 0) = qext(re_x - qx, im_x)
+    // p_minus.x - q.x = qext(re_x - qx, neg(im_x) - 0) = qext(re_x - qx, neg(im_x))
+    // These are conjugates → their squares have the same re (lemma_qe_sq_re_conjugate)
+
+    let dx_re = re_x.sub(qx);
+    let dy_re = re_y.sub(qy);
+
+    // For x coordinate: conjugate squares have same re
+    lemma_qe_sq_re_conjugate::<F, R>(dx_re, im_x);
+    // For y coordinate: same
+    lemma_qe_sq_re_conjugate::<F, R>(dy_re, im_y);
+
+    // sq_dist re = (dx².re) + (dy².re). Sum of eqv parts is eqv.
+    use verus_algebra::lemmas::additive_group_lemmas::lemma_add_congruence;
+    let dx_p = qext::<F, R>(dx_re, im_x);
+    let dx_m = qext::<F, R>(dx_re, im_x.neg());
+    let dy_p = qext::<F, R>(dy_re, im_y);
+    let dy_m = qext::<F, R>(dy_re, im_y.neg());
+    lemma_add_congruence::<F>(
+        qe_mul::<F, R>(dx_p, dx_p).re, qe_mul::<F, R>(dx_m, dx_m).re,
+        qe_mul::<F, R>(dy_p, dy_p).re, qe_mul::<F, R>(dy_m, dy_m).re);
 }
 
 } // verus!
