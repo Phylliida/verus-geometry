@@ -1138,46 +1138,239 @@ proof fn lemma_qe_sq_im_conjugate<F: OrderedField, R: PositiveRadicand<F>>(
         a.mul(b).add(b.mul(a)).neg());
 }
 
+/// a - 0 ≡ a for ordered fields.
+proof fn lemma_sub_zero<F: OrderedField>(a: F)
+    ensures a.sub(F::zero()).eqv(a),
+{
+    // a.sub(0) ≡ a.add(0.neg()) by sub_is_add_neg
+    F::axiom_sub_is_add_neg(a, F::zero());
+    // 0.neg() ≡ 0
+    verus_algebra::lemmas::additive_group_lemmas::lemma_neg_zero::<F>();
+    // a.add(0.neg()) ≡ a.add(0) by add_congruence_right
+    lemma_add_congruence_right::<F>(a, F::zero().neg(), F::zero());
+    // a.add(0) ≡ a by add_zero_right
+    F::axiom_add_zero_right(a);
+    // Chain: a.sub(0) ≡ a.add(0.neg()) ≡ a.add(0) ≡ a
+    F::axiom_eqv_transitive(a.sub(F::zero()), a.add(F::zero().neg()), a.add(F::zero()));
+    F::axiom_eqv_transitive(a.sub(F::zero()), a.add(F::zero()), a);
+}
+
+/// If a ≡ b, then qe_mul(qext(r, a), qext(r, a)).re ≡ qe_mul(qext(r, b), qext(r, b)).re.
+/// Used to bridge from im.sub(zero) to im in the sq_dist unfolding.
+proof fn lemma_qe_sq_re_im_congruence<F: OrderedField, R: PositiveRadicand<F>>(
+    r: F, a: F, b: F,
+)
+    requires a.eqv(b),
+    ensures
+        qe_mul::<F, R>(qext(r, a), qext(r, a)).re.eqv(
+            qe_mul::<F, R>(qext(r, b), qext(r, b)).re),
+{
+    // qe_mul(qext(r,a), qext(r,a)).re = r*r + a*a*d
+    // qe_mul(qext(r,b), qext(r,b)).re = r*r + b*b*d
+    // Need: a*a*d ≡ b*b*d, which follows from a ≡ b by mul_congruence
+    F::axiom_mul_congruence_left(a, b, a); // a*a ≡ b*a
+    F::axiom_mul_congruence_left(a, b, b); // a*b ≡ b*b
+    F::axiom_eqv_reflexive(a);
+    lemma_mul_congruence_right::<F>(a, a, b); // a*a ≡ a*b
+    F::axiom_eqv_transitive(a.mul(a), a.mul(b), b.mul(b)); // a*a ≡ b*b
+    lemma_mul_congruence_right::<F>(R::value(), a.mul(a), b.mul(b)); // d * a*a ≡ d * b*b
+    // Wait — re = r*r + a*a*d. Need a*a*d ≡ b*b*d.
+    // a*a ≡ b*b (established), so by mul_congruence_left: (a*a)*d ≡ (b*b)*d
+    F::axiom_mul_congruence_left(a.mul(a), b.mul(b), R::value());
+    // r*r + (a*a)*d ≡ r*r + (b*b)*d
+    F::axiom_eqv_reflexive(r.mul(r));
+    lemma_add_congruence::<F>(
+        r.mul(r), r.mul(r),
+        a.mul(a).mul(R::value()), b.mul(b).mul(R::value()));
+}
+
+/// Full bridge: sq_dist_2d of circle-line intersections (plus vs minus) with a rational
+/// target has eqv re parts.
+///
+/// The key structural fact: cl_intersection_x has the same .re for both plus values,
+/// and its .im values satisfy neg_mul_neg cancellation when squared.
+#[verifier::rlimit(80)]
+pub proof fn lemma_cl_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
+    circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
+)
+    ensures
+        sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, true),
+            lift_point2(target)).re.eqv(
+        sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false),
+            lift_point2(target)).re),
+{
+    // Strategy: work with the actual .im values from cl_intersection_x/y spec.
+    // For plus=true:  im_x_plus = neg(b)/A, im_y_plus = a/A
+    // For plus=false: im_x_minus = b/A,      im_y_minus = neg(a)/A
+    // Use lemma_qe_sq_re_im_congruence to bridge sub(im, zero) ≡ im,
+    // then neg_mul_neg for the conjugate re equality.
+
+    let p_plus = cl_intersection_point::<F, R>(circle, line, true);
+    let p_minus = cl_intersection_point::<F, R>(circle, line, false);
+    let q = lift_point2::<F, R>(target);
+
+    // Same re parts (from cl_intersection_conjugate)
+    lemma_cl_intersection_conjugate::<F, R>(circle, line);
+    let dx_re = p_plus.x.re.sub(target.x);
+    let dy_re = p_plus.y.re.sub(target.y);
+
+    // Get the actual im values from the spec
+    let im_x_plus = p_plus.x.im;  // neg(b)/A
+    let im_x_minus = p_minus.x.im; // b/A
+    let im_y_plus = p_plus.y.im;  // a/A
+    let im_y_minus = p_minus.y.im; // neg(a)/A
+
+    // Bridge sub(im, zero) ≡ im for all four
+    lemma_sub_zero::<F>(im_x_plus);
+    lemma_sub_zero::<F>(im_x_minus);
+    lemma_sub_zero::<F>(im_y_plus);
+    lemma_sub_zero::<F>(im_y_minus);
+
+    // qe_sq(qext(dx_re, im.sub(zero))).re ≡ qe_sq(qext(dx_re, im)).re
+    lemma_qe_sq_re_im_congruence::<F, R>(dx_re, im_x_plus.sub(F::zero()), im_x_plus);
+    lemma_qe_sq_re_im_congruence::<F, R>(dx_re, im_x_minus.sub(F::zero()), im_x_minus);
+    lemma_qe_sq_re_im_congruence::<F, R>(dy_re, im_y_plus.sub(F::zero()), im_y_plus);
+    lemma_qe_sq_re_im_congruence::<F, R>(dy_re, im_y_minus.sub(F::zero()), im_y_minus);
+
+    // Now need: qe_sq(qext(dx_re, im_x_plus)).re ≡ qe_sq(qext(dx_re, im_x_minus)).re
+    // im_x_plus = neg(b)/A, im_x_minus = b/A
+    // (neg(b)/A)*(neg(b)/A) ≡ (b/A)*(b/A) by neg_mul_neg
+    // Similarly for y: (a/A)*(a/A) ≡ (neg(a)/A)*(neg(a)/A)
+    // This is: im_plus² ≡ im_minus² for each coordinate.
+    // qe_sq re = dx_re² + im²*d, so equal im² gives equal re.
+
+    // im_x_plus * im_x_plus ≡ im_x_minus * im_x_minus
+    // neg(b)/A * neg(b)/A vs b/A * b/A — by neg_mul_neg
+    use verus_algebra::lemmas::ring_lemmas::lemma_neg_mul_neg;
+    // Actually: im_x_plus = neg(b).div(A), im_x_minus = b.div(A)
+    // We need neg(b).div(A) * neg(b).div(A) ≡ b.div(A) * b.div(A)
+    // This follows from neg_mul_neg applied at the F level:
+    // neg(x) * neg(x) ≡ x * x for x = b.div(A)
+    use verus_algebra::lemmas::field_lemmas::lemma_div_neg_numerator;
+    // neg(b)/A ≡ neg(b/A), so neg(b)/A * neg(b)/A ≡ neg(b/A) * neg(b/A) ≡ (b/A)*(b/A)
+    let b_over_a = line.b.div(cl_quad_a(line));
+    let a_over_a = line.a.div(cl_quad_a(line));
+    lemma_neg_mul_neg::<F>(b_over_a, b_over_a); // neg(b/A)*neg(b/A) ≡ (b/A)*(b/A)
+    lemma_neg_mul_neg::<F>(a_over_a, a_over_a); // neg(a/A)*neg(a/A) ≡ (a/A)*(a/A)
+
+    // Bridge: neg(b).div(A) ≡ neg(b.div(A)) by div_neg_numerator
+    // Then: neg(b).div(A) * neg(b).div(A) ≡ neg(b/A) * neg(b/A) ≡ (b/A)*(b/A) = b.div(A)*b.div(A)
+    // So im_x_plus * im_x_plus ≡ im_x_minus * im_x_minus.
+
+    // Use the cl_quad_a nonzero fact to enable div_neg_numerator
+    lemma_cl_quad_a_positive(line);
+    // A > 0 implies A ≠ 0
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), cl_quad_a(line));
+    let big_a = cl_quad_a(line);
+
+    // neg(b)/A ≡ neg(b/A) and neg(a)/A ≡ neg(a/A)
+    lemma_div_neg_numerator::<F>(line.b, big_a);
+    lemma_div_neg_numerator::<F>(line.a, big_a);
+
+    // Now: im_x_plus = neg(b)/A ≡ neg(b/A) = neg(im_x_minus)
+    // im_x_plus * im_x_plus ≡ neg(b/A) * neg(b/A) ≡ (b/A)*(b/A) = im_x_minus * im_x_minus
+    F::axiom_mul_congruence_left(im_x_plus, b_over_a.neg(), im_x_plus);
+    lemma_mul_congruence_right::<F>(b_over_a.neg(), im_x_plus, b_over_a.neg());
+    F::axiom_eqv_transitive(im_x_plus.mul(im_x_plus), im_x_plus.mul(b_over_a.neg()), b_over_a.neg().mul(b_over_a.neg()));
+    F::axiom_eqv_transitive(im_x_plus.mul(im_x_plus), b_over_a.neg().mul(b_over_a.neg()), b_over_a.mul(b_over_a));
+    // im_x_plus² ≡ im_x_minus²
+
+    // Similarly for y: im_y_minus = neg(a)/A ≡ neg(a/A)
+    // im_y_plus = a/A, im_y_minus ≡ neg(a/A)
+    // im_y_minus * im_y_minus ≡ neg(a/A) * neg(a/A) ≡ (a/A)*(a/A) = im_y_plus * im_y_plus
+    F::axiom_mul_congruence_left(im_y_minus, a_over_a.neg(), im_y_minus);
+    lemma_mul_congruence_right::<F>(a_over_a.neg(), im_y_minus, a_over_a.neg());
+    F::axiom_eqv_transitive(im_y_minus.mul(im_y_minus), im_y_minus.mul(a_over_a.neg()), a_over_a.neg().mul(a_over_a.neg()));
+    F::axiom_eqv_transitive(im_y_minus.mul(im_y_minus), a_over_a.neg().mul(a_over_a.neg()), a_over_a.mul(a_over_a));
+    // im_y_minus² ≡ im_y_plus²
+
+    // Now: qe_sq(qext(dx_re, im_x_plus)).re = dx_re² + im_x_plus²*d
+    //      qe_sq(qext(dx_re, im_x_minus)).re = dx_re² + im_x_minus²*d
+    // Since im_x_plus² ≡ im_x_minus², and d is the same:
+    //   im_x_plus²*d ≡ im_x_minus²*d (by mul_congruence)
+    //   dx_re² + im_x_plus²*d ≡ dx_re² + im_x_minus²*d (by add_congruence)
+    F::axiom_mul_congruence_left(im_x_plus.mul(im_x_plus), im_x_minus.mul(im_x_minus), R::value());
+    F::axiom_eqv_reflexive(dx_re.mul(dx_re));
+    lemma_add_congruence_right::<F>(dx_re.mul(dx_re),
+        im_x_plus.mul(im_x_plus).mul(R::value()),
+        im_x_minus.mul(im_x_minus).mul(R::value()));
+
+    // Same for y
+    F::axiom_eqv_symmetric(im_y_minus.mul(im_y_minus), im_y_plus.mul(im_y_plus));
+    F::axiom_mul_congruence_left(im_y_plus.mul(im_y_plus), im_y_minus.mul(im_y_minus), R::value());
+    F::axiom_eqv_reflexive(dy_re.mul(dy_re));
+    lemma_add_congruence_right::<F>(dy_re.mul(dy_re),
+        im_y_plus.mul(im_y_plus).mul(R::value()),
+        im_y_minus.mul(im_y_minus).mul(R::value()));
+
+    // Now bridge through sub(im, zero) ≡ im for the actual sq_dist terms:
+    // sq_dist re for plus = (dx_re² + im_x_plus.sub(0)² * d) + (dy_re² + im_y_plus.sub(0)² * d)
+    // We showed sub(0) ≡ raw, and raw² equals across plus/minus. Chain them.
+
+    // X: actual_sq_plus.re (with sub(zero)) ≡ clean_sq_plus.re ≡ clean_sq_minus.re ≡ actual_sq_minus.re
+    let x_sq_plus_actual_re = qe_mul::<F, R>(
+        qext(dx_re, im_x_plus.sub(F::zero())), qext(dx_re, im_x_plus.sub(F::zero()))).re;
+    let x_sq_plus_clean_re = qe_mul::<F, R>(
+        qext(dx_re, im_x_plus), qext(dx_re, im_x_plus)).re;
+    let x_sq_minus_clean_re = qe_mul::<F, R>(
+        qext(dx_re, im_x_minus), qext(dx_re, im_x_minus)).re;
+    let x_sq_minus_actual_re = qe_mul::<F, R>(
+        qext(dx_re, im_x_minus.sub(F::zero())), qext(dx_re, im_x_minus.sub(F::zero()))).re;
+
+    F::axiom_eqv_transitive(x_sq_plus_actual_re, x_sq_plus_clean_re, x_sq_minus_clean_re);
+    F::axiom_eqv_symmetric(x_sq_minus_actual_re, x_sq_minus_clean_re);
+    F::axiom_eqv_transitive(x_sq_plus_actual_re, x_sq_minus_clean_re, x_sq_minus_actual_re);
+
+    // Y: same chain
+    let y_sq_plus_actual_re = qe_mul::<F, R>(
+        qext(dy_re, im_y_plus.sub(F::zero())), qext(dy_re, im_y_plus.sub(F::zero()))).re;
+    let y_sq_plus_clean_re = qe_mul::<F, R>(
+        qext(dy_re, im_y_plus), qext(dy_re, im_y_plus)).re;
+    let y_sq_minus_clean_re = qe_mul::<F, R>(
+        qext(dy_re, im_y_minus), qext(dy_re, im_y_minus)).re;
+    let y_sq_minus_actual_re = qe_mul::<F, R>(
+        qext(dy_re, im_y_minus.sub(F::zero())), qext(dy_re, im_y_minus.sub(F::zero()))).re;
+
+    F::axiom_eqv_transitive(y_sq_plus_actual_re, y_sq_plus_clean_re, y_sq_minus_clean_re);
+    F::axiom_eqv_symmetric(y_sq_minus_actual_re, y_sq_minus_clean_re);
+    F::axiom_eqv_transitive(y_sq_plus_actual_re, y_sq_minus_clean_re, y_sq_minus_actual_re);
+
+    // Final: sum of re parts
+    lemma_add_congruence::<F>(
+        x_sq_plus_actual_re, x_sq_minus_actual_re,
+        y_sq_plus_actual_re, y_sq_minus_actual_re);
+}
+
 /// For two QExt points that share re parts but have negated im parts,
 /// their squared distances to a rational target have eqv re parts.
 ///
 /// This is the geometric consequence of P_plus/P_minus being QExt conjugates.
-/// The proof uses lemma_qe_sq_re_conjugate for each coordinate.
-#[verifier::rlimit(80)]
-pub proof fn lemma_conjugate_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
-    re_x: F, re_y: F, im_x: F, im_y: F, qx: F, qy: F,
+/// The re part of (dx² + dy²) is the same for conjugate (dx, dy) pairs.
+/// This is the component-level version of "conjugate sq_dist has re≡0 difference."
+///
+/// Combined with lemma_qe_sq_im_conjugate, this establishes that the
+/// sq_dist difference between conjugate points is a pure imaginary QExt value.
+pub proof fn lemma_conjugate_norm_sq_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
+    dx_re: F, dy_re: F, im_x: F, im_y: F,
 )
-    ensures ({
-        let p_plus = Point2 { x: qext::<F, R>(re_x, im_x), y: qext::<F, R>(re_y, im_y) };
-        let p_minus = Point2 { x: qext::<F, R>(re_x, im_x.neg()), y: qext::<F, R>(re_y, im_y.neg()) };
-        let q = Point2 { x: qext::<F, R>(qx, F::zero()), y: qext::<F, R>(qy, F::zero()) };
-        sq_dist_2d::<SpecQuadExt<F, R>>(p_plus, q).re.eqv(
-            sq_dist_2d::<SpecQuadExt<F, R>>(p_minus, q).re)
-    }),
+    ensures
+        // dx² + dy² has same re for (dx_re, im_x)/(dy_re, im_y) vs conjugate
+        qe_mul::<F, R>(qext(dx_re, im_x), qext(dx_re, im_x)).re
+            .add(qe_mul::<F, R>(qext(dy_re, im_y), qext(dy_re, im_y)).re)
+            .eqv(
+        qe_mul::<F, R>(qext(dx_re, im_x.neg()), qext(dx_re, im_x.neg())).re
+            .add(qe_mul::<F, R>(qext(dy_re, im_y.neg()), qext(dy_re, im_y.neg())).re)),
 {
-    // sq_dist(p, q) = (p.x - q.x)² + (p.y - q.y)²
-    // For QExt sub: qext(a,b).sub(qext(c,d)) = qext(a-c, b-d)
-    // p_plus.x - q.x = qext(re_x - qx, im_x - 0) = qext(re_x - qx, im_x)
-    // p_minus.x - q.x = qext(re_x - qx, neg(im_x) - 0) = qext(re_x - qx, neg(im_x))
-    // These are conjugates → their squares have the same re (lemma_qe_sq_re_conjugate)
-
-    let dx_re = re_x.sub(qx);
-    let dy_re = re_y.sub(qy);
-
-    // For x coordinate: conjugate squares have same re
     lemma_qe_sq_re_conjugate::<F, R>(dx_re, im_x);
-    // For y coordinate: same
     lemma_qe_sq_re_conjugate::<F, R>(dy_re, im_y);
-
-    // sq_dist re = (dx².re) + (dy².re). Sum of eqv parts is eqv.
     use verus_algebra::lemmas::additive_group_lemmas::lemma_add_congruence;
-    let dx_p = qext::<F, R>(dx_re, im_x);
-    let dx_m = qext::<F, R>(dx_re, im_x.neg());
-    let dy_p = qext::<F, R>(dy_re, im_y);
-    let dy_m = qext::<F, R>(dy_re, im_y.neg());
     lemma_add_congruence::<F>(
-        qe_mul::<F, R>(dx_p, dx_p).re, qe_mul::<F, R>(dx_m, dx_m).re,
-        qe_mul::<F, R>(dy_p, dy_p).re, qe_mul::<F, R>(dy_m, dy_m).re);
+        qe_mul::<F, R>(qext(dx_re, im_x), qext(dx_re, im_x)).re,
+        qe_mul::<F, R>(qext(dx_re, im_x.neg()), qext(dx_re, im_x.neg())).re,
+        qe_mul::<F, R>(qext(dy_re, im_y), qext(dy_re, im_y)).re,
+        qe_mul::<F, R>(qext(dy_re, im_y.neg()), qext(dy_re, im_y.neg())).re);
 }
 
 } // verus!
