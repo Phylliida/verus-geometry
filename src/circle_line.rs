@@ -1676,39 +1676,39 @@ proof fn lemma_neg_plus_minus_double<A: AdditiveGroup>(x: A, y: A)
 }
 
 /// (t+t)-(s+s) ≡ (t-s)+(t-s) for any additive group elements.
-proof fn lemma_double_sub_double<A: AdditiveGroup>(t: A, s: A)
+proof fn lemma_double_sub_double<F: OrderedField>(t: F, s: F)
     ensures t.add(t).sub(s.add(s)).eqv(t.sub(s).add(t.sub(s))),
 {
     // (t+t)-(s+s) = (t+t)+neg(s+s) = (t+t)+(neg(s)+neg(s))
     use verus_algebra::lemmas::additive_group_lemmas::lemma_neg_add;
-    lemma_neg_add::<A>(s, s);
-    A::axiom_eqv_symmetric(s.add(s).neg(), s.neg().add(s.neg()));
+    lemma_neg_add::<F>(s, s);
+    F::axiom_eqv_symmetric(s.add(s).neg(), s.neg().add(s.neg()));
 
-    A::axiom_sub_is_add_neg(t.add(t), s.add(s));
-    lemma_add_congruence_right::<A>(t.add(t), s.add(s).neg(), s.neg().add(s.neg()));
+    F::axiom_sub_is_add_neg(t.add(t), s.add(s));
+    lemma_add_congruence_right::<F>(t.add(t), s.add(s).neg(), s.neg().add(s.neg()));
 
     // (t+t)+(neg(s)+neg(s)) ≡ (t+neg(s))+(t+neg(s)) by 4-way exchange
-    crate::line2::lemma_add_exchange::<A>(t, t, s.neg(), s.neg());
-    A::axiom_eqv_transitive(
+    crate::line2::lemma_add_exchange::<F>(t, t, s.neg(), s.neg());
+    F::axiom_eqv_transitive(
         t.add(t).add(s.add(s).neg()),
         t.add(t).add(s.neg().add(s.neg())),
         t.add(s.neg()).add(t.add(s.neg())));
 
     // t+neg(s) ≡ t-s
-    A::axiom_sub_is_add_neg(t, s);
-    A::axiom_eqv_symmetric(t.sub(s), t.add(s.neg()));
-    lemma_add_congruence::<A>(t.add(s.neg()), t.sub(s), t.add(s.neg()), t.sub(s));
-    A::axiom_eqv_transitive(
+    F::axiom_sub_is_add_neg(t, s);
+    F::axiom_eqv_symmetric(t.sub(s), t.add(s.neg()));
+    lemma_add_congruence::<F>(t.add(s.neg()), t.sub(s), t.add(s.neg()), t.sub(s));
+    F::axiom_eqv_transitive(
         t.add(s.neg()).add(t.add(s.neg())),
         t.sub(s).add(t.sub(s)),
         t.sub(s).add(t.sub(s)));
 
     // Full chain
-    A::axiom_eqv_transitive(
+    F::axiom_eqv_transitive(
         t.add(t).sub(s.add(s)),
         t.add(t).add(s.add(s).neg()),
         t.add(s.neg()).add(t.add(s.neg())));
-    A::axiom_eqv_transitive(
+    F::axiom_eqv_transitive(
         t.add(t).sub(s.add(s)),
         t.add(s.neg()).add(t.add(s.neg())),
         t.sub(s).add(t.sub(s)));
