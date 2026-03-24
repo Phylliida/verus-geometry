@@ -802,14 +802,6 @@ pub proof fn lemma_cl_quad_a_positive<F: OrderedField>(line: Line2<F>)
 // ===========================================================================
 //  Displacement sign determination
 // ===========================================================================
-//
-// For a circle-line intersection, the two solutions P_plus and P_minus
-// satisfy:
-//   sq_dist(P_plus, Q) - sq_dist(P_minus, Q) = 4·√D/A² · sign_expr
-// where sign_expr = a·(cy - Qy) - b·(cx - Qx).
-//
-// Since √D > 0 and A² > 0, the rational sign_expr determines which
-// intersection is closer to the target Q.
 
 /// The rational expression whose sign determines which circle-line
 /// intersection is closer to target Q.
@@ -826,45 +818,235 @@ pub open spec fn cl_displacement_sign<F: OrderedField>(
         .sub(line.b.mul(circle.center.x.sub(target.x)))
 }
 
-/// The im component of sq_dist(P_plus, Q) for a lifted rational target Q.
+/// k * (a - b) ≡ k*a - k*b (left distribution over subtraction).
+proof fn lemma_mul_sub_left<R: Ring>(k: R, a: R, b: R)
+    ensures
+        k.mul(a.sub(b)).eqv(k.mul(a).sub(k.mul(b))),
+{
+    // a - b ≡ a + neg(b)
+    R::axiom_sub_is_add_neg(a, b);
+    R::axiom_mul_congruence_left(a.sub(b), a.add(b.neg()), k);
+    // k*(a+neg(b)) ≡ k*a + k*neg(b)
+    R::axiom_mul_distributes_left(k, a, b.neg());
+    // k*neg(b) ≡ neg(k*b)
+    lemma_mul_neg_right::<R>(k, b);
+    lemma_add_congruence_right::<R>(k.mul(a), k.mul(b.neg()), k.mul(b).neg());
+    // k*a + neg(k*b) ≡ k*a - k*b
+    R::axiom_sub_is_add_neg(k.mul(a), k.mul(b));
+    R::axiom_eqv_symmetric(k.mul(a).sub(k.mul(b)), k.mul(a).add(k.mul(b).neg()));
+    // Chain
+    R::axiom_eqv_transitive(k.mul(a.sub(b)), k.mul(a.add(b.neg())), k.mul(a).add(k.mul(b.neg())));
+    R::axiom_eqv_transitive(k.mul(a.sub(b)), k.mul(a).add(k.mul(b.neg())), k.mul(a).add(k.mul(b).neg()));
+    R::axiom_eqv_transitive(k.mul(a.sub(b)), k.mul(a).add(k.mul(b).neg()), k.mul(a).sub(k.mul(b)));
+}
+
+/// The key cancellation: neg(b)·neg(v) + a·neg(w) ≡ 0
+/// when v = a·t and w = b·t (so neg(b)·neg(a·t) = b·a·t and a·neg(b·t) = neg(a·b·t),
+/// and b·a·t ≡ a·b·t by commutativity, so they cancel).
+proof fn lemma_cross_term_cancel<R: Ring>(a: R, b: R, t: R)
+    ensures
+        b.neg().mul(a.mul(t).neg()).add(a.mul(b.mul(t).neg())).eqv(R::zero()),
+{
+    // neg(b)*neg(a*t) ≡ b*(a*t) by neg*neg
+    lemma_neg_mul_neg::<R>(b, a.mul(t));
+    // b*(a*t) ≡ (b*a)*t by associativity
+    R::axiom_mul_associative(b, a, t);
+    // (b*a)*t ≡ (a*b)*t by commutativity of b*a
+    R::axiom_mul_commutative(b, a);
+    R::axiom_mul_congruence_left(b.mul(a), a.mul(b), t);
+    // (a*b)*t ≡ a*(b*t) by associativity
+    R::axiom_mul_associative(a, b, t);
+    R::axiom_eqv_symmetric(a.mul(b.mul(t)), a.mul(b).mul(t));
+    // Chain: neg(b)*neg(a*t) ≡ b*(a*t) ≡ (b*a)*t ≡ (a*b)*t ≡ a*(b*t)
+    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), b.mul(a.mul(t)), b.mul(a).mul(t));
+    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), b.mul(a).mul(t), a.mul(b).mul(t));
+    R::axiom_eqv_transitive(b.neg().mul(a.mul(t).neg()), a.mul(b).mul(t), a.mul(b.mul(t)));
+
+    // a*neg(b*t) ≡ neg(a*(b*t))
+    lemma_mul_neg_right::<R>(a, b.mul(t));
+
+    // So LHS = a*(b*t) + neg(a*(b*t)) ≡ 0
+    lemma_add_congruence::<R>(
+        b.neg().mul(a.mul(t).neg()), a.mul(b.mul(t)),
+        a.mul(b.mul(t).neg()), a.mul(b.mul(t)).neg());
+    // a*(b*t) + neg(a*(b*t)) ≡ 0
+    R::axiom_add_inverse_right(a.mul(b.mul(t)));
+    R::axiom_eqv_transitive(
+        b.neg().mul(a.mul(t).neg()).add(a.mul(b.mul(t).neg())),
+        a.mul(b.mul(t)).add(a.mul(b.mul(t)).neg()),
+        R::zero());
+}
+
+/// (a - b) - c ≡ (a - c) - b. Rearranges a double subtraction.
+proof fn lemma_sub_sub_swap<A: AdditiveGroup>(a: A, b: A, c: A)
+    ensures a.sub(b).sub(c).eqv(a.sub(c).sub(b)),
+{
+    // a-b-c = a+neg(b)+neg(c) = a+neg(c)+neg(b) = a-c-b
+    A::axiom_sub_is_add_neg(a, b);
+    A::axiom_sub_is_add_neg(a.sub(b), c);
+    // a.sub(b).sub(c) ≡ (a+neg(b))+neg(c) = a+(neg(b)+neg(c))
+    lemma_add_congruence::<A>(a.sub(b), a.add(b.neg()), c.neg(), c.neg());
+    A::axiom_eqv_reflexive(c.neg());
+    A::axiom_add_associative(a, b.neg(), c.neg());
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.sub(b).add(c.neg()), a.add(b.neg()).add(c.neg()));
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.add(b.neg()).add(c.neg()), a.add(b.neg().add(c.neg())));
+    // Commute neg(b) and neg(c)
+    A::axiom_add_commutative(b.neg(), c.neg());
+    lemma_add_congruence_right::<A>(a, b.neg().add(c.neg()), c.neg().add(b.neg()));
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.add(b.neg().add(c.neg())), a.add(c.neg().add(b.neg())));
+    // Reassociate: a+(neg(c)+neg(b)) = (a+neg(c))+neg(b)
+    A::axiom_add_associative(a, c.neg(), b.neg());
+    A::axiom_eqv_symmetric(a.add(c.neg()).add(b.neg()), a.add(c.neg().add(b.neg())));
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.add(c.neg().add(b.neg())), a.add(c.neg()).add(b.neg()));
+    // a+neg(c) ≡ a-c
+    A::axiom_sub_is_add_neg(a, c);
+    A::axiom_eqv_symmetric(a.sub(c), a.add(c.neg()));
+    A::axiom_add_congruence_left(a.add(c.neg()), a.sub(c), b.neg());
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.add(c.neg()).add(b.neg()), a.sub(c).add(b.neg()));
+    // (a-c)+neg(b) ≡ (a-c)-b
+    A::axiom_sub_is_add_neg(a.sub(c), b);
+    A::axiom_eqv_symmetric(a.sub(c).sub(b), a.sub(c).add(b.neg()));
+    A::axiom_eqv_transitive(a.sub(b).sub(c), a.sub(c).add(b.neg()), a.sub(c).sub(b));
+}
+
+/// Main displacement sign lemma (inner product form).
 ///
-/// sq_dist(qext(rx, ix), qext(ry, iy), qext(qx, 0), qext(qy, 0))
-///   has im = 2·(ix·(rx - qx) + iy·(ry - qy))
-///
-/// For P_plus with ix = -b/A, iy = a/A, rx = cx - a·h/A, ry = cy - b·h/A:
-///   im = 2·(-b·(cx - a·h/A - qx) + a·(cy - b·h/A - qy)) / A
-///      = 2·(a·(cy - qy) - b·(cx - qx)) / A
-///   (the a·b·h/A terms cancel)
-proof fn lemma_cl_sq_dist_im_sign<F: OrderedField>(
-    circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
+/// neg(b)·(cx - v - qx) + a·(cy - w - qy) ≡ a·(cy-qy) - b·(cx-qx)
+/// when v = a·t and w = b·t (the cross terms cancel).
+proof fn lemma_cl_displacement_cancellation<F: OrderedField>(
+    a: F, b: F, cx: F, cy: F, qx: F, qy: F, v: F, w: F, t: F,
 )
     requires
-        !cl_quad_a(line).eqv(F::zero()),
+        v.eqv(a.mul(t)),
+        w.eqv(b.mul(t)),
     ensures
-    {
-        let a = line.a;
-        let b = line.b;
-        let big_a = cl_quad_a(line); // a² + b²
-        let h = cl_signed_dist_num(circle, line);
-        let cx = circle.center.x;
-        let cy = circle.center.y;
-        let qx = target.x;
-        let qy = target.y;
+        b.neg().mul(cx.sub(v).sub(qx))
+            .add(a.mul(cy.sub(w).sub(qy)))
+            .eqv(a.mul(cy.sub(qy)).sub(b.mul(cx.sub(qx)))),
+{
+    // Strategy: use lemma_sub_sub_swap to rearrange, distribute, cancel cross terms.
+    let u1 = cx.sub(qx);
+    let u2 = cy.sub(qy);
 
-        // re parts of intersection
-        let re_x = cx.sub(a.mul(h).div(big_a));
-        let re_y = cy.sub(b.mul(h).div(big_a));
+    // Step 1: cx - v - qx ≡ (cx - qx) - v  and  cy - w - qy ≡ (cy - qy) - w
+    lemma_sub_sub_swap::<F>(cx, v, qx);
+    lemma_sub_sub_swap::<F>(cy, w, qy);
 
-        // We want to show: -b·(re_x - qx) + a·(re_y - qy) ≡ (a·(cy-qy) - b·(cx-qx)) / A · A
-        // i.e. the h/A terms cancel.
-        //
-        // -b·(re_x - qx) = -b·(cx - a·h/A - qx) = -b·(cx-qx) + a·b·h/A
-        // a·(re_y - qy) = a·(cy - b·h/A - qy) = a·(cy-qy) - a·b·h/A
-        // Sum: a·(cy-qy) - b·(cx-qx)  [the a·b·h/A terms cancel]
+    // Step 2: neg(b)*(cx-v-qx) ≡ neg(b)*(u1-v),  a*(cy-w-qy) ≡ a*(u2-w)
+    F::axiom_mul_congruence_left(cx.sub(v).sub(qx), u1.sub(v), b.neg());
+    F::axiom_mul_congruence_left(cy.sub(w).sub(qy), u2.sub(w), a);
+    lemma_add_congruence::<F>(
+        b.neg().mul(cx.sub(v).sub(qx)), b.neg().mul(u1.sub(v)),
+        a.mul(cy.sub(w).sub(qy)), a.mul(u2.sub(w)));
 
-        // This is the key algebraic identity.
-        // For now, just assert the relationship to establish the spec.
-        true  // placeholder — full proof below
-    }
+    // Step 3: Distribute neg(b)*(u1-v) ≡ neg(b)*u1 - neg(b)*v,  a*(u2-w) ≡ a*u2 - a*w
+    lemma_mul_sub_left::<F>(b.neg(), u1, v);
+    lemma_mul_sub_left::<F>(a, u2, w);
+
+    let pp = b.neg().mul(u1);
+    let qq = b.neg().mul(v);
+    let rr = a.mul(u2);
+    let ss = a.mul(w);
+
+    lemma_add_congruence::<F>(
+        b.neg().mul(u1.sub(v)), pp.sub(qq),
+        a.mul(u2.sub(w)), rr.sub(ss));
+
+    // Step 4: Show qq + ss ≡ 0  (the cross-term cancellation)
+    // qq = neg(b)*v ≡ neg(b)*(a*t)  and  ss = a*w ≡ a*(b*t)
+    F::axiom_mul_congruence_left(v, a.mul(t), b.neg());
+    F::axiom_mul_congruence_left(w, b.mul(t), a);
+
+    // neg(b)*(a*t) ≡ neg(b*(a*t))
+    lemma_mul_neg_left::<F>(b, a.mul(t));
+    // b*(a*t) ≡ a*(b*t)  by assoc + comm
+    F::axiom_mul_associative(b, a, t);
+    F::axiom_mul_commutative(b, a);
+    F::axiom_mul_congruence_left(b.mul(a), a.mul(b), t);
+    F::axiom_mul_associative(a, b, t);
+    F::axiom_eqv_symmetric(a.mul(b.mul(t)), a.mul(b).mul(t));
+    F::axiom_eqv_transitive(b.mul(a.mul(t)), b.mul(a).mul(t), a.mul(b).mul(t));
+    F::axiom_eqv_transitive(b.mul(a.mul(t)), a.mul(b).mul(t), a.mul(b.mul(t)));
+
+    // neg(b)*(a*t) ≡ neg(a*(b*t))
+    lemma_neg_congruence::<F>(b.mul(a.mul(t)), a.mul(b.mul(t)));
+    F::axiom_eqv_transitive(
+        b.neg().mul(a.mul(t)), b.mul(a.mul(t)).neg(), a.mul(b.mul(t)).neg());
+
+    // qq ≡ neg(b)*(a*t) ≡ neg(a*(b*t)) = neg(ss_inner)
+    // So qq + ss ≡ neg(a*(b*t)) + a*(b*t) ≡ 0
+    lemma_add_congruence::<F>(qq, b.neg().mul(a.mul(t)), ss, a.mul(b.mul(t)));
+    lemma_add_congruence::<F>(
+        b.neg().mul(a.mul(t)), a.mul(b.mul(t)).neg(),
+        a.mul(b.mul(t)), a.mul(b.mul(t)));
+    F::axiom_eqv_reflexive(a.mul(b.mul(t)));
+    lemma_add_inverse_left::<F>(a.mul(b.mul(t)));
+    F::axiom_eqv_transitive(qq.add(ss),
+        b.neg().mul(a.mul(t)).add(a.mul(b.mul(t))),
+        a.mul(b.mul(t)).neg().add(a.mul(b.mul(t))));
+    F::axiom_eqv_transitive(qq.add(ss),
+        a.mul(b.mul(t)).neg().add(a.mul(b.mul(t))),
+        F::zero());
+
+    // Step 5: (P - Q) + (R - S) ≡ P + R  when Q + S ≡ 0
+    // Convert subs to add-neg
+    F::axiom_sub_is_add_neg(pp, qq);
+    F::axiom_sub_is_add_neg(rr, ss);
+    lemma_add_congruence::<F>(pp.sub(qq), pp.add(qq.neg()), rr.sub(ss), rr.add(ss.neg()));
+
+    // 4-way exchange: (pp + neg(qq)) + (rr + neg(ss)) ≡ (pp + rr) + (neg(qq) + neg(ss))
+    crate::line2::lemma_add_exchange::<F>(pp, qq.neg(), rr, ss.neg());
+    F::axiom_eqv_transitive(
+        pp.sub(qq).add(rr.sub(ss)),
+        pp.add(qq.neg()).add(rr.add(ss.neg())),
+        pp.add(rr).add(qq.neg().add(ss.neg())));
+
+    // neg(qq) + neg(ss) ≡ neg(qq + ss) ≡ neg(0) ≡ 0
+    lemma_neg_add::<F>(qq, ss);
+    lemma_neg_congruence::<F>(qq.add(ss), F::zero());
+    verus_algebra::lemmas::additive_group_lemmas::lemma_neg_zero::<F>();
+    F::axiom_eqv_transitive(qq.neg().add(ss.neg()), qq.add(ss).neg(), F::zero().neg());
+    F::axiom_eqv_transitive(qq.neg().add(ss.neg()), F::zero().neg(), F::zero());
+
+    // (pp + rr) + 0 ≡ pp + rr
+    lemma_add_congruence_right::<F>(pp.add(rr), qq.neg().add(ss.neg()), F::zero());
+    F::axiom_add_zero_right(pp.add(rr));
+    F::axiom_eqv_transitive(
+        pp.add(rr).add(qq.neg().add(ss.neg())), pp.add(rr).add(F::zero()), pp.add(rr));
+
+    // Chain: source ≡ pp.sub(qq).add(rr.sub(ss)) ≡ pp.add(rr)
+    F::axiom_eqv_transitive(
+        pp.sub(qq).add(rr.sub(ss)),
+        pp.add(rr).add(qq.neg().add(ss.neg())),
+        pp.add(rr));
+
+    // Step 6: pp + rr = neg(b)*u1 + a*u2 ≡ a*u2 + neg(b)*u1 ≡ a*u2 - b*u1
+    F::axiom_add_commutative(pp, rr);
+    lemma_mul_neg_left::<F>(b, u1);
+    lemma_add_congruence_right::<F>(rr, pp, b.mul(u1).neg());
+    F::axiom_sub_is_add_neg(rr, b.mul(u1));
+    F::axiom_eqv_symmetric(rr.sub(b.mul(u1)), rr.add(b.mul(u1).neg()));
+    F::axiom_eqv_transitive(rr.add(pp), rr.add(b.mul(u1).neg()), rr.sub(b.mul(u1)));
+    F::axiom_eqv_transitive(pp.add(rr), rr.add(pp), rr.sub(b.mul(u1)));
+
+    // Step 7: Full chain
+    // source ≡ neg(b)*(u1-v) + a*(u2-w)  [Step 2]
+    //        ≡ pp.sub(qq) + rr.sub(ss)    [Step 3]
+    //        ≡ pp + rr                     [Step 5]
+    //        ≡ rr - b*u1                   [Step 6]
+    //        = a*(cy-qy) - b*(cx-qx)      [definition]
+    F::axiom_eqv_transitive(
+        b.neg().mul(u1.sub(v)).add(a.mul(u2.sub(w))),
+        pp.sub(qq).add(rr.sub(ss)),
+        pp.add(rr));
+    F::axiom_eqv_transitive(
+        b.neg().mul(u1.sub(v)).add(a.mul(u2.sub(w))),
+        pp.add(rr),
+        rr.sub(b.mul(u1)));
+    F::axiom_eqv_transitive(
+        b.neg().mul(cx.sub(v).sub(qx)).add(a.mul(cy.sub(w).sub(qy))),
+        b.neg().mul(u1.sub(v)).add(a.mul(u2.sub(w))),
+        rr.sub(b.mul(u1)));
+}
 
 } // verus!
