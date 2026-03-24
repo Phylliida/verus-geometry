@@ -1857,18 +1857,28 @@ proof fn lemma_cl_sq_dist_im_eqv_scaled<F: OrderedField, R: PositiveRadicand<F>>
         dy_aA_im.sub(dx_bA_im), scaled.add(scaled),
         dy_aA_im.sub(dx_bA_im), scaled.add(scaled));
 
-    // Full chain: diff.im ≡ neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X) ≡ (scaled+scaled)+(scaled+scaled)
+    // Full chain: clean_diff ≡ (Y-X)+(Y-X) ≡ (scaled+scaled)+(scaled+scaled)
     F::axiom_eqv_transitive(
         dx_bA_im.neg().add(dy_aA_im).sub(dx_bA_im.add(dy_aA_im.neg())),
         dy_aA_im.sub(dx_bA_im).add(dy_aA_im.sub(dx_bA_im)),
+        scaled.add(scaled).add(scaled.add(scaled)));
+
+    // Connect actual structural diff.im to four_scaled via the clean intermediate
+    F::axiom_eqv_transitive(
+        dx_plus_actual_im.add(dy_plus_actual_im).sub(dx_minus_actual_im.add(dy_minus_actual_im)),
+        dx_bA_im.neg().add(dy_aA_im).sub(dx_bA_im.add(dy_aA_im.neg())),
         scaled.add(scaled).add(scaled.add(scaled)));
 }
 
 /// Main theorem: cl_displacement_sign > 0 ⟹ sq_dist(P_plus, Q) > sq_dist(P_minus, Q).
 ///
-/// Proof: combine lemma_cl_sq_dist_sign_from_im (re=0 + im>0 ⟹ lt)
-/// with the im expansion showing diff.im has same sign as cl_displacement_sign.
-#[verifier::rlimit(300)]
+/// Proof strategy:
+/// A. diff.im ≡ 4*scaled (via lemma_cl_sq_dist_im_eqv_scaled)
+/// B. scaled > 0 (via cancellation → lemma_scaled_disp_positive)
+/// C. 4*scaled > 0 (add_pos_nonneg twice)
+/// D. Transfer to diff.im > 0 (le_congruence)
+/// E. diff.re ≡ 0 ∧ diff.im > 0 → zero.lt(diff) (sign_from_im)
+#[verifier::rlimit(60)]
 pub proof fn lemma_cl_displacement_sign_determines_order<F: OrderedField, R: PositiveRadicand<F>>(
     circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
 )
@@ -1882,165 +1892,74 @@ pub proof fn lemma_cl_displacement_sign_determines_order<F: OrderedField, R: Pos
             .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
                 cl_intersection_point(circle, line, false), lift_point2(target)))),
 {
-    // Use sign_from_im: need to prove diff.re ≡ 0 AND diff.im > 0
-    lemma_cl_sq_dist_sign_from_im::<F, R>(circle, line, target);
+    // Step A: diff.im ≡ 4*scaled where scaled = dy_re*(a/A) - dx_re*(b/A)
+    lemma_cl_sq_dist_im_eqv_scaled::<F, R>(circle, line, target);
 
-    let d_plus = sq_dist_2d::<SpecQuadExt<F, R>>(
-        cl_intersection_point(circle, line, true), lift_point2(target));
-    let d_minus = sq_dist_2d::<SpecQuadExt<F, R>>(
-        cl_intersection_point(circle, line, false), lift_point2(target));
-    let diff = d_plus.sub(d_minus);
-
-    // diff.re ≡ 0 is already established by sign_from_im.
-    // Now prove diff.im > 0.
-
-    let p_plus = cl_intersection_point::<F, R>(circle, line, true);
-    let p_minus = cl_intersection_point::<F, R>(circle, line, false);
-    lemma_cl_intersection_conjugate::<F, R>(circle, line);
-
+    let p = cl_intersection_point::<F, R>(circle, line, true);
     let big_a = cl_quad_a(line);
     lemma_cl_quad_a_positive(line);
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
     F::axiom_eqv_symmetric(F::zero(), big_a);
 
-    let dx_re = p_plus.x.re.sub(target.x);
-    let dy_re = p_plus.y.re.sub(target.y);
-    let im_x_plus = p_plus.x.im;
-    let im_x_minus = p_minus.x.im;
-    let im_y_plus = p_plus.y.im;
-    let im_y_minus = p_minus.y.im;
+    let dx_re = p.x.re.sub(target.x);
+    let dy_re = p.y.re.sub(target.y);
+    let scaled = dy_re.mul(line.a.div(big_a)).sub(dx_re.mul(line.b.div(big_a)));
 
-    // sub_zero bridges
-    lemma_sub_zero::<F>(im_x_plus);
-    lemma_sub_zero::<F>(im_x_minus);
-    lemma_sub_zero::<F>(im_y_plus);
-    lemma_sub_zero::<F>(im_y_minus);
-
-    // im congruence through sub_zero
-    lemma_qe_sq_im_im_congruence::<F, R>(dx_re, im_x_plus.sub(F::zero()), im_x_plus);
-    lemma_qe_sq_im_im_congruence::<F, R>(dx_re, im_x_minus.sub(F::zero()), im_x_minus);
-    lemma_qe_sq_im_im_congruence::<F, R>(dy_re, im_y_plus.sub(F::zero()), im_y_plus);
-    lemma_qe_sq_im_im_congruence::<F, R>(dy_re, im_y_minus.sub(F::zero()), im_y_minus);
-
-    // Conjugate im: neg(b)/A ≡ neg(b/A), neg(a)/A ≡ neg(a/A)
-    lemma_div_neg_numerator::<F>(line.b, big_a);
-    lemma_div_neg_numerator::<F>(line.a, big_a);
-    let b_over_a = line.b.div(big_a);
-    let a_over_a = line.a.div(big_a);
-    assert(im_x_plus.eqv(b_over_a.neg()));
-    assert(im_y_minus.eqv(a_over_a.neg()));
-
-    // dx_sq(neg(b/A)).im ≡ neg(dx_sq(b/A).im)
-    lemma_qe_sq_im_im_congruence::<F, R>(dx_re, im_x_plus, b_over_a.neg());
-    lemma_qe_sq_im_conjugate::<F, R>(dx_re, b_over_a);
-    let dx_plus_im_c = qe_mul::<F, R>(qext(dx_re, im_x_plus), qext(dx_re, im_x_plus)).im;
-    let dx_neg_im = qe_mul::<F, R>(qext(dx_re, b_over_a.neg()), qext(dx_re, b_over_a.neg())).im;
-    let dx_bA_im = qe_mul::<F, R>(qext(dx_re, b_over_a), qext(dx_re, b_over_a)).im;
-    F::axiom_eqv_transitive(dx_plus_im_c, dx_neg_im, dx_bA_im.neg());
-
-    // dy_sq(neg(a/A)).im ≡ neg(dy_sq(a/A).im)
-    lemma_qe_sq_im_im_congruence::<F, R>(dy_re, im_y_minus, a_over_a.neg());
-    lemma_qe_sq_im_conjugate::<F, R>(dy_re, a_over_a);
-    let dy_minus_im_c = qe_mul::<F, R>(qext(dy_re, im_y_minus), qext(dy_re, im_y_minus)).im;
-    let dy_neg_im = qe_mul::<F, R>(qext(dy_re, a_over_a.neg()), qext(dy_re, a_over_a.neg())).im;
-    let dy_aA_im = qe_mul::<F, R>(qext(dy_re, a_over_a), qext(dy_re, a_over_a)).im;
-    F::axiom_eqv_transitive(dy_minus_im_c, dy_neg_im, dy_aA_im.neg());
-
-    // Bridge actual → clean for im (through sub_zero):
-    let dx_plus_actual_im = qe_mul::<F, R>(
-        qext(dx_re, im_x_plus.sub(F::zero())), qext(dx_re, im_x_plus.sub(F::zero()))).im;
-    let dx_minus_actual_im = qe_mul::<F, R>(
-        qext(dx_re, im_x_minus.sub(F::zero())), qext(dx_re, im_x_minus.sub(F::zero()))).im;
-    let dy_plus_actual_im = qe_mul::<F, R>(
-        qext(dy_re, im_y_plus.sub(F::zero())), qext(dy_re, im_y_plus.sub(F::zero()))).im;
-    let dy_minus_actual_im = qe_mul::<F, R>(
-        qext(dy_re, im_y_minus.sub(F::zero())), qext(dy_re, im_y_minus.sub(F::zero()))).im;
-
-    // actual → clean chains:
-    // dx_plus: actual ≡ clean(im_x_plus) ≡ neg(dx_bA_im)
-    F::axiom_eqv_transitive(dx_plus_actual_im, dx_plus_im_c, dx_bA_im.neg());
-    // dx_minus: actual ≡ clean(im_x_minus) = clean(b/A) = dx_bA_im
-    // (im_x_minus = b/A structurally, so clean = dx_bA_im directly)
-    // dy_plus: actual ≡ clean(im_y_plus) = clean(a/A) = dy_aA_im
-    // dy_minus: actual ≡ clean(im_y_minus) ≡ neg(dy_aA_im)
-    F::axiom_eqv_transitive(dy_minus_actual_im, dy_minus_im_c, dy_aA_im.neg());
-
-    // d_plus.im ≡ neg(dx_bA_im) + dy_aA_im
-    lemma_add_congruence::<F>(dx_plus_actual_im, dx_bA_im.neg(), dy_plus_actual_im, dy_aA_im);
-    // d_minus.im ≡ dx_bA_im + neg(dy_aA_im)
-    lemma_add_congruence::<F>(dx_minus_actual_im, dx_bA_im, dy_minus_actual_im, dy_aA_im.neg());
-
-    // diff.im = d_plus.im - d_minus.im
-    // ≡ (neg(X) + Y) - (X + neg(Y))  where X = dx_bA_im, Y = dy_aA_im
-    lemma_sub_congruence::<F>(
-        dx_plus_actual_im.add(dy_plus_actual_im), dx_bA_im.neg().add(dy_aA_im),
-        dx_minus_actual_im.add(dy_minus_actual_im), dx_bA_im.add(dy_aA_im.neg()));
-
-    // Now show: neg(X) + Y - (X + neg(Y)) > 0 when a*dy_re - b*dx_re > 0.
-    // neg(X) + Y - (X + neg(Y)) = neg(X) + Y - X + Y = 2Y - 2X = 2(Y - X)
-    // where Y = dy_re*(a/A) + (a/A)*dy_re, X = dx_re*(b/A) + (b/A)*dx_re
-    //
-    // By commutativity: Y = 2*dy_re*(a/A), X = 2*dx_re*(b/A)
-    // Y - X = 2*(dy_re*a/A - dx_re*b/A) = 2/A * (a*dy_re - b*dx_re)
-    //
-    // And a*dy_re - b*dx_re = neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign > 0
-    //
-    // Since 2/A > 0, Y - X > 0, so 2(Y-X) > 0, so diff.im > 0.
-    //
-    // However, proving 2(Y-X) > 0 formally requires the full ring expansion.
-    // Instead, use a counting argument: diff.im ≡ neg(X)+Y-(X+neg(Y)).
-    // This equals (Y-X) + (Y-X) = 2(Y-X) by algebra.
-    //
-    // With the facts established, Z3 has:
-    // 1. diff.im ≡ neg(X)+Y - (X+neg(Y))
-    // 2. cl_displacement_sign > 0
-    // 3. neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign (from cancellation, invoked below)
-    //
-    // The connection from (3) to (1) through X and Y is the remaining step.
-
-    // Invoke cancellation: neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign
+    // Step B: Prove neg(b)*dx_re + a*dy_re > 0, then scaled > 0
+    // Bridge: v ≡ a*t, w ≡ b*t via mul_div_assoc
     let h = cl_signed_dist_num(circle, line);
     let v = line.a.mul(h).div(big_a);
     let w = line.b.mul(h).div(big_a);
     let t = h.div(big_a);
-    // v ≡ a*t
-    F::axiom_div_is_mul_recip(line.a.mul(h), big_a);
-    F::axiom_div_is_mul_recip(h, big_a);
-    F::axiom_eqv_symmetric(t, h.mul(big_a.recip()));
-    F::axiom_mul_associative(line.a, h, big_a.recip());
-    F::axiom_eqv_symmetric(line.a.mul(h.mul(big_a.recip())), line.a.mul(h).mul(big_a.recip()));
-    F::axiom_eqv_transitive(v, line.a.mul(h).mul(big_a.recip()), line.a.mul(h.mul(big_a.recip())));
-    lemma_mul_congruence_right::<F>(line.a, h.mul(big_a.recip()), t);
-    F::axiom_eqv_transitive(v, line.a.mul(h.mul(big_a.recip())), line.a.mul(t));
-    // w ≡ b*t
-    F::axiom_div_is_mul_recip(line.b.mul(h), big_a);
-    F::axiom_mul_associative(line.b, h, big_a.recip());
-    F::axiom_eqv_symmetric(line.b.mul(h.mul(big_a.recip())), line.b.mul(h).mul(big_a.recip()));
-    F::axiom_eqv_transitive(w, line.b.mul(h).mul(big_a.recip()), line.b.mul(h.mul(big_a.recip())));
-    lemma_mul_congruence_right::<F>(line.b, h.mul(big_a.recip()), t);
-    F::axiom_eqv_transitive(w, line.b.mul(h.mul(big_a.recip())), line.b.mul(t));
+    lemma_mul_div_assoc::<F>(line.a, h, big_a);
+    F::axiom_eqv_symmetric(line.a.mul(h.div(big_a)), v);
+    lemma_mul_div_assoc::<F>(line.b, h, big_a);
+    F::axiom_eqv_symmetric(line.b.mul(h.div(big_a)), w);
 
+    // Cancellation: neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign
     lemma_cl_displacement_cancellation(
         line.a, line.b, circle.center.x, circle.center.y,
         target.x, target.y, v, w, t);
 
-    // neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign > 0
-    // Transfer positivity
+    // Transfer sign: cl_displacement_sign > 0 → disp_expr > 0
     let disp_expr = line.b.neg().mul(dx_re).add(line.a.mul(dy_re));
     let sign_val = cl_displacement_sign(circle, line, target);
     F::axiom_eqv_symmetric(disp_expr, sign_val);
     F::axiom_eqv_reflexive(F::zero());
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), sign_val);
     F::axiom_le_congruence(F::zero(), F::zero(), sign_val, disp_expr);
-    F::axiom_eqv_symmetric(F::zero(), sign_val);
     if F::zero().eqv(disp_expr) {
         F::axiom_eqv_transitive(F::zero(), disp_expr, sign_val);
     }
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), disp_expr);
-    // Now: disp_expr > 0
 
-    // Z3 has all the algebraic facts. With sufficient rlimit, it should close
-    // the connection from disp_expr > 0 → diff.im > 0 → zero.lt(diff).
+    // scaled > 0
+    lemma_scaled_disp_positive(dx_re, dy_re, line.a, line.b, big_a);
+
+    // Step C: 4*scaled > 0
+    use verus_algebra::lemmas::ordered_ring_lemmas::lemma_add_pos_nonneg;
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled);
+    lemma_add_pos_nonneg::<F>(scaled, scaled);
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled.add(scaled));
+    lemma_add_pos_nonneg::<F>(scaled.add(scaled), scaled.add(scaled));
+
+    // Step D: Transfer 0 < 4*scaled to 0 < diff.im via le_congruence
+    let four_scaled = scaled.add(scaled).add(scaled.add(scaled));
+    let diff = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, true), lift_point2(target))
+        .sub(sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false), lift_point2(target)));
+    F::axiom_eqv_symmetric(diff.im, four_scaled);
+    F::axiom_eqv_reflexive(F::zero());
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), four_scaled);
+    F::axiom_le_congruence(F::zero(), F::zero(), four_scaled, diff.im);
+    if F::zero().eqv(diff.im) {
+        F::axiom_eqv_transitive(F::zero(), diff.im, four_scaled);
+    }
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), diff.im);
+
+    // Step E: diff.re ≡ 0 ∧ diff.im > 0 → zero.lt(diff)
+    lemma_cl_sq_dist_sign_from_im::<F, R>(circle, line, target);
 }
 
 } // verus!
