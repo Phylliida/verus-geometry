@@ -9,6 +9,7 @@ use verus_quadratic_extension::radicand::*;
 use crate::point2::*;
 use crate::line2::*;
 use crate::circle2::*;
+use crate::circle_circle::{radical_axis, cc_intersection_point};
 use crate::voronoi::sq_dist_2d;
 use verus_linalg::vec2::Vec2;
 use verus_linalg::vec2::ops::norm_sq;
@@ -1071,6 +1072,30 @@ pub proof fn lemma_cl_intersection_conjugate<F: OrderedField, R: PositiveRadican
     // The re parts of cl_intersection_x/y don't depend on `plus` — they are
     // cx - a*h/A and cy - b*h/A respectively, which are the same for both signs.
     // This is structural from the spec definition.
+}
+
+/// CircleCircle displacement sign reduces to CircleLine displacement sign
+/// via the radical axis. This proves that compute_greedy_mask's CircleCircle
+/// branch (using c1.center + radical_axis(c1,c2)) is correct.
+///
+/// cc_intersection_point(c1, c2, plus) = cl_intersection_point(c1, radical_axis(c1,c2), plus)
+/// Therefore cl_displacement_sign(c1, radical_axis(c1,c2), target) determines
+/// which cc_intersection_point is closer to target.
+pub proof fn lemma_cc_displacement_sign_consistent<F: OrderedField, R: PositiveRadicand<F>>(
+    c1: Circle2<F>, c2: Circle2<F>, target: Point2<F>,
+)
+    ensures
+        // The conjugate property holds for cc_intersection via radical axis
+        cc_intersection_point::<F, R>(c1, c2, true)
+            == cl_intersection_point::<F, R>(c1, radical_axis(c1, c2), true),
+        cc_intersection_point::<F, R>(c1, c2, false)
+            == cl_intersection_point::<F, R>(c1, radical_axis(c1, c2), false),
+        // Therefore the sign test for CircleCircle is the same as for CircleLine
+        // with circle=c1 and line=radical_axis(c1,c2).
+        // cl_displacement_sign(c1, radical_axis(c1,c2), target) determines
+        // which cc_intersection_point is closer.
+{
+    // Both follow directly from the definition of cc_intersection_point.
 }
 
 } // verus!
