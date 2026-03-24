@@ -1274,19 +1274,27 @@ pub proof fn lemma_cl_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
     lemma_div_neg_numerator::<F>(line.a, big_a);
 
     // Now: im_x_plus = neg(b)/A ≡ neg(b/A) = neg(im_x_minus)
-    // im_x_plus * im_x_plus ≡ neg(b/A) * neg(b/A) ≡ (b/A)*(b/A) = im_x_minus * im_x_minus
+    // im_x_plus = neg(b)/A ≡ neg(b/A) = neg(b_over_a)
+    assert(im_x_plus.eqv(b_over_a.neg()));
+    // im_x_plus² ≡ neg(b/A)² ≡ (b/A)² = im_x_minus²
+    lemma_neg_mul_neg::<F>(b_over_a, b_over_a);
+    // neg(b_over_a) * neg(b_over_a) ≡ b_over_a * b_over_a
+    // Now bridge: im_x_plus * im_x_plus ≡ neg(b_over_a) * neg(b_over_a)
     F::axiom_mul_congruence_left(im_x_plus, b_over_a.neg(), im_x_plus);
     lemma_mul_congruence_right::<F>(b_over_a.neg(), im_x_plus, b_over_a.neg());
-    F::axiom_eqv_transitive(im_x_plus.mul(im_x_plus), im_x_plus.mul(b_over_a.neg()), b_over_a.neg().mul(b_over_a.neg()));
+    F::axiom_eqv_transitive(im_x_plus.mul(im_x_plus), b_over_a.neg().mul(im_x_plus), b_over_a.neg().mul(b_over_a.neg()));
     F::axiom_eqv_transitive(im_x_plus.mul(im_x_plus), b_over_a.neg().mul(b_over_a.neg()), b_over_a.mul(b_over_a));
     // im_x_plus² ≡ im_x_minus²
 
     // Similarly for y: im_y_minus = neg(a)/A ≡ neg(a/A)
     // im_y_plus = a/A, im_y_minus ≡ neg(a/A)
-    // im_y_minus * im_y_minus ≡ neg(a/A) * neg(a/A) ≡ (a/A)*(a/A) = im_y_plus * im_y_plus
+    // im_y_minus = neg(a)/A ≡ neg(a/A) = neg(a_over_a)
+    assert(im_y_minus.eqv(a_over_a.neg()));
+    // im_y_minus² ≡ neg(a/A)² ≡ (a/A)² = im_y_plus²
+    lemma_neg_mul_neg::<F>(a_over_a, a_over_a);
     F::axiom_mul_congruence_left(im_y_minus, a_over_a.neg(), im_y_minus);
     lemma_mul_congruence_right::<F>(a_over_a.neg(), im_y_minus, a_over_a.neg());
-    F::axiom_eqv_transitive(im_y_minus.mul(im_y_minus), im_y_minus.mul(a_over_a.neg()), a_over_a.neg().mul(a_over_a.neg()));
+    F::axiom_eqv_transitive(im_y_minus.mul(im_y_minus), a_over_a.neg().mul(im_y_minus), a_over_a.neg().mul(a_over_a.neg()));
     F::axiom_eqv_transitive(im_y_minus.mul(im_y_minus), a_over_a.neg().mul(a_over_a.neg()), a_over_a.mul(a_over_a));
     // im_y_minus² ≡ im_y_plus²
 
@@ -1375,6 +1383,94 @@ pub proof fn lemma_conjugate_norm_sq_re_equal<F: OrderedField, R: PositiveRadica
         qe_mul::<F, R>(qext(dx_re, im_x.neg()), qext(dx_re, im_x.neg())).re,
         qe_mul::<F, R>(qext(dy_re, im_y), qext(dy_re, im_y)).re,
         qe_mul::<F, R>(qext(dy_re, im_y.neg()), qext(dy_re, im_y.neg())).re);
+}
+
+/// Main displacement sign theorem: the sign of the sq_dist difference between
+/// P_plus and P_minus (relative to a rational target) is determined by its im part,
+/// because the re part is zero.
+///
+/// Formally: sq_dist(P_plus, Q) - sq_dist(P_minus, Q) has re ≡ 0, so
+/// by lemma_nonneg_congruence + lemma_qe_nonneg_pure_im, the QExt ordering
+/// reduces to checking the im part's sign.
+///
+/// Combined with lemma_cl_displacement_cancellation (which shows the im part
+/// is proportional to cl_displacement_sign), this proves:
+///   cl_displacement_sign > 0 → P_plus is farther → prefer P_minus (flip)
+pub proof fn lemma_cl_sq_dist_sign_from_im<F: OrderedField, R: PositiveRadicand<F>>(
+    circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
+)
+    requires line2_nondegenerate(line),
+    ensures ({
+        let d_plus = sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, true), lift_point2(target));
+        let d_minus = sq_dist_2d::<SpecQuadExt<F, R>>(
+            cl_intersection_point(circle, line, false), lift_point2(target));
+        let diff = d_plus.sub(d_minus);
+        // The sign of the QExt difference is determined by its im part:
+        // If diff.im > 0 (in the base field), then diff > 0 in QExt ordering,
+        // meaning P_plus is farther.
+        &&& diff.re.eqv(F::zero())
+        &&& (F::zero().lt(diff.im) ==>
+                SpecQuadExt::<F, R>::zero().lt(diff))
+    }),
+{
+    let d_plus = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, true), lift_point2(target));
+    let d_minus = sq_dist_2d::<SpecQuadExt<F, R>>(
+        cl_intersection_point(circle, line, false), lift_point2(target));
+    let diff = d_plus.sub(d_minus);
+
+    // Part 1: diff.re ≡ 0
+    // diff.re = d_plus.re - d_minus.re, and d_plus.re ≡ d_minus.re
+    lemma_cl_sq_dist_re_equal::<F, R>(circle, line, target);
+    // d_plus.re ≡ d_minus.re → d_plus.re.sub(d_minus.re) ≡ 0
+    F::axiom_eqv_reflexive(d_minus.re);
+    lemma_sub_congruence::<F>(d_plus.re, d_minus.re, d_minus.re, d_minus.re);
+    verus_algebra::lemmas::additive_group_lemmas::lemma_sub_self::<F>(d_minus.re);
+    F::axiom_eqv_transitive(d_plus.re.sub(d_minus.re), d_minus.re.sub(d_minus.re), F::zero());
+    // diff.re = d_plus.re.sub(d_minus.re) (from qe_sub definition)
+    // So diff.re ≡ 0 ✓
+
+    // Part 2: If diff.im > 0 then diff > 0 in QExt ordering
+    // zero.lt(diff) means zero.le(diff) && !zero.eqv(diff)
+    // zero.le(diff) means qe_nonneg(diff - zero) = qe_nonneg(diff) (after sub_zero)
+    // qe_nonneg(diff) where diff.re ≡ 0:
+    //   By nonneg_congruence, qe_nonneg(diff) ← qe_nonneg(qext(0, diff.im))
+    //   By lemma_qe_nonneg_pure_im: qe_nonneg(qext(0, diff.im)) == zero.le(diff.im)
+    //   From diff.im > 0: zero.lt(diff.im) → zero.le(diff.im) ✓
+    //   Also !zero.eqv(diff.im) → diff is not zero → !zero.eqv(diff) ✓
+
+    if F::zero().lt(diff.im) {
+        // diff.im > 0 → zero.le(diff.im)
+        F::axiom_lt_iff_le_and_not_eqv(F::zero(), diff.im);
+
+        // qe_nonneg(qext(0, diff.im)) by lemma_qe_nonneg_pure_im
+        verus_quadratic_extension::ordered::lemma_qe_nonneg_pure_im::<F, R>(diff.im);
+
+        // Transfer from qext(0, diff.im) to diff via nonneg_congruence
+        // Need: diff.re ≡ 0 (established) and diff.im ≡ diff.im (reflexive)
+        F::axiom_eqv_reflexive(diff.im);
+        F::axiom_eqv_symmetric(diff.re, F::zero());
+        verus_quadratic_extension::ordered::lemma_nonneg_congruence::<F, R>(
+            qext::<F, R>(F::zero(), diff.im), diff);
+        // Now qe_nonneg(diff) holds
+
+        // For zero.le(diff): qe_le(zero, diff) = qe_nonneg(diff.sub(zero))
+        // diff.sub(zero) ≡ diff (by sub_zero at QExt level)
+        // Transfer via nonneg_congruence from diff to diff.sub(zero)
+        // Actually, zero.le(diff) = qe_nonneg(qe_sub(diff, zero))
+        // qe_sub(diff, zero).re = diff.re.sub(zero.re) = diff.re.sub(zero) ≡ diff.re
+        // qe_sub(diff, zero).im = diff.im.sub(zero.im) = diff.im.sub(zero) ≡ diff.im
+        // Transfer qe_nonneg(diff) to qe_nonneg(qe_sub(diff, zero))
+        // qe_sub(diff, zero).re = diff.re.sub(zero) ≡ diff.re (by sub_zero)
+        // qe_sub(diff, zero).im = diff.im.sub(zero) ≡ diff.im (by sub_zero)
+        lemma_sub_zero::<F>(diff.re);
+        lemma_sub_zero::<F>(diff.im);
+        F::axiom_eqv_symmetric(diff.re.sub(F::zero()), diff.re);
+        F::axiom_eqv_symmetric(diff.im.sub(F::zero()), diff.im);
+        verus_quadratic_extension::ordered::lemma_nonneg_congruence::<F, R>(
+            diff, qe_sub::<F, R>(diff, qe_zero::<F, R>()));
+    }
 }
 
 } // verus!
