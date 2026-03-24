@@ -1911,9 +1911,9 @@ pub proof fn lemma_cl_displacement_sign_determines_order<F: OrderedField, R: Pos
     let v = line.a.mul(h).div(big_a);
     let w = line.b.mul(h).div(big_a);
     let t = h.div(big_a);
-    lemma_mul_div_assoc::<F>(line.a, h, big_a);
+    crate::line_intersection::lemma_mul_div_assoc::<F>(line.a, h, big_a);
     F::axiom_eqv_symmetric(line.a.mul(h.div(big_a)), v);
-    lemma_mul_div_assoc::<F>(line.b, h, big_a);
+    crate::line_intersection::lemma_mul_div_assoc::<F>(line.b, h, big_a);
     F::axiom_eqv_symmetric(line.b.mul(h.div(big_a)), w);
 
     // Cancellation: neg(b)*dx_re + a*dy_re ≡ cl_displacement_sign
