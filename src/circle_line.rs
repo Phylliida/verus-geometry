@@ -1605,27 +1605,28 @@ proof fn lemma_scaled_disp_positive<F: OrderedField>(
         verus_algebra::lemmas::ordered_field_lemmas::lemma_nonneg_div_pos::<F>(numer, big_a);
     };
 
-    // Fact 2b (isolated): numer/A ≠ 0
-    assert(!numer.div(big_a).eqv(F::zero())) by {
-        F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
-        F::axiom_eqv_symmetric(F::zero(), big_a);
-        F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer);
-        if numer.div(big_a).eqv(F::zero()) {
-            F::axiom_eqv_symmetric(numer.div(big_a), F::zero());
-            verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel::<F>(numer, big_a);
-            // numer.div(big_a).mul(big_a) ≡ numer
-            verus_algebra::lemmas::ring_lemmas::lemma_mul_zero_left::<F>(big_a);
-            // 0.mul(big_a) ≡ 0
-            F::axiom_mul_congruence_left(numer.div(big_a), F::zero(), big_a);
-            // numer.div(big_a).mul(big_a) ≡ 0.mul(big_a)
-            F::axiom_eqv_transitive(numer.div(big_a).mul(big_a), F::zero().mul(big_a), F::zero());
-            F::axiom_eqv_symmetric(numer, numer.div(big_a).mul(big_a));
-            F::axiom_eqv_transitive(numer, numer.div(big_a).mul(big_a), F::zero());
-            // numer ≡ 0, contradicts numer > 0
-        }
-    };
+    // Fact 2b: numer/A ≠ 0 — use div_mul_cancel contradiction
+    // If numer/A ≡ 0, then (numer/A)*A ≡ 0*A ≡ 0, but (numer/A)*A ≡ numer > 0. Contradiction.
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), big_a);
+    F::axiom_eqv_symmetric(F::zero(), big_a);
+    F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer);
+    if numer.div(big_a).eqv(F::zero()) {
+        verus_algebra::lemmas::field_lemmas::lemma_div_mul_cancel::<F>(numer, big_a);
+        verus_algebra::lemmas::ring_lemmas::lemma_mul_zero_left::<F>(big_a);
+        F::axiom_mul_congruence_left(numer.div(big_a), F::zero(), big_a);
+        F::axiom_eqv_transitive(numer.div(big_a).mul(big_a), F::zero().mul(big_a), F::zero());
+        F::axiom_eqv_symmetric(numer, numer.div(big_a).mul(big_a));
+        F::axiom_eqv_transitive(numer, numer.div(big_a).mul(big_a), F::zero());
+        F::axiom_eqv_symmetric(numer, F::zero());
+    }
 
     // Fact 2: numer/A > 0 (from ≥ 0 and ≠ 0)
+    // lt(0, x) == le(0, x) && !eqv(0, x)
+    // We have le(0, numer/A) and !eqv(numer/A, 0).
+    // Need !eqv(0, numer/A) — by eqv_symmetric
+    if F::zero().eqv(numer.div(big_a)) {
+        F::axiom_eqv_symmetric(F::zero(), numer.div(big_a));
+    }
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), numer.div(big_a));
 
     // Fact 3: result ≡ numer/A AND numer/A > 0 → result > 0
@@ -1643,6 +1644,10 @@ proof fn lemma_scaled_disp_positive<F: OrderedField>(
 /// Helper: the im part of the sq_dist difference is positive when cl_displacement_sign > 0.
 /// Extracted as a separate lemma to reduce Z3 context size.
 #[verifier::rlimit(120)]
+/// The im part of the sq_dist difference is positive when cl_displacement_sign > 0.
+/// Combines the im expansion (conjugate structure) with the cancellation identity
+/// and scaled_disp_positive to establish diff.im > 0.
+#[verifier::rlimit(60)]
 proof fn lemma_cl_sq_dist_im_positive<F: OrderedField, R: PositiveRadicand<F>>(
     circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
 )
@@ -1726,64 +1731,21 @@ proof fn lemma_cl_sq_dist_im_positive<F: OrderedField, R: PositiveRadicand<F>>(
         dx_plus_actual_im.add(dy_plus_actual_im), dx_bA_im.neg().add(dy_aA_im),
         dx_minus_actual_im.add(dy_minus_actual_im), dx_bA_im.add(dy_aA_im.neg()));
 
-    // diff.im ≡ neg(X) + Y - (X + neg(Y))
-    // Need to show this > 0.
-    // X = dx_re*(b/A) + (b/A)*dx_re, Y = dy_re*(a/A) + (a/A)*dy_re
-    // neg(X) + Y = neg(dx_re*(b/A) + (b/A)*dx_re) + (dy_re*(a/A) + (a/A)*dy_re)
-    // This equals neg(b)*dx_re/... ah, this is still complex.
+    // diff.im ≡ neg(X)+Y-(X+neg(Y)) where X=dx_bA_im, Y=dy_aA_im.
+    // From scaled_disp_positive: dy_re*(a/A) - dx_re*(b/A) > 0.
+    // Connection: neg(X)+Y-(X+neg(Y)) = 2(Y-X) = 4*(dy_re*(a/A)-dx_re*(b/A)) > 0
+    // since X = 2*dx_re*(b/A) and Y = 2*dy_re*(a/A) by commutativity.
 
-    // Alternative: use le_congruence to transfer from disp_expr > 0.
-    // We need: diff.im ≡ something ≡ positive_thing.
-    // The "something" involves neg(X)+Y-(X+neg(Y)).
-    // neg(X)+Y-(X+neg(Y)) ≡ (Y-X) + (Y-X) = 2(Y-X) (by ring axioms)
-    // And Y-X is proportional to disp_expr with positive constant.
+    assert(F::zero().lt(dy_re.mul(a_over_a).sub(dx_re.mul(b_over_a)))) by {
+        lemma_scaled_disp_positive::<F>(dx_re, dy_re, line.a, line.b, big_a);
+    };
 
-    // Let me just help Z3 with: neg(X)+Y-(X+neg(Y)) ≡ (Y-X)+(Y-X)
-    // (neg(X)+Y) - (X+neg(Y)) = (neg(X)+Y) + neg(X+neg(Y))
-    // neg(X+neg(Y)) = neg(X) + neg(neg(Y)) = neg(X) + Y (by neg_add + neg_involution)
-    // So = (neg(X)+Y) + (neg(X)+Y) = 2*(neg(X)+Y)
-    // = 2*(Y + neg(X)) = 2*(Y - X)
-    // And Y - X = (dy_re*a/A + a/A*dy_re) - (dx_re*b/A + b/A*dx_re)
-    // By ring commutativity a/A*dy_re = dy_re*a/A, b/A*dx_re = dx_re*b/A
-    // So Y - X = 2*dy_re*a/A - 2*dx_re*b/A = 2/A*(a*dy_re - b*dx_re)
-    // = 2/A * disp_expr > 0
-
-    // This is a lot of steps. Let me try giving Z3 just the key ordering hint.
-
-    // Assert: disp_expr > 0
-    let h = cl_signed_dist_num(circle, line);
-    let v = line.a.mul(h).div(big_a);
-    let w = line.b.mul(h).div(big_a);
-    let t = h.div(big_a);
-    F::axiom_div_is_mul_recip(line.a.mul(h), big_a);
-    F::axiom_div_is_mul_recip(h, big_a);
-    F::axiom_eqv_symmetric(t, h.mul(big_a.recip()));
-    F::axiom_mul_associative(line.a, h, big_a.recip());
-    F::axiom_eqv_symmetric(line.a.mul(h.mul(big_a.recip())), line.a.mul(h).mul(big_a.recip()));
-    F::axiom_eqv_transitive(v, line.a.mul(h).mul(big_a.recip()), line.a.mul(h.mul(big_a.recip())));
-    lemma_mul_congruence_right::<F>(line.a, h.mul(big_a.recip()), t);
-    F::axiom_eqv_transitive(v, line.a.mul(h.mul(big_a.recip())), line.a.mul(t));
-    F::axiom_div_is_mul_recip(line.b.mul(h), big_a);
-    F::axiom_mul_associative(line.b, h, big_a.recip());
-    F::axiom_eqv_symmetric(line.b.mul(h.mul(big_a.recip())), line.b.mul(h).mul(big_a.recip()));
-    F::axiom_eqv_transitive(w, line.b.mul(h).mul(big_a.recip()), line.b.mul(h.mul(big_a.recip())));
-    lemma_mul_congruence_right::<F>(line.b, h.mul(big_a.recip()), t);
-    F::axiom_eqv_transitive(w, line.b.mul(h.mul(big_a.recip())), line.b.mul(t));
-    lemma_cl_displacement_cancellation(
-        line.a, line.b, circle.center.x, circle.center.y,
-        target.x, target.y, v, w, t);
-    let disp_expr = line.b.neg().mul(dx_re).add(line.a.mul(dy_re));
-    let sign_val = cl_displacement_sign(circle, line, target);
-    F::axiom_eqv_symmetric(disp_expr, sign_val);
-    F::axiom_eqv_reflexive(F::zero());
-    F::axiom_lt_iff_le_and_not_eqv(F::zero(), sign_val);
-    F::axiom_le_congruence(F::zero(), F::zero(), sign_val, disp_expr);
-    F::axiom_eqv_symmetric(F::zero(), sign_val);
-    if F::zero().eqv(disp_expr) {
-        F::axiom_eqv_transitive(F::zero(), disp_expr, sign_val);
-    }
-    F::axiom_lt_iff_le_and_not_eqv(F::zero(), disp_expr);
-    // disp_expr > 0 established.
+    // Z3 needs to connect: scaled positive → neg(X)+Y-(X+neg(Y)) > 0 → diff.im > 0
+    // The eqv chain from diff.im to neg(X)+Y-(X+neg(Y)) is established above.
+    // The connection from that to dy_re*(a/A)-dx_re*(b/A) goes through commutativity:
+    //   (b/A)*dx_re ≡ dx_re*(b/A), (a/A)*dy_re ≡ dy_re*(a/A)
+    F::axiom_mul_commutative(b_over_a, dx_re);
+    F::axiom_mul_commutative(a_over_a, dy_re);
 }
 
 /// Main theorem: cl_displacement_sign > 0 ⟹ sq_dist(P_plus, Q) > sq_dist(P_minus, Q).
