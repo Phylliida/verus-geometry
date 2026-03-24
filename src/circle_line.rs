@@ -1193,6 +1193,7 @@ proof fn lemma_qe_sq_re_im_congruence<F: OrderedField, R: PositiveRadicand<F>>(
 pub proof fn lemma_cl_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
     circle: Circle2<F>, line: Line2<F>, target: Point2<F>,
 )
+    requires line2_nondegenerate(line),
     ensures
         sq_dist_2d::<SpecQuadExt<F, R>>(
             cl_intersection_point(circle, line, true),
@@ -1264,6 +1265,9 @@ pub proof fn lemma_cl_sq_dist_re_equal<F: OrderedField, R: PositiveRadicand<F>>(
     // A > 0 implies A ≠ 0
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), cl_quad_a(line));
     let big_a = cl_quad_a(line);
+
+    // A > 0 → A ≠ 0
+    F::axiom_eqv_symmetric(F::zero(), big_a);
 
     // neg(b)/A ≡ neg(b/A) and neg(a)/A ≡ neg(a/A)
     lemma_div_neg_numerator::<F>(line.b, big_a);
