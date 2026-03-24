@@ -1498,7 +1498,59 @@ pub proof fn lemma_cl_sq_dist_sign_from_im<F: OrderedField, R: PositiveRadicand<
 /// v*(a/A) - u*(b/A) > 0 when neg(b)*u + a*v > 0 and A > 0.
 /// This is because v*(a/A) - u*(b/A) = (a*v - b*u)/A = (neg(b)*u + a*v)/A,
 /// and dividing a positive by a positive is positive.
-#[verifier::rlimit(120)]
+/// v*(a/A) - u*(b/A) ≡ (neg(b)*u + a*v) / A
+/// Pure algebraic identity, no ordering involved.
+proof fn lemma_scaled_disp_eqv<F: OrderedField>(
+    u: F, v: F, a: F, b: F, big_a: F,
+)
+    requires !big_a.eqv(F::zero()),
+    ensures
+        v.mul(a.div(big_a)).sub(u.mul(b.div(big_a))).eqv(
+            b.neg().mul(u).add(a.mul(v)).div(big_a)),
+{
+    let numer = b.neg().mul(u).add(a.mul(v));
+
+    // v*(a/A) ≡ (v*a)/A, u*(b/A) ≡ (u*b)/A
+    crate::line_intersection::lemma_mul_div_assoc::<F>(v, a, big_a);
+    crate::line_intersection::lemma_mul_div_assoc::<F>(u, b, big_a);
+
+    // (v*a)/A - (u*b)/A ≡ (v*a)/A + neg((u*b)/A) ≡ (v*a)/A + neg(u*b)/A ≡ (v*a+neg(u*b))/A
+    lemma_div_neg_numerator::<F>(u.mul(b), big_a);
+    F::axiom_eqv_symmetric(u.mul(b).neg().div(big_a), u.mul(b).div(big_a).neg());
+    lemma_add_congruence_right::<F>(v.mul(a).div(big_a),
+        u.mul(b).div(big_a).neg(), u.mul(b).neg().div(big_a));
+    lemma_div_add_same_denom::<F>(v.mul(a), u.mul(b).neg(), big_a);
+
+    // (v*a + neg(u*b)) ≡ numer
+    F::axiom_mul_commutative(v, a);
+    F::axiom_mul_commutative(u, b);
+    lemma_neg_congruence::<F>(u.mul(b), b.mul(u));
+    lemma_mul_neg_left::<F>(b, u);
+    F::axiom_eqv_symmetric(b.neg().mul(u), b.mul(u).neg());
+    F::axiom_eqv_transitive(u.mul(b).neg(), b.mul(u).neg(), b.neg().mul(u));
+    lemma_add_congruence::<F>(v.mul(a), a.mul(v), u.mul(b).neg(), b.neg().mul(u));
+    F::axiom_add_commutative(a.mul(v), b.neg().mul(u));
+    F::axiom_eqv_transitive(
+        v.mul(a).add(u.mul(b).neg()), a.mul(v).add(b.neg().mul(u)), numer);
+
+    // (v*a+neg(u*b))/A ≡ numer/A
+    F::axiom_eqv_reflexive(big_a);
+    verus_algebra::quadratic::lemma_div_congruence::<F>(
+        v.mul(a).add(u.mul(b).neg()), numer, big_a, big_a);
+
+    // Chain: v*(a/A) - u*(b/A)
+    // = v*(a/A) + neg(u*(b/A)) [sub_is_add_neg]
+    // ≡ (v*a)/A + neg((u*b)/A) [mul_div_assoc congruence]
+    // ≡ (v*a)/A + neg(u*b)/A [div_neg bridge]
+    // ≡ (v*a + neg(u*b))/A [div_add_same_denom]
+    // ≡ numer/A [div_congruence]
+    lemma_sub_congruence::<F>(
+        v.mul(a.div(big_a)), v.mul(a).div(big_a),
+        u.mul(b.div(big_a)), u.mul(b).div(big_a));
+    // Now let Z3 chain the rest via the established eqv facts.
+}
+
+/// v*(a/A) - u*(b/A) > 0 when neg(b)*u + a*v > 0 and A > 0.
 proof fn lemma_scaled_disp_positive<F: OrderedField>(
     u: F, v: F, a: F, b: F, big_a: F,
 )
