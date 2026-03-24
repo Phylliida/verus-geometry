@@ -2122,12 +2122,10 @@ pub proof fn lemma_cl_displacement_sign_determines_order_negative<F: OrderedFiel
         F::axiom_eqv_symmetric(F::zero(), scaled.neg());
         F::axiom_eqv_symmetric(F::zero().neg(), F::zero());
         F::axiom_eqv_transitive(scaled.neg(), F::zero(), F::zero().neg());
+        F::axiom_eqv_symmetric(scaled.neg(), F::zero().neg());
+        // Now zero.neg().eqv(scaled.neg()) which contradicts !zero.neg().eqv(scaled.neg())
     }
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled.neg());
-
-    // neg(scaled) + neg(scaled) > 0 and doubled > 0
-    assert(F::zero().le(scaled.neg()));
-    assert(F::zero().lt(scaled.neg()));
     lemma_add_pos_nonneg::<F>(scaled.neg(), scaled.neg());
     F::axiom_lt_iff_le_and_not_eqv(F::zero(), scaled.neg().add(scaled.neg()));
     lemma_add_pos_nonneg::<F>(scaled.neg().add(scaled.neg()), scaled.neg().add(scaled.neg()));
