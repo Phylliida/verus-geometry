@@ -2052,34 +2052,27 @@ pub proof fn lemma_noncoincident_implies_line_nondegenerate<F: OrderedField>(
     ensures line2_nondegenerate(line2_from_points(p, q)),
 {
     let line = line2_from_points(p, q);
-    // line.a = neg(q.y - p.y), line.b = q.x - p.x
-    // If both ≡ 0, then q.y - p.y ≡ 0 and q.x - p.x ≡ 0
     if line.a.eqv(F::zero()) && line.b.eqv(F::zero()) {
         // b ≡ 0 means q.x - p.x ≡ 0, so q.x ≡ p.x
-        verus_algebra::lemmas::additive_group_lemmas::lemma_sub_zero_implies_eqv::<F>(q.x, p.x);
-        // a ≡ 0 means neg(q.y - p.y) ≡ 0, so q.y - p.y ≡ 0, so q.y ≡ p.y
-        F::axiom_neg_congruence(line.a, F::zero());
+        crate::segment_intersection::lemma_sub_zero_implies_eqv::<F>(q.x, p.x);
+        // a = neg(q.y - p.y) ≡ 0
+        // neg(neg(q.y-p.y)) ≡ neg(0) ≡ 0
+        let sub_y = q.y.sub(p.y);
+        F::axiom_neg_congruence(sub_y.neg(), F::zero());
         verus_algebra::lemmas::additive_group_lemmas::lemma_neg_zero::<F>();
-        F::axiom_eqv_transitive(q.y.sub(p.y).neg().neg(), F::zero().neg(), F::zero());
-        verus_algebra::lemmas::additive_group_lemmas::lemma_neg_involution::<F>(q.y.sub(p.y));
-        F::axiom_eqv_transitive(q.y.sub(p.y), q.y.sub(p.y).neg().neg(), F::zero());
-        verus_algebra::lemmas::additive_group_lemmas::lemma_sub_zero_implies_eqv::<F>(q.y, p.y);
-        // p ≡ q: contradiction
+        F::axiom_eqv_transitive(sub_y.neg().neg(), F::zero().neg(), F::zero());
+        // neg(neg(sub_y)) ≡ sub_y by involution
+        verus_algebra::lemmas::additive_group_lemmas::lemma_neg_involution::<F>(sub_y);
+        F::axiom_eqv_symmetric(sub_y.neg().neg(), sub_y);
+        // sub_y ≡ neg(neg(sub_y)) ≡ 0
+        F::axiom_eqv_transitive(sub_y, sub_y.neg().neg(), F::zero());
+        crate::segment_intersection::lemma_sub_zero_implies_eqv::<F>(q.y, p.y);
+        // p.x ≡ q.x and p.y ≡ q.y → p ≡ q (Point2 eqv is component-wise)
+        F::axiom_eqv_symmetric(q.x, p.x);
+        F::axiom_eqv_symmetric(q.y, p.y);
+        assert(p.x.eqv(q.x) && p.y.eqv(q.y));
+        assert(p.eqv(q)); // contradicts !p.eqv(q)
     }
-}
-
-/// Non-zero direction vector produces a non-degenerate line.
-/// Used for Perpendicular/Parallel constraints where the line normal
-/// comes from sub2(b2, b1).
-pub proof fn lemma_nonzero_direction_implies_nondegenerate<F: OrderedField>(
-    dx: F, dy: F,
-)
-    requires !dx.eqv(F::zero()) || !dy.eqv(F::zero()),
-    ensures !dx.eqv(F::zero()) || !dy.eqv(F::zero()),
-{
-    // Trivially true — the ensures equals the requires.
-    // This is a documentation lemma: direction-based lines are non-degenerate
-    // when the direction is nonzero.
 }
 
 } // verus!
