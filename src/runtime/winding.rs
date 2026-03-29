@@ -23,9 +23,9 @@ use crate::convex_polygon::polygon_next_index;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// Compute the winding edge contribution at runtime.
+///  Compute the winding edge contribution at runtime.
 ///
-/// Returns +1, -1, or 0 matching winding_edge spec.
+///  Returns +1, -1, or 0 matching winding_edge spec.
 fn winding_edge_exec(
     q: &RuntimePoint2, p0: &RuntimePoint2, p1: &RuntimePoint2,
 ) -> (out: i64)
@@ -56,9 +56,9 @@ fn winding_edge_exec(
     }
 }
 
-/// Compute the winding number of query point q with respect to polygon.
+///  Compute the winding number of query point q with respect to polygon.
 ///
-/// Returns an integer: nonzero means inside, zero means outside.
+///  Returns an integer: nonzero means inside, zero means outside.
 pub fn winding_number_exec(
     q: &RuntimePoint2, polygon: &RuntimePolygon2,
 ) -> (out: i64)
@@ -83,7 +83,7 @@ pub fn winding_number_exec(
             q.wf_spec(),
             polygon.wf_spec(),
             wn as int == winding_number_prefix::<RationalModel>(q@, polygon.model(), i as int),
-            // Each edge contributes at most ±1, so |wn| ≤ i
+            //  Each edge contributes at most ±1, so |wn| ≤ i
             -(i as i64) <= wn <= (i as i64),
         decreases n - i,
     {
@@ -104,7 +104,7 @@ pub fn winding_number_exec(
     wn
 }
 
-/// Test if point is inside polygon (nonzero winding number).
+///  Test if point is inside polygon (nonzero winding number).
 pub fn point_in_polygon_exec(
     q: &RuntimePoint2, polygon: &RuntimePolygon2,
 ) -> (out: bool)
@@ -120,4 +120,4 @@ pub fn point_in_polygon_exec(
     wn != 0
 }
 
-} // verus!
+} //  verus!

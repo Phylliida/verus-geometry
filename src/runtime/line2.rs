@@ -11,9 +11,9 @@ use crate::line2::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// RuntimeLine2
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  RuntimeLine2
+//  ---------------------------------------------------------------------------
 
 pub struct RuntimeLine2 {
     pub a: RuntimeRational,
@@ -56,11 +56,11 @@ impl RuntimeLine2 {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Exec constructors
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Exec constructors
+//  ---------------------------------------------------------------------------
 
-/// Construct a line through two points.
+///  Construct a line through two points.
 pub fn line2_from_points_exec(
     p: &super::point2::RuntimePoint2,
     q: &super::point2::RuntimePoint2,
@@ -72,12 +72,12 @@ pub fn line2_from_points_exec(
         out.wf_spec(),
         out@ == line2_from_points::<RationalModel>(p@, q@),
 {
-    // a = -(q.y - p.y)
+    //  a = -(q.y - p.y)
     let dy = q.y.sub(&p.y);
     let a = dy.neg();
-    // b = q.x - p.x
+    //  b = q.x - p.x
     let b = q.x.sub(&p.x);
-    // c = -(a*p.x + b*p.y)
+    //  c = -(a*p.x + b*p.y)
     let apx = a.mul(&p.x);
     let bpy = b.mul(&p.y);
     let s = apx.add(&bpy);
@@ -87,7 +87,7 @@ pub fn line2_from_points_exec(
     RuntimeLine2 { a, b, c, model: Ghost(model) }
 }
 
-/// Evaluate the line equation at a point.
+///  Evaluate the line equation at a point.
 pub fn line2_eval_exec(
     line: &RuntimeLine2,
     p: &super::point2::RuntimePoint2,
@@ -105,4 +105,4 @@ pub fn line2_eval_exec(
     s.add(&line.c)
 }
 
-} // verus!
+} //  verus!

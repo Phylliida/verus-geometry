@@ -17,9 +17,9 @@ pub use verus_linalg::runtime::vec3::RuntimeVec3;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// RuntimePoint3
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  RuntimePoint3
+//  ---------------------------------------------------------------------------
 
 pub struct RuntimePoint3 {
     pub x: RuntimeRational,
@@ -72,11 +72,11 @@ impl RuntimePoint3 {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Exec operations
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Exec operations
+//  ---------------------------------------------------------------------------
 
-/// Point subtraction: a - b = vector
+///  Point subtraction: a - b = vector
 pub fn sub3_exec(a: &RuntimePoint3, b: &RuntimePoint3) -> (out: RuntimeVec3)
     requires
         a.wf_spec(),
@@ -92,7 +92,7 @@ pub fn sub3_exec(a: &RuntimePoint3, b: &RuntimePoint3) -> (out: RuntimeVec3)
     RuntimeVec3 { x: dx, y: dy, z: dz, model: Ghost(model) }
 }
 
-/// Point + vector = point
+///  Point + vector = point
 pub fn add_vec3_exec(p: &RuntimePoint3, v: &RuntimeVec3) -> (out: RuntimePoint3)
     requires
         p.wf_spec(),
@@ -108,7 +108,7 @@ pub fn add_vec3_exec(p: &RuntimePoint3, v: &RuntimeVec3) -> (out: RuntimePoint3)
     RuntimePoint3 { x: rx, y: ry, z: rz, model: Ghost(model) }
 }
 
-/// Cross product: a × b (delegates to verus-linalg)
+///  Cross product: a × b (delegates to verus-linalg)
 pub fn cross_exec(a: &RuntimeVec3, b: &RuntimeVec3) -> (out: RuntimeVec3)
     requires
         a.wf_spec(),
@@ -120,7 +120,7 @@ pub fn cross_exec(a: &RuntimeVec3, b: &RuntimeVec3) -> (out: RuntimeVec3)
     a.cross_exec(b)
 }
 
-/// Dot product: a · b (delegates to verus-linalg)
+///  Dot product: a · b (delegates to verus-linalg)
 pub fn dot3_exec(a: &RuntimeVec3, b: &RuntimeVec3) -> (out: RuntimeRational)
     requires
         a.wf_spec(),
@@ -132,4 +132,4 @@ pub fn dot3_exec(a: &RuntimeVec3, b: &RuntimeVec3) -> (out: RuntimeRational)
     a.dot_exec(b)
 }
 
-} // verus!
+} //  verus!

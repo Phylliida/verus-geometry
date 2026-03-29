@@ -306,19 +306,19 @@ To make <code>lemma_vertex_in_convex_polygon</code> true, the definition needs a
 </div>
 
 <script>
-// Vertices
+//  Vertices
 const rawPts = {
   A: [0, 10], D: [-5, -8], B: [9, 3], E: [-9, 3], C: [5, -8]
 };
 const starOrder = ['A','D','B','E','C'];
-const hullOrder = ['A','B','C','D','E']; // CW top → clockwise for display
+const hullOrder = ['A','B','C','D','E']; //  CW top → clockwise for display
 
-// orient2d(a,b,c) = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x)
+//  orient2d(a,b,c) = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x)
 function orient2d(a, b, c) {
   return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
 }
 
-// Transform polygon coords to canvas coords
+//  Transform polygon coords to canvas coords
 function txX(x, cx, scale) { return cx + x * scale; }
 function txY(y, cy, scale) { return cy - y * scale; }
 
@@ -360,7 +360,7 @@ function drawVerts(ctx, pts, order, highlight) {
     ctx.strokeStyle = colors.vertStroke;
     ctx.stroke();
 
-    // Label
+    //  Label
     const offsets = { A: [0, -16], B: [14, 0], C: [10, 12], D: [-22, 0], E: [-22, 0] };
     const off = offsets[name] || [0, -14];
     ctx.font = '600 14px "IBM Plex Mono", monospace';
@@ -381,7 +381,7 @@ function drawTurnArc(ctx, pts, a, b, c) {
   ctx.strokeStyle = colors.turn;
   ctx.lineWidth = 2;
   ctx.stroke();
-  // arrow
+  //  arrow
   const aEnd = ang2;
   const ax1 = bx + 22 * Math.cos(aEnd);
   const ay1 = by + 22 * Math.sin(aEnd);
@@ -409,7 +409,7 @@ function setupCanvas(id) {
   return ctx;
 }
 
-// === Canvas 1: Star vs Hull ===
+//  === Canvas 1: Star vs Hull ===
 let view1 = 'star';
 function setView1(v) {
   view1 = v;
@@ -430,7 +430,7 @@ function drawCanvas1() {
   }
   if (view1 === 'star' || view1 === 'both') {
     drawPoly(ctx, rawPts, starOrder, colors.edge, 2.5);
-    // Draw turn arcs
+    //  Draw turn arcs
     for (let i = 0; i < 5; i++) {
       const a = starOrder[i];
       const b = starOrder[(i+1)%5];
@@ -441,7 +441,7 @@ function drawCanvas1() {
 
   drawVerts(ctx, rawPts, starOrder);
 
-  // Draw traversal numbers
+  //  Draw traversal numbers
   if (view1 === 'star' || view1 === 'both') {
     ctx.font = '500 11px "IBM Plex Mono", monospace';
     ctx.fillStyle = colors.edge;
@@ -455,7 +455,7 @@ function drawCanvas1() {
   }
 }
 
-// === Canvas 2: Edge orient2d signs ===
+//  === Canvas 2: Edge orient2d signs ===
 let activeEdge = 'all';
 function setEdge(e) {
   activeEdge = e;
@@ -465,7 +465,7 @@ function setEdge(e) {
   drawCanvas2();
 }
 
-const edgeOrients = [0, 197, -126, 126, 0]; // orient2d(edge_i_start, edge_i_end, A)
+const edgeOrients = [0, 197, -126, 126, 0]; //  orient2d(edge_i_start, edge_i_end, A)
 
 function drawCanvas2() {
   const ctx = setupCanvas('cvs2');
@@ -484,7 +484,7 @@ function drawCanvas2() {
     const o = edgeOrients[i];
     const col = o > 0 ? colors.pos : o < 0 ? colors.neg : colors.zero;
 
-    // Draw edge
+    //  Draw edge
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(bx, by);
@@ -492,7 +492,7 @@ function drawCanvas2() {
     ctx.lineWidth = activeEdge === 'all' ? 2 : 3;
     ctx.stroke();
 
-    // Arrow
+    //  Arrow
     const dx = bx - ax, dy = by - ay;
     const len = Math.sqrt(dx*dx + dy*dy);
     const ux = dx/len, uy = dy/len;
@@ -505,7 +505,7 @@ function drawCanvas2() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Orient label
+    //  Orient label
     if (activeEdge !== 'all' || true) {
       const sign = o > 0 ? '+' : o < 0 ? '' : '';
       const lx = (ax+bx)/2 - uy*20;
@@ -516,7 +516,7 @@ function drawCanvas2() {
       ctx.fillText(`${sign}${o}`, lx, ly);
     }
 
-    // If single edge, draw dashed line to A and shade half-plane
+    //  If single edge, draw dashed line to A and shade half-plane
     if (activeEdge === i && o !== 0) {
       const pA = rawPts['A'];
       const pAx = txX(pA[0], ctx._cx, ctx._sc);
@@ -532,7 +532,7 @@ function drawCanvas2() {
     }
   }
 
-  // Draw dim star outline
+  //  Draw dim star outline
   if (activeEdge !== 'all') {
     for (let i = 0; i < n; i++) {
       if (i === activeEdge) continue;
@@ -550,7 +550,7 @@ function drawCanvas2() {
   drawVerts(ctx, rawPts, starOrder, 'A');
 }
 
-// === Canvas 3: Half-planes ===
+//  === Canvas 3: Half-planes ===
 let hpEdge = 1;
 function setHP(e) {
   hpEdge = e;
@@ -563,7 +563,7 @@ function drawCanvas3() {
   const ctx = setupCanvas('cvs3');
   ctx.clearRect(0, 0, ctx._w, ctx._h);
 
-  const edgeIdx = hpEdge === 1 ? 1 : 2; // D→B or B→E
+  const edgeIdx = hpEdge === 1 ? 1 : 2; //  D→B or B→E
   const a = rawPts[starOrder[edgeIdx]];
   const b = rawPts[starOrder[(edgeIdx+1)%5]];
   const ax = txX(a[0], ctx._cx, ctx._sc);
@@ -571,15 +571,15 @@ function drawCanvas3() {
   const bx = txX(b[0], ctx._cx, ctx._sc);
   const by = txY(b[1], ctx._cy, ctx._sc);
 
-  // Extend edge line across canvas
+  //  Extend edge line across canvas
   const dx = bx - ax, dy = by - ay;
   const len = Math.sqrt(dx*dx + dy*dy);
   const ux = dx/len, uy = dy/len;
-  // Normal (left side)
+  //  Normal (left side)
   const nx = -uy, ny = ux;
 
-  // Fill half-planes
-  // Left half-plane (positive)
+  //  Fill half-planes
+  //  Left half-plane (positive)
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(ax - ux*500, ay - uy*500);
@@ -591,7 +591,7 @@ function drawCanvas3() {
   ctx.fill();
   ctx.restore();
 
-  // Right half-plane (negative)
+  //  Right half-plane (negative)
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(ax - ux*500, ay - uy*500);
@@ -603,7 +603,7 @@ function drawCanvas3() {
   ctx.fill();
   ctx.restore();
 
-  // Draw extended edge line
+  //  Draw extended edge line
   ctx.beginPath();
   ctx.moveTo(ax - ux*400, ay - uy*400);
   ctx.lineTo(bx + ux*400, by + uy*400);
@@ -611,7 +611,7 @@ function drawCanvas3() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Draw actual edge
+  //  Draw actual edge
   ctx.beginPath();
   ctx.moveTo(ax, ay);
   ctx.lineTo(bx, by);
@@ -620,7 +620,7 @@ function drawCanvas3() {
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // Half-plane labels
+  //  Half-plane labels
   ctx.font = '500 13px "IBM Plex Mono", monospace';
   const lbl1x = (ax+bx)/2 + nx*50;
   const lbl1y = (ay+by)/2 + ny*50;
@@ -634,7 +634,7 @@ function drawCanvas3() {
   ctx.fillText('orient2d < 0', lbl2x, lbl2y);
   ctx.fillText('(RIGHT)', lbl2x, lbl2y + 16);
 
-  // Draw dim star
+  //  Draw dim star
   for (let i = 0; i < 5; i++) {
     if (i === edgeIdx) continue;
     const p1 = rawPts[starOrder[i]];
@@ -647,14 +647,14 @@ function drawCanvas3() {
     ctx.stroke();
   }
 
-  // Draw vertex A with indicator
+  //  Draw vertex A with indicator
   const pA = rawPts['A'];
   const pAx = txX(pA[0], ctx._cx, ctx._sc);
   const pAy = txY(pA[1], ctx._cy, ctx._sc);
   const o = edgeOrients[edgeIdx];
   const side = o > 0 ? colors.pos : colors.neg;
 
-  // Dashed line from A to edge midpoint
+  //  Dashed line from A to edge midpoint
   ctx.beginPath();
   ctx.moveTo(pAx, pAy);
   ctx.lineTo((ax+bx)/2, (ay+by)/2);
@@ -666,7 +666,7 @@ function drawCanvas3() {
 
   drawVerts(ctx, rawPts, starOrder, 'A');
 
-  // Edge label
+  //  Edge label
   const eName = starOrder[edgeIdx] + '→' + starOrder[(edgeIdx+1)%5];
   ctx.font = '600 14px "IBM Plex Mono", monospace';
   ctx.fillStyle = col;
@@ -677,12 +677,12 @@ function drawCanvas3() {
   ctx.fillText(`A is on the ${o > 0 ? 'LEFT (+' + o + ')' : 'RIGHT (' + o + ')'}`, ctx._w/2, 48);
 }
 
-// Initial draws
+//  Initial draws
 drawCanvas1();
 drawCanvas2();
 drawCanvas3();
 
-// Redraw on resize
+//  Redraw on resize
 window.addEventListener('resize', () => {
   drawCanvas1();
   drawCanvas2();

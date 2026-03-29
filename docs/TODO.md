@@ -175,9 +175,9 @@ These determine which side of a line (2D) or plane (3D) a point lies on.
 ```
 pub enum SegmentIntersectionKind {
     Disjoint,
-    Proper,           // interiors cross
-    EndpointTouch,    // endpoint meets other segment
-    CollinearOverlap, // collinear and overlapping
+    Proper,           //  interiors cross
+    EndpointTouch,    //  endpoint meets other segment
+    CollinearOverlap, //  collinear and overlapping
 }
 ```
 
@@ -440,9 +440,9 @@ inside the circumcircle of triangle (a, b, c). This is a 3×3 determinant of the
 
 ```
 spec fn incircle2d<T: OrderedRing>(a, b, c, d: Point2<T>) -> T {
-    // | ax-dx  ay-dy  (ax-dx)²+(ay-dy)² |
-    // | bx-dx  by-dy  (bx-dx)²+(by-dy)² |
-    // | cx-dx  cy-dy  (cx-dx)²+(cy-dy)² |
+    //  | ax-dx  ay-dy  (ax-dx)²+(ay-dy)² |
+    //  | bx-dx  by-dy  (bx-dx)²+(by-dy)² |
+    //  | cx-dx  cy-dy  (cx-dx)²+(cy-dy)² |
     det3_lifted(a - d, b - d, c - d)
 }
 ```
@@ -468,7 +468,7 @@ For spec purposes we use the unnormalized (2×area) form to stay in Ring:
 
 ```
 spec fn double_signed_area<T: Ring>(polygon: Seq<Point2<T>>) -> T {
-    // sum of orient2d(zero, polygon[i], polygon[next(i)]) for all i
+    //  sum of orient2d(zero, polygon[i], polygon[next(i)]) for all i
 }
 ```
 

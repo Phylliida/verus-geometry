@@ -21,9 +21,9 @@ use crate::convexity::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// RuntimePolygon2
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  RuntimePolygon2
+//  ---------------------------------------------------------------------------
 
 pub struct RuntimePolygon2 {
     pub vertices: Vec<RuntimePoint2>,
@@ -55,9 +55,9 @@ impl RuntimePolygon2 {
     }
 }
 
-// ---------------------------------------------------------------------------
-// OrientationSign helpers (avoid derived PartialEq in exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  OrientationSign helpers (avoid derived PartialEq in exec)
+//  ---------------------------------------------------------------------------
 
 pub fn is_positive(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Positive),
@@ -77,11 +77,11 @@ pub fn is_zero(s: &OrientationSign) -> (out: bool)
     match s { OrientationSign::Zero => true, _ => false }
 }
 
-// ---------------------------------------------------------------------------
-// Point in convex polygon
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point in convex polygon
+//  ---------------------------------------------------------------------------
 
-/// Test if point is inside convex polygon (boundary inclusive).
+///  Test if point is inside convex polygon (boundary inclusive).
 pub fn point_in_convex_polygon_boundary_inclusive_exec(
     p: &RuntimePoint2, polygon: &RuntimePolygon2,
 ) -> (out: bool)
@@ -130,15 +130,15 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec(
         }
 
         proof {
-            // Update prefix predicate: has_positive for i+1
+            //  Update prefix predicate: has_positive for i+1
             if has_positive {
                 if sp {
-                    // The witness is i itself
+                    //  The witness is i itself
                     assert(polygon_edge_orient_sign::<RationalModel>(
                         p@, polygon.model(), i as int,
                     ) == OrientationSign::Positive);
                 }
-                // There exists a witness in [0, i+1)
+                //  There exists a witness in [0, i+1)
                 assert(polygon_prefix_has_positive_sign::<RationalModel>(
                     p@, polygon.model(), (i + 1) as int,
                 ));
@@ -153,8 +153,8 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec(
                     p@, polygon.model(), (i + 1) as int,
                 ));
             }
-            // If !has_positive (still false), then prefix[i+1] is still false
-            // because prefix[i] was false and sign is not positive
+            //  If !has_positive (still false), then prefix[i+1] is still false
+            //  because prefix[i] was false and sign is not positive
             if !has_positive {
                 assert(!polygon_prefix_has_positive_sign::<RationalModel>(
                     p@, polygon.model(), (i + 1) as int,
@@ -173,7 +173,7 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec(
     !(has_positive && has_negative)
 }
 
-/// Test if point is strictly inside convex polygon (no boundary).
+///  Test if point is strictly inside convex polygon (no boundary).
 pub fn point_strictly_in_convex_polygon_exec(
     p: &RuntimePoint2, polygon: &RuntimePolygon2,
 ) -> (out: bool)
@@ -277,12 +277,12 @@ pub fn point_strictly_in_convex_polygon_exec(
     !(has_positive && has_negative) && !has_zero
 }
 
-// ---------------------------------------------------------------------------
-// Convexity checks — global half-plane O(n^2)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Convexity checks — global half-plane O(n^2)
+//  ---------------------------------------------------------------------------
 
-/// Check if polygon is convex (every vertex on non-negative side of every edge).
-/// O(n^2) double loop.
+///  Check if polygon is convex (every vertex on non-negative side of every edge).
+///  O(n^2) double loop.
 pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     requires
         polygon.wf_spec(),
@@ -328,7 +328,7 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                 vnext.wf_spec(),
                 vi@ == polygon.model()[i as int],
                 vnext@ == polygon.model()[next_i as int],
-                // Current edge i: checked for vertices [0, j)
+                //  Current edge i: checked for vertices [0, j)
                 forall|jj: int| 0 <= jj < j ==> {
                     let next_ii = polygon_next_index(n as int, i as int);
                     !orient2d_negative::<RationalModel>(
@@ -347,7 +347,7 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
 
             if is_negative(&sign) {
                 proof {
-                    // Witness the failure for the ensures
+                    //  Witness the failure for the ensures
                     assert(orient2d_negative::<RationalModel>(
                         polygon.model()[i as int],
                         polygon.model()[polygon_next_index(n as int, i as int)],
@@ -360,7 +360,7 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             j = j + 1;
         }
 
-        // After inner loop: all vertices checked for edge i
+        //  After inner loop: all vertices checked for edge i
         proof {
             assert forall|jj: int| 0 <= jj < n as int implies {
                 let next_ii = polygon_next_index(n as int, i as int);
@@ -369,7 +369,7 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                     #[trigger] polygon.model()[jj],
                 )
             } by {
-                // Follows from inner loop invariant at j == n
+                //  Follows from inner loop invariant at j == n
             }
         }
 
@@ -379,8 +379,8 @@ pub fn is_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     true
 }
 
-/// Check if polygon is strictly convex (every vertex non-negative for all edges,
-/// and strictly positive for non-adjacent edges). Single-pass O(n^2) double loop.
+///  Check if polygon is strictly convex (every vertex non-negative for all edges,
+///  and strictly positive for non-adjacent edges). Single-pass O(n^2) double loop.
 pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     requires
         polygon.wf_spec(),
@@ -397,7 +397,7 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             n >= 3,
             0 <= i <= n,
             polygon.wf_spec(),
-            // Convexity for edges [0, i): all vertices non-negative
+            //  Convexity for edges [0, i): all vertices non-negative
             forall|ii: int, jj: int|
                 0 <= ii < i && 0 <= jj < n as int ==> {
                 let next_ii = polygon_next_index(n as int, ii);
@@ -406,7 +406,7 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                     #[trigger] polygon.model()[jj],
                 )
             },
-            // Strict positivity for edges [0, i): non-adjacent vertices positive
+            //  Strict positivity for edges [0, i): non-adjacent vertices positive
             forall|ii: int, jj: int|
                 0 <= ii < i && 0 <= jj < n as int
                 && jj != ii && jj != polygon_next_index(n as int, ii)
@@ -438,7 +438,7 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                 vnext.wf_spec(),
                 vi@ == polygon.model()[i as int],
                 vnext@ == polygon.model()[next_i as int],
-                // Current edge i: all vertices [0, j) non-negative
+                //  Current edge i: all vertices [0, j) non-negative
                 forall|jj: int| 0 <= jj < j ==> {
                     !orient2d_negative::<RationalModel>(
                         polygon.model()[i as int],
@@ -446,7 +446,7 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
                         #[trigger] polygon.model()[jj],
                     )
                 },
-                // Current edge i: non-adjacent vertices [0, j) strictly positive
+                //  Current edge i: non-adjacent vertices [0, j) strictly positive
                 forall|jj: int| 0 <= jj < j
                     && jj != i as int
                     && jj != polygon_next_index(n as int, i as int)
@@ -474,15 +474,15 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
             }
 
             if is_negative(&sign) {
-                // Non-negative check failed: not convex
+                //  Non-negative check failed: not convex
                 return false;
             }
 
             if j != i && j != next_i && !is_positive(&sign) {
-                // Non-adjacent vertex is not strictly positive: not strictly convex
+                //  Non-adjacent vertex is not strictly positive: not strictly convex
                 proof {
-                    // Need to show this violates strict convexity
-                    // We know sign is Zero (not negative, not positive, and j is non-adjacent)
+                    //  Need to show this violates strict convexity
+                    //  We know sign is Zero (not negative, not positive, and j is non-adjacent)
                     assert(!orient2d_positive::<RationalModel>(
                         polygon.model()[i as int],
                         polygon.model()[polygon_next_index(n as int, i as int)],
@@ -501,11 +501,11 @@ pub fn is_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     true
 }
 
-// ---------------------------------------------------------------------------
-// Local convexity checks — O(n) (preserved for convenience)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Local convexity checks — O(n) (preserved for convenience)
+//  ---------------------------------------------------------------------------
 
-/// Check if polygon is locally convex (all consecutive triples non-negative). O(n).
+///  Check if polygon is locally convex (all consecutive triples non-negative). O(n).
 pub fn is_locally_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     requires
         polygon.wf_spec(),
@@ -555,7 +555,7 @@ pub fn is_locally_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     true
 }
 
-/// Check if polygon is locally strictly convex (all consecutive triples positive). O(n).
+///  Check if polygon is locally strictly convex (all consecutive triples positive). O(n).
 pub fn is_locally_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (out: bool)
     requires
         polygon.wf_spec(),
@@ -605,4 +605,4 @@ pub fn is_locally_strictly_convex_polygon_exec(polygon: &RuntimePolygon2) -> (ou
     true
 }
 
-} // verus!
+} //  verus!

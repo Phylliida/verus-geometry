@@ -9,28 +9,28 @@ use crate::closest_point::*;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Min helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Min helpers
+//  ---------------------------------------------------------------------------
 
-/// Minimum of two values in an ordered ring.
+///  Minimum of two values in an ordered ring.
 pub open spec fn min_of<T: OrderedRing>(a: T, b: T) -> T {
     if a.le(b) { a } else { b }
 }
 
-/// Minimum of three values.
+///  Minimum of three values.
 pub open spec fn min_of_three<T: OrderedRing>(a: T, b: T, c: T) -> T {
     min_of(a, min_of(b, c))
 }
 
-// ---------------------------------------------------------------------------
-// 2D: Point in triangle
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point in triangle
+//  ---------------------------------------------------------------------------
 
-/// Point q is inside triangle (a, b, c), boundary inclusive.
+///  Point q is inside triangle (a, b, c), boundary inclusive.
 ///
-/// Uses orient2d sign consistency: all three sub-orientations must have the
-/// same sign (all ≥ 0 or all ≤ 0).
+///  Uses orient2d sign consistency: all three sub-orientations must have the
+///  same sign (all ≥ 0 or all ≤ 0).
 pub open spec fn point_in_triangle_2d<T: OrderedRing>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>, c: Point2<T>,
 ) -> bool {
@@ -41,14 +41,14 @@ pub open spec fn point_in_triangle_2d<T: OrderedRing>(
     || (o1.le(T::zero()) && o2.le(T::zero()) && o3.le(T::zero()))
 }
 
-// ---------------------------------------------------------------------------
-// 2D: Point-triangle squared distance
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point-triangle squared distance
+//  ---------------------------------------------------------------------------
 
-/// Squared distance from point q to triangle (a, b, c) in 2D.
+///  Squared distance from point q to triangle (a, b, c) in 2D.
 ///
-/// If q is inside or on the boundary, distance is zero.
-/// Otherwise, returns the minimum of the three edge squared distances.
+///  If q is inside or on the boundary, distance is zero.
+///  Otherwise, returns the minimum of the three edge squared distances.
 pub open spec fn squared_distance_point_triangle_2d<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>, c: Point2<T>,
 ) -> T
@@ -67,15 +67,15 @@ pub open spec fn squared_distance_point_triangle_2d<T: OrderedField>(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3D: Point-triangle edge squared distance (conservative)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D: Point-triangle edge squared distance (conservative)
+//  ---------------------------------------------------------------------------
 
-/// Minimum squared distance from point q to the three edges of triangle
-/// (a, b, c) in 3D. This is a conservative upper bound on the true
-/// point-triangle distance — it is exact when the closest point lies on
-/// an edge or vertex, but may overestimate when the closest point is
-/// the interior projection.
+///  Minimum squared distance from point q to the three edges of triangle
+///  (a, b, c) in 3D. This is a conservative upper bound on the true
+///  point-triangle distance — it is exact when the closest point lies on
+///  an edge or vertex, but may overestimate when the closest point is
+///  the interior projection.
 pub open spec fn min_edge_squared_distance_3d<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>, c: Point3<T>,
 ) -> T
@@ -90,4 +90,4 @@ pub open spec fn min_edge_squared_distance_3d<T: OrderedField>(
     min_of_three(d_ab, d_bc, d_ca)
 }
 
-} // verus!
+} //  verus!

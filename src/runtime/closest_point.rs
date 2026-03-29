@@ -25,11 +25,11 @@ use crate::closest_point::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// Clamp helper
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Clamp helper
+//  ---------------------------------------------------------------------------
 
-/// Clamp a RuntimeRational to [0, 1], matching the spec clamp01.
+///  Clamp a RuntimeRational to [0, 1], matching the spec clamp01.
 fn clamp01_exec(t: &RuntimeRational) -> (out: RuntimeRational)
     requires
         t.wf_spec(),
@@ -44,16 +44,16 @@ fn clamp01_exec(t: &RuntimeRational) -> (out: RuntimeRational)
     } else if one.le(t) {
         one
     } else {
-        // Need to copy t since we can't move out of a reference
+        //  Need to copy t since we can't move out of a reference
         RuntimeRational::from_frac(1, 1).mul(t)
     }
 }
 
-// ---------------------------------------------------------------------------
-// 2D: Point-segment closest point exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point-segment closest point exec
+//  ---------------------------------------------------------------------------
 
-/// Compute the clamped projection parameter at runtime.
+///  Compute the clamped projection parameter at runtime.
 pub fn closest_parameter_2d_exec(
     q: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: RuntimeRational)
@@ -75,7 +75,7 @@ pub fn closest_parameter_2d_exec(
     clamp01_exec(&t_raw)
 }
 
-/// Compute the closest point on segment [a, b] to query point q.
+///  Compute the closest point on segment [a, b] to query point q.
 pub fn closest_point_on_segment_2d_exec(
     q: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: RuntimePoint2)
@@ -95,7 +95,7 @@ pub fn closest_point_on_segment_2d_exec(
     add_vec2_exec(a, &tv)
 }
 
-/// Compute the squared distance from point q to segment [a, b].
+///  Compute the squared distance from point q to segment [a, b].
 pub fn squared_distance_point_segment_2d_exec(
     q: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: RuntimeRational)
@@ -114,11 +114,11 @@ pub fn squared_distance_point_segment_2d_exec(
     diff.norm_sq_exec()
 }
 
-// ---------------------------------------------------------------------------
-// 3D: Point-segment closest point exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D: Point-segment closest point exec
+//  ---------------------------------------------------------------------------
 
-/// Compute the clamped projection parameter at runtime (3D).
+///  Compute the clamped projection parameter at runtime (3D).
 pub fn closest_parameter_3d_exec(
     q: &RuntimePoint3, a: &RuntimePoint3, b: &RuntimePoint3,
 ) -> (out: RuntimeRational)
@@ -140,7 +140,7 @@ pub fn closest_parameter_3d_exec(
     clamp01_exec(&t_raw)
 }
 
-/// Compute the closest point on segment [a, b] to query point q (3D).
+///  Compute the closest point on segment [a, b] to query point q (3D).
 pub fn closest_point_on_segment_3d_exec(
     q: &RuntimePoint3, a: &RuntimePoint3, b: &RuntimePoint3,
 ) -> (out: RuntimePoint3)
@@ -160,7 +160,7 @@ pub fn closest_point_on_segment_3d_exec(
     add_vec3_exec(a, &tv)
 }
 
-/// Compute the squared distance from point q to segment [a, b] (3D).
+///  Compute the squared distance from point q to segment [a, b] (3D).
 pub fn squared_distance_point_segment_3d_exec(
     q: &RuntimePoint3, a: &RuntimePoint3, b: &RuntimePoint3,
 ) -> (out: RuntimeRational)
@@ -179,4 +179,4 @@ pub fn squared_distance_point_segment_3d_exec(
     diff.norm_sq_exec()
 }
 
-} // verus!
+} //  verus!

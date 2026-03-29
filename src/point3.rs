@@ -5,9 +5,9 @@ use vstd::prelude::*;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Point3 type
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point3 type
+//  ---------------------------------------------------------------------------
 
 pub struct Point3<T: Ring> {
     pub x: T,
@@ -15,9 +15,9 @@ pub struct Point3<T: Ring> {
     pub z: T,
 }
 
-// ---------------------------------------------------------------------------
-// Equivalence
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Equivalence
+//  ---------------------------------------------------------------------------
 
 impl<T: Ring> Equivalence for Point3<T> {
     open spec fn eqv(self, other: Self) -> bool {
@@ -51,25 +51,25 @@ impl<T: Ring> Equivalence for Point3<T> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Point-vector operations
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point-vector operations
+//  ---------------------------------------------------------------------------
 
-/// Point subtraction: point - point = vector
+///  Point subtraction: point - point = vector
 pub open spec fn sub3<T: Ring>(a: Point3<T>, b: Point3<T>) -> Vec3<T> {
     Vec3 { x: a.x.sub(b.x), y: a.y.sub(b.y), z: a.z.sub(b.z) }
 }
 
-/// Point-vector addition: point + vector = point
+///  Point-vector addition: point + vector = point
 pub open spec fn add_vec3<T: Ring>(p: Point3<T>, v: Vec3<T>) -> Point3<T> {
     Point3 { x: p.x.add(v.x), y: p.y.add(v.y), z: p.z.add(v.z) }
 }
 
-// ---------------------------------------------------------------------------
-// Lemmas
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Lemmas
+//  ---------------------------------------------------------------------------
 
-/// sub3(a, a) ≡ Vec3::zero()
+///  sub3(a, a) ≡ Vec3::zero()
 pub proof fn lemma_sub3_self_zero<T: Ring>(a: Point3<T>)
     ensures
         sub3(a, a).eqv(Vec3 { x: T::zero(), y: T::zero(), z: T::zero() }),
@@ -79,20 +79,20 @@ pub proof fn lemma_sub3_self_zero<T: Ring>(a: Point3<T>)
     additive_group_lemmas::lemma_sub_self::<T>(a.z);
 }
 
-/// sub3(add_vec3(b, t), add_vec3(a, t)) ≡ sub3(b, a)
+///  sub3(add_vec3(b, t), add_vec3(a, t)) ≡ sub3(b, a)
 pub proof fn lemma_sub3_translation<T: Ring>(a: Point3<T>, b: Point3<T>, t: Vec3<T>)
     ensures
         sub3(add_vec3(b, t), add_vec3(a, t)).eqv(sub3(b, a)),
 {
-    // Component x:
+    //  Component x:
     lemma_sub_add_cancel_component::<T>(a.x, b.x, t.x);
-    // Component y:
+    //  Component y:
     lemma_sub_add_cancel_component::<T>(a.y, b.y, t.y);
-    // Component z:
+    //  Component z:
     lemma_sub_add_cancel_component::<T>(a.z, b.z, t.z);
 }
 
-/// Helper: (b+t)-(a+t) ≡ b-a for a single Ring component
+///  Helper: (b+t)-(a+t) ≡ b-a for a single Ring component
 pub proof fn lemma_sub_add_cancel_component<T: Ring>(a: T, b: T, t: T)
     ensures
         b.add(t).sub(a.add(t)).eqv(b.sub(a)),
@@ -141,16 +141,16 @@ pub proof fn lemma_sub_add_cancel_component<T: Ring>(a: T, b: T, t: T)
     );
 }
 
-/// sub3(d, a).add(sub3(e, d)) ≡ sub3(e, a)  (telescope cancellation)
+///  sub3(d, a).add(sub3(e, d)) ≡ sub3(e, a)  (telescope cancellation)
 pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3<T>)
     ensures
         sub3(d, a).add(sub3(e, d)).eqv(sub3(e, a)),
 {
-    // Componentwise: (d.x-a.x) + (e.x-d.x) = e.x-a.x
-    // Using lemma_sub_add_sub(e, d, a): e.sub(d).add(d.sub(a)) ≡ e.sub(a)
-    // Then add_commutative to swap summands.
+    //  Componentwise: (d.x-a.x) + (e.x-d.x) = e.x-a.x
+    //  Using lemma_sub_add_sub(e, d, a): e.sub(d).add(d.sub(a)) ≡ e.sub(a)
+    //  Then add_commutative to swap summands.
 
-    // x component
+    //  x component
     T::axiom_add_commutative(d.x.sub(a.x), e.x.sub(d.x));
     additive_group_lemmas::lemma_sub_add_sub::<T>(e.x, d.x, a.x);
     T::axiom_eqv_transitive(
@@ -159,7 +159,7 @@ pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3
         e.x.sub(a.x),
     );
 
-    // y component
+    //  y component
     T::axiom_add_commutative(d.y.sub(a.y), e.y.sub(d.y));
     additive_group_lemmas::lemma_sub_add_sub::<T>(e.y, d.y, a.y);
     T::axiom_eqv_transitive(
@@ -168,7 +168,7 @@ pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3
         e.y.sub(a.y),
     );
 
-    // z component
+    //  z component
     T::axiom_add_commutative(d.z.sub(a.z), e.z.sub(d.z));
     additive_group_lemmas::lemma_sub_add_sub::<T>(e.z, d.z, a.z);
     T::axiom_eqv_transitive(
@@ -178,56 +178,56 @@ pub proof fn lemma_sub3_telescope<T: Ring>(d: Point3<T>, e: Point3<T>, a: Point3
     );
 }
 
-// ---------------------------------------------------------------------------
-// Addition rearrangement helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Addition rearrangement helpers
+//  ---------------------------------------------------------------------------
 
-/// (a + b) + c ≡ (a + c) + b
+///  (a + b) + c ≡ (a + c) + b
 proof fn lemma_add_swap_last<T: Ring>(a: T, b: T, c: T)
     ensures
         a.add(b).add(c).eqv(a.add(c).add(b)),
 {
-    // (a+b)+c ≡ a+(b+c) by associativity
+    //  (a+b)+c ≡ a+(b+c) by associativity
     T::axiom_add_associative(a, b, c);
-    // b+c ≡ c+b by commutativity
+    //  b+c ≡ c+b by commutativity
     T::axiom_add_commutative(b, c);
-    // a+(b+c) ≡ a+(c+b) by right congruence
+    //  a+(b+c) ≡ a+(c+b) by right congruence
     additive_group_lemmas::lemma_add_congruence_right::<T>(a, b.add(c), c.add(b));
-    // (a+b)+c ≡ a+(c+b) by transitivity
+    //  (a+b)+c ≡ a+(c+b) by transitivity
     T::axiom_eqv_transitive(a.add(b).add(c), a.add(b.add(c)), a.add(c.add(b)));
-    // (a+c)+b ≡ a+(c+b) by associativity
+    //  (a+c)+b ≡ a+(c+b) by associativity
     T::axiom_add_associative(a, c, b);
-    // a+(c+b) ≡ (a+c)+b by symmetric
+    //  a+(c+b) ≡ (a+c)+b by symmetric
     T::axiom_eqv_symmetric(a.add(c).add(b), a.add(c.add(b)));
-    // (a+b)+c ≡ (a+c)+b by transitivity
+    //  (a+b)+c ≡ (a+c)+b by transitivity
     T::axiom_eqv_transitive(a.add(b).add(c), a.add(c.add(b)), a.add(c).add(b));
 }
 
-/// (a + b) - c ≡ (a - c) + b
+///  (a + b) - c ≡ (a - c) + b
 proof fn lemma_sub_shift_component<T: Ring>(a: T, b: T, c: T)
     ensures
         a.add(b).sub(c).eqv(a.sub(c).add(b)),
 {
     let nc = c.neg();
-    // LHS: (a+b).sub(c) ≡ (a+b)+(-c)
+    //  LHS: (a+b).sub(c) ≡ (a+b)+(-c)
     T::axiom_sub_is_add_neg(a.add(b), c);
-    // (a+b)+(-c) ≡ (a+(-c))+b by add_swap_last
+    //  (a+b)+(-c) ≡ (a+(-c))+b by add_swap_last
     lemma_add_swap_last::<T>(a, b, nc);
-    // Chain: (a+b).sub(c) ≡ (a+(-c))+b
+    //  Chain: (a+b).sub(c) ≡ (a+(-c))+b
     T::axiom_eqv_transitive(a.add(b).sub(c), a.add(b).add(nc), a.add(nc).add(b));
-    // RHS: a.sub(c) ≡ a+(-c)
+    //  RHS: a.sub(c) ≡ a+(-c)
     T::axiom_sub_is_add_neg(a, c);
-    // (a+(-c)) ≡ a.sub(c) by symmetric
+    //  (a+(-c)) ≡ a.sub(c) by symmetric
     T::axiom_eqv_symmetric(a.sub(c), a.add(nc));
-    // (a+(-c))+b ≡ a.sub(c)+b by left congruence
+    //  (a+(-c))+b ≡ a.sub(c)+b by left congruence
     T::axiom_add_congruence_left(a.add(nc), a.sub(c), b);
-    // Chain: (a+b).sub(c) ≡ a.sub(c).add(b)
+    //  Chain: (a+b).sub(c) ≡ a.sub(c).add(b)
     T::axiom_eqv_transitive(a.add(b).sub(c), a.add(nc).add(b), a.sub(c).add(b));
 }
 
-/// sub3(add_vec3(p, v), q) ≡ sub3(p, q) + v
+///  sub3(add_vec3(p, v), q) ≡ sub3(p, q) + v
 ///
-/// Geometric meaning: (p + v) - q = (p - q) + v
+///  Geometric meaning: (p + v) - q = (p - q) + v
 pub proof fn lemma_sub3_shift_add<T: Ring>(p: Point3<T>, v: Vec3<T>, q: Point3<T>)
     ensures
         sub3(add_vec3(p, v), q).eqv(sub3(p, q).add(v)),
@@ -237,7 +237,7 @@ pub proof fn lemma_sub3_shift_add<T: Ring>(p: Point3<T>, v: Vec3<T>, q: Point3<T
     lemma_sub_shift_component::<T>(p.z, v.z, q.z);
 }
 
-/// sub3(a, b) ≡ sub3(b, a).neg()  (antisymmetry)
+///  sub3(a, b) ≡ sub3(b, a).neg()  (antisymmetry)
 pub proof fn lemma_sub3_antisymmetric<T: Ring>(a: Point3<T>, b: Point3<T>)
     ensures
         sub3(a, b).eqv(sub3(b, a).neg()),
@@ -247,4 +247,4 @@ pub proof fn lemma_sub3_antisymmetric<T: Ring>(a: Point3<T>, b: Point3<T>)
     additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.z, b.z);
 }
 
-} // verus!
+} //  verus!

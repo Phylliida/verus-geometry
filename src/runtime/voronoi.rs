@@ -12,7 +12,7 @@ use super::point2::{RuntimePoint2, sub2_exec};
 
 verus! {
 
-/// Squared distance between two RuntimePoint2s.
+///  Squared distance between two RuntimePoint2s.
 pub fn sq_dist_2d_exec(p: &RuntimePoint2, q: &RuntimePoint2) -> (out: RuntimeRational)
     requires
         p.wf_spec(),
@@ -25,4 +25,4 @@ pub fn sq_dist_2d_exec(p: &RuntimePoint2, q: &RuntimePoint2) -> (out: RuntimeRat
     v.norm_sq_exec()
 }
 
-} // verus!
+} //  verus!

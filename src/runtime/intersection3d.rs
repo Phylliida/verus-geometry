@@ -46,9 +46,9 @@ use verus_rational::rational::Rational;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// OrientationSign helpers (avoid derived PartialEq in exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  OrientationSign helpers (avoid derived PartialEq in exec)
+//  ---------------------------------------------------------------------------
 
 pub fn is_positive(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Positive),
@@ -62,11 +62,11 @@ pub fn is_negative(s: &OrientationSign) -> (out: bool)
     match s { OrientationSign::Negative => true, _ => false }
 }
 
-// ---------------------------------------------------------------------------
-// Segment-plane intersection
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Segment-plane intersection
+//  ---------------------------------------------------------------------------
 
-/// Intersection parameter t = orient3d(a,b,c,d) / (orient3d(a,b,c,d) - orient3d(a,b,c,e))
+///  Intersection parameter t = orient3d(a,b,c,d) / (orient3d(a,b,c,d) - orient3d(a,b,c,e))
 pub fn segment_plane_intersection_parameter_exec(
     d: &RuntimePoint3, e: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -92,7 +92,7 @@ pub fn segment_plane_intersection_parameter_exec(
     od.div(&denom)
 }
 
-/// Intersection point: d + t * (e - d)
+///  Intersection point: d + t * (e - d)
 pub fn segment_plane_intersection_point_exec(
     d: &RuntimePoint3, e: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -114,11 +114,11 @@ pub fn segment_plane_intersection_point_exec(
     add_vec3_exec(d, &tv)
 }
 
-// ---------------------------------------------------------------------------
-// 2D projection helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D projection helpers
+//  ---------------------------------------------------------------------------
 
-/// Drop z: (x, y, z) -> (x, y)
+///  Drop z: (x, y, z) -> (x, y)
 pub fn project_drop_z_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
@@ -129,7 +129,7 @@ pub fn project_drop_z_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     RuntimePoint2::new(copy_rational(&p.x), copy_rational(&p.y))
 }
 
-/// Drop y: (x, y, z) -> (x, z)
+///  Drop y: (x, y, z) -> (x, z)
 pub fn project_drop_y_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
@@ -140,7 +140,7 @@ pub fn project_drop_y_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     RuntimePoint2::new(copy_rational(&p.x), copy_rational(&p.z))
 }
 
-/// Drop x: (x, y, z) -> (y, z)
+///  Drop x: (x, y, z) -> (y, z)
 pub fn project_drop_x_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
@@ -151,7 +151,7 @@ pub fn project_drop_x_exec(p: &RuntimePoint3) -> (out: RuntimePoint2)
     RuntimePoint2::new(copy_rational(&p.y), copy_rational(&p.z))
 }
 
-/// Project by chosen axis.
+///  Project by chosen axis.
 pub fn project_by_axis_exec(p: &RuntimePoint3, axis: u8) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
@@ -168,11 +168,11 @@ pub fn project_by_axis_exec(p: &RuntimePoint3, axis: u8) -> (out: RuntimePoint2)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Triangle projection axis
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Triangle projection axis
+//  ---------------------------------------------------------------------------
 
-/// Compute projection axis (0=drop x, 1=drop y, 2=drop z).
+///  Compute projection axis (0=drop x, 1=drop y, 2=drop z).
 pub fn triangle_projection_axis_exec(
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
 ) -> (out: u8)
@@ -183,7 +183,7 @@ pub fn triangle_projection_axis_exec(
     ensures
         out as int == triangle_projection_axis::<RationalModel>(a@, b@, c@),
 {
-    // Compute cross product of (b-a) x (c-a) = triangle normal
+    //  Compute cross product of (b-a) x (c-a) = triangle normal
     let ba = sub3_exec(b, a);
     let ca = sub3_exec(c, a);
     let n = super::point3::cross_exec(&ba, &ca);
@@ -196,11 +196,11 @@ pub fn triangle_projection_axis_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Point in triangle on plane
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point in triangle on plane
+//  ---------------------------------------------------------------------------
 
-/// Point p (coplanar) is inside triangle (a, b, c), boundary inclusive.
+///  Point p (coplanar) is inside triangle (a, b, c), boundary inclusive.
 pub fn point_in_triangle_on_plane_exec(
     p: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -238,11 +238,11 @@ pub fn point_in_triangle_on_plane_exec(
     )
 }
 
-// ---------------------------------------------------------------------------
-// Segment-triangle intersection
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Segment-triangle intersection
+//  ---------------------------------------------------------------------------
 
-/// Segment (d, e) strictly intersects triangle (a, b, c).
+///  Segment (d, e) strictly intersects triangle (a, b, c).
 pub fn segment_triangle_intersects_strict_exec(
     seg_start: &RuntimePoint3, seg_end: &RuntimePoint3,
     tri_a: &RuntimePoint3, tri_b: &RuntimePoint3, tri_c: &RuntimePoint3,
@@ -274,11 +274,11 @@ pub fn segment_triangle_intersects_strict_exec(
     point_in_triangle_on_plane_exec(&p, tri_a, tri_b, tri_c)
 }
 
-// ---------------------------------------------------------------------------
-// Barycentric coordinates exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Barycentric coordinates exec
+//  ---------------------------------------------------------------------------
 
-/// Unnormalized barycentric coordinates: (orient2d(b,c,p), orient2d(c,a,p), orient2d(a,b,p))
+///  Unnormalized barycentric coordinates: (orient2d(b,c,p), orient2d(c,a,p), orient2d(a,b,p))
 pub fn barycentric_unnorm_2d_exec(
     p: &RuntimePoint2,
     a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
@@ -302,7 +302,7 @@ pub fn barycentric_unnorm_2d_exec(
     (u, v, w)
 }
 
-/// Normalized barycentric coordinates: each component / orient2d(a, b, c).
+///  Normalized barycentric coordinates: each component / orient2d(a, b, c).
 pub fn barycentric_coords_2d_exec(
     p: &RuntimePoint2,
     a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
@@ -329,4 +329,4 @@ pub fn barycentric_coords_2d_exec(
     (nu, nv, nw)
 }
 
-} // verus!
+} //  verus!

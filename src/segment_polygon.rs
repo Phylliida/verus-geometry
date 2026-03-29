@@ -6,11 +6,11 @@ use crate::convex_polygon::*;
 
 verus! {
 
-// =========================================================================
-// 6.3 — Segment-convex polygon overlap (2D)
-// =========================================================================
+//  =========================================================================
+//  6.3 — Segment-convex polygon overlap (2D)
+//  =========================================================================
 
-/// Does the segment hit polygon edge i (non-disjoint intersection)?
+///  Does the segment hit polygon edge i (non-disjoint intersection)?
 pub open spec fn segment_hits_polygon_edge<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>, i: int,
@@ -24,7 +24,7 @@ pub open spec fn segment_hits_polygon_edge<T: OrderedRing>(
         == SegmentIntersection2dKind::Disjoint)
 }
 
-/// Does the segment hit any polygon edge in [0, upto)?
+///  Does the segment hit any polygon edge in [0, upto)?
 pub open spec fn segment_prefix_hits_polygon_edge<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>, upto: int,
@@ -37,7 +37,7 @@ pub open spec fn segment_prefix_hits_polygon_edge<T: OrderedRing>(
         && segment_hits_polygon_edge(seg_start, seg_end, polygon, i)
 }
 
-/// Does the segment hit any polygon edge?
+///  Does the segment hit any polygon edge?
 pub open spec fn segment_hits_some_polygon_edge<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>,
@@ -47,8 +47,8 @@ pub open spec fn segment_hits_some_polygon_edge<T: OrderedRing>(
     segment_prefix_hits_polygon_edge(seg_start, seg_end, polygon, polygon.len() as int)
 }
 
-/// Segment overlaps a convex polygon: either an endpoint is inside the
-/// polygon (boundary-inclusive) or the segment hits at least one edge.
+///  Segment overlaps a convex polygon: either an endpoint is inside the
+///  polygon (boundary-inclusive) or the segment hits at least one edge.
 pub open spec fn segment_overlaps_convex_polygon<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>,
@@ -61,11 +61,11 @@ pub open spec fn segment_overlaps_convex_polygon<T: OrderedRing>(
     )
 }
 
-// =========================================================================
-// Lemmas
-// =========================================================================
+//  =========================================================================
+//  Lemmas
+//  =========================================================================
 
-/// Inductive step for prefix edge hits.
+///  Inductive step for prefix edge hits.
 pub proof fn lemma_prefix_hits_edge_step<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>, i: int,
@@ -103,7 +103,7 @@ pub proof fn lemma_prefix_hits_edge_step<T: OrderedRing>(
     }
 }
 
-/// If either endpoint is inside the polygon, there is overlap.
+///  If either endpoint is inside the polygon, there is overlap.
 pub proof fn lemma_endpoint_inside_implies_overlap<T: OrderedRing>(
     seg_start: Point2<T>, seg_end: Point2<T>,
     polygon: Seq<Point2<T>>,
@@ -114,8 +114,8 @@ pub proof fn lemma_endpoint_inside_implies_overlap<T: OrderedRing>(
     ensures
         segment_overlaps_convex_polygon(seg_start, seg_end, polygon),
 {
-    // Direct from definition: endpoint inside implies polygon.len() >= 3
-    // (since boundary_inclusive requires len >= 3) and the disjunction holds.
+    //  Direct from definition: endpoint inside implies polygon.len() >= 3
+    //  (since boundary_inclusive requires len >= 3) and the disjunction holds.
 }
 
-} // verus!
+} //  verus!
