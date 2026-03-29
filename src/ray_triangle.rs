@@ -6,11 +6,11 @@ use crate::point3::*;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Möller-Trumbore ray-triangle intersection
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Möller-Trumbore ray-triangle intersection
+//  ---------------------------------------------------------------------------
 
-/// Edge vectors of the triangle.
+///  Edge vectors of the triangle.
 pub open spec fn edge1<T: Ring>(v0: Point3<T>, v1: Point3<T>) -> Vec3<T> {
     sub3(v1, v0)
 }
@@ -19,9 +19,9 @@ pub open spec fn edge2<T: Ring>(v0: Point3<T>, v2: Point3<T>) -> Vec3<T> {
     sub3(v2, v0)
 }
 
-/// Determinant for ray-triangle test: dot(edge1, cross(dir, edge2)).
-/// This is the scalar triple product of (edge1, dir, edge2).
-/// Zero means the ray is parallel to the triangle plane.
+///  Determinant for ray-triangle test: dot(edge1, cross(dir, edge2)).
+///  This is the scalar triple product of (edge1, dir, edge2).
+///  Zero means the ray is parallel to the triangle plane.
 pub open spec fn ray_tri_det<T: Ring>(
     dir: Vec3<T>, v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
 ) -> T {
@@ -31,8 +31,8 @@ pub open spec fn ray_tri_det<T: Ring>(
     dot(e1, p)
 }
 
-/// Barycentric u coordinate (unnormalized): dot(T, P) where T = origin - v0,
-/// P = cross(dir, edge2). Divide by det to get actual u.
+///  Barycentric u coordinate (unnormalized): dot(T, P) where T = origin - v0,
+///  P = cross(dir, edge2). Divide by det to get actual u.
 pub open spec fn ray_tri_u_unnorm<T: Ring>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -43,8 +43,8 @@ pub open spec fn ray_tri_u_unnorm<T: Ring>(
     dot(tvec, p)
 }
 
-/// Barycentric v coordinate (unnormalized): dot(dir, Q) where Q = cross(T, edge1).
-/// Divide by det to get actual v.
+///  Barycentric v coordinate (unnormalized): dot(dir, Q) where Q = cross(T, edge1).
+///  Divide by det to get actual v.
 pub open spec fn ray_tri_v_unnorm<T: Ring>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -55,7 +55,7 @@ pub open spec fn ray_tri_v_unnorm<T: Ring>(
     dot(dir, q)
 }
 
-/// Ray parameter t (unnormalized): dot(edge2, Q). Divide by det to get actual t.
+///  Ray parameter t (unnormalized): dot(edge2, Q). Divide by det to get actual t.
 pub open spec fn ray_tri_t_unnorm<T: Ring>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -67,7 +67,7 @@ pub open spec fn ray_tri_t_unnorm<T: Ring>(
     dot(e2, q)
 }
 
-/// Normalized barycentric u: u_unnorm / det.
+///  Normalized barycentric u: u_unnorm / det.
 pub open spec fn ray_tri_u<T: OrderedField>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -78,7 +78,7 @@ pub open spec fn ray_tri_u<T: OrderedField>(
         .div(ray_tri_det(dir, v0, v1, v2))
 }
 
-/// Normalized barycentric v: v_unnorm / det.
+///  Normalized barycentric v: v_unnorm / det.
 pub open spec fn ray_tri_v<T: OrderedField>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -89,7 +89,7 @@ pub open spec fn ray_tri_v<T: OrderedField>(
         .div(ray_tri_det(dir, v0, v1, v2))
 }
 
-/// Normalized ray parameter t: t_unnorm / det.
+///  Normalized ray parameter t: t_unnorm / det.
 pub open spec fn ray_tri_t<T: OrderedField>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -100,10 +100,10 @@ pub open spec fn ray_tri_t<T: OrderedField>(
         .div(ray_tri_det(dir, v0, v1, v2))
 }
 
-/// Ray (origin + t*dir, t ≥ 0) hits triangle (v0, v1, v2).
+///  Ray (origin + t*dir, t ≥ 0) hits triangle (v0, v1, v2).
 ///
-/// Uses Möller-Trumbore: computes barycentric (u, v) and ray parameter t.
-/// Hit iff: det ≢ 0, u ≥ 0, v ≥ 0, u + v ≤ 1, t ≥ 0.
+///  Uses Möller-Trumbore: computes barycentric (u, v) and ray parameter t.
+///  Hit iff: det ≢ 0, u ≥ 0, v ≥ 0, u + v ≤ 1, t ≥ 0.
 pub open spec fn ray_hits_triangle<T: OrderedField>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -119,16 +119,16 @@ pub open spec fn ray_hits_triangle<T: OrderedField>(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Alternative: sign-based test avoiding division
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Alternative: sign-based test avoiding division
+//  ---------------------------------------------------------------------------
 
-/// Ray-triangle hit test using sign comparisons, avoiding division.
+///  Ray-triangle hit test using sign comparisons, avoiding division.
 ///
-/// Instead of dividing by det, we multiply the bounds by det and flip
-/// inequalities when det < 0. This avoids requiring OrderedField.
+///  Instead of dividing by det, we multiply the bounds by det and flip
+///  inequalities when det < 0. This avoids requiring OrderedField.
 ///
-/// Equivalent to `ray_hits_triangle` when both are defined.
+///  Equivalent to `ray_hits_triangle` when both are defined.
 pub open spec fn ray_hits_triangle_nodiv<T: OrderedRing>(
     origin: Point3<T>, dir: Vec3<T>,
     v0: Point3<T>, v1: Point3<T>, v2: Point3<T>,
@@ -141,12 +141,12 @@ pub open spec fn ray_hits_triangle_nodiv<T: OrderedRing>(
     if det.eqv(T::zero()) {
         false
     } else if T::zero().lt(det) {
-        // det > 0: u ≥ 0, v ≥ 0, u + v ≤ det, t ≥ 0
+        //  det > 0: u ≥ 0, v ≥ 0, u + v ≤ det, t ≥ 0
         T::zero().le(u) && T::zero().le(v) && u.add(v).le(det) && T::zero().le(t)
     } else {
-        // det < 0: u ≤ 0, v ≤ 0, u + v ≥ det, t ≤ 0
+        //  det < 0: u ≤ 0, v ≤ 0, u + v ≥ det, t ≤ 0
         u.le(T::zero()) && v.le(T::zero()) && det.le(u.add(v)) && t.le(T::zero())
     }
 }
 
-} // verus!
+} //  verus!

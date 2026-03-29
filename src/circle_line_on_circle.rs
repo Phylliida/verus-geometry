@@ -17,29 +17,29 @@ use crate::line_intersection::lemma_mul_div_assoc;
 
 verus! {
 
-// ===========================================================================
-//  Helper 1: a*b*c ≡ c*b*a (triple reverse)
-// ===========================================================================
+//  ===========================================================================
+//   Helper 1: a*b*c ≡ c*b*a (triple reverse)
+//  ===========================================================================
 
 pub proof fn lemma_triple_reverse<F: Field>(a: F, b: F, c: F)
     ensures
         a.mul(b).mul(c).eqv(c.mul(b).mul(a)),
 {
-    // a*b*c ≡ a*c*b
+    //  a*b*c ≡ a*c*b
     lemma_mul_swap_last_two(a, b, c);
-    // a*c ≡ c*a
+    //  a*c ≡ c*a
     F::axiom_mul_commutative(a, c);
     F::axiom_eqv_reflexive(b);
     lemma_mul_congruence::<F>(a.mul(c), c.mul(a), b, b);
     F::axiom_eqv_transitive(a.mul(b).mul(c), a.mul(c).mul(b), c.mul(a).mul(b));
-    // c*a*b ≡ c*b*a
+    //  c*a*b ≡ c*b*a
     lemma_mul_swap_last_two(c, a, b);
     F::axiom_eqv_transitive(a.mul(b).mul(c), c.mul(a).mul(b), c.mul(b).mul(a));
 }
 
-// ===========================================================================
-//  Helper 2: neg(x/A) * neg(x/A) ≡ x²/A²
-// ===========================================================================
+//  ===========================================================================
+//   Helper 2: neg(x/A) * neg(x/A) ≡ x²/A²
+//  ===========================================================================
 
 pub proof fn lemma_neg_div_squared<F: OrderedField>(x: F, big_a: F)
     requires
@@ -71,12 +71,12 @@ pub proof fn lemma_div_squared<F: OrderedField>(x: F, big_a: F)
     lemma_div_mul_div::<F>(x, big_a, x, big_a);
 }
 
-// ===========================================================================
-//  Helper 3: Cross-term cancellation (plus case)
-// ===========================================================================
+//  ===========================================================================
+//   Helper 3: Cross-term cancellation (plus case)
+//  ===========================================================================
 
-/// dr*di + er*ei ≡ 0 for the plus case.
-/// dr = neg(ah/A), di = neg(b)/A, er = neg(bh/A), ei = a/A.
+///  dr*di + er*ei ≡ 0 for the plus case.
+///  dr = neg(ah/A), di = neg(b)/A, er = neg(bh/A), ei = a/A.
 pub proof fn lemma_cl_cross_cancel_plus<F: OrderedField>(
     a: F, b: F, h: F, big_a: F,
 )
@@ -102,39 +102,39 @@ pub proof fn lemma_cl_cross_cancel_plus<F: OrderedField>(
 
     lemma_nonzero_product::<F>(big_a, big_a);
 
-    // Bridge: di = b.neg().div(A) ≡ b.div(A).neg()
+    //  Bridge: di = b.neg().div(A) ≡ b.div(A).neg()
     lemma_div_neg_numerator::<F>(b, big_a);
-    // dr*di ≡ dr * neg(b/A)  (by congruence on di)
+    //  dr*di ≡ dr * neg(b/A)  (by congruence on di)
     F::axiom_eqv_reflexive(dr);
     lemma_mul_congruence::<F>(dr, dr, di, b.div(big_a).neg());
-    // neg(ah/A) * neg(b/A) ≡ (ah/A)*(b/A)  (by neg_mul_neg)
+    //  neg(ah/A) * neg(b/A) ≡ (ah/A)*(b/A)  (by neg_mul_neg)
     lemma_neg_mul_neg::<F>(ah.div(big_a), b.div(big_a));
     F::axiom_eqv_transitive(
         dr.mul(di), dr.mul(b.div(big_a).neg()), ah.div(big_a).mul(b.div(big_a)),
     );
-    // (ah/A)*(b/A) ≡ ahb/A²
+    //  (ah/A)*(b/A) ≡ ahb/A²
     lemma_div_mul_div::<F>(ah, big_a, b, big_a);
     F::axiom_eqv_transitive(
         dr.mul(di), ah.div(big_a).mul(b.div(big_a)), ah.mul(b).div(aa),
     );
 
-    // er*ei = neg(bh/A)*(a/A) ≡ neg((bh/A)*(a/A))
+    //  er*ei = neg(bh/A)*(a/A) ≡ neg((bh/A)*(a/A))
     lemma_mul_neg_left::<F>(bh.div(big_a), ei);
-    // (bh/A)*(a/A) ≡ bha/A²
+    //  (bh/A)*(a/A) ≡ bha/A²
     lemma_div_mul_div::<F>(bh, big_a, a, big_a);
     lemma_neg_congruence::<F>(bh.div(big_a).mul(ei), bh.mul(a).div(aa));
     F::axiom_eqv_transitive(
         er.mul(ei), bh.div(big_a).mul(ei).neg(), bh.mul(a).div(aa).neg(),
     );
 
-    // ah*b ≡ bh*a (triple reverse: a*h*b ≡ b*h*a)
+    //  ah*b ≡ bh*a (triple reverse: a*h*b ≡ b*h*a)
     lemma_triple_reverse::<F>(a, h, b);
     F::axiom_eqv_reflexive(aa);
     lemma_div_congruence::<F>(ah.mul(b), bh.mul(a), aa, aa);
-    // dr*di ≡ ahb/A² ≡ bha/A²
+    //  dr*di ≡ ahb/A² ≡ bha/A²
     F::axiom_eqv_transitive(dr.mul(di), ah.mul(b).div(aa), bh.mul(a).div(aa));
 
-    // dr*di + er*ei ≡ bha/A² + neg(bha/A²) ≡ 0
+    //  dr*di + er*ei ≡ bha/A² + neg(bha/A²) ≡ 0
     F::axiom_eqv_reflexive(er.mul(ei));
     lemma_add_congruence::<F>(
         dr.mul(di), bh.mul(a).div(aa),
@@ -157,9 +157,9 @@ pub proof fn lemma_cl_cross_cancel_plus<F: OrderedField>(
     );
 }
 
-// ===========================================================================
-//  Helper 4: Cross-term cancellation (minus case)
-// ===========================================================================
+//  ===========================================================================
+//   Helper 4: Cross-term cancellation (minus case)
+//  ===========================================================================
 
 pub proof fn lemma_cl_cross_cancel_minus<F: OrderedField>(
     a: F, b: F, h: F, big_a: F,
@@ -186,7 +186,7 @@ pub proof fn lemma_cl_cross_cancel_minus<F: OrderedField>(
 
     lemma_nonzero_product::<F>(big_a, big_a);
 
-    // dr*di = neg(ah/A)*(b/A) ≡ neg((ah/A)*(b/A)) ≡ neg(ahb/A²)
+    //  dr*di = neg(ah/A)*(b/A) ≡ neg((ah/A)*(b/A)) ≡ neg(ahb/A²)
     lemma_mul_neg_left::<F>(ah.div(big_a), di);
     lemma_div_mul_div::<F>(ah, big_a, b, big_a);
     lemma_neg_congruence::<F>(ah.div(big_a).mul(di), ah.mul(b).div(aa));
@@ -194,33 +194,33 @@ pub proof fn lemma_cl_cross_cancel_minus<F: OrderedField>(
         dr.mul(di), ah.div(big_a).mul(di).neg(), ah.mul(b).div(aa).neg(),
     );
 
-    // Bridge: ei = a.neg().div(A) ≡ a.div(A).neg()
+    //  Bridge: ei = a.neg().div(A) ≡ a.div(A).neg()
     lemma_div_neg_numerator::<F>(a, big_a);
-    // er*ei ≡ er * neg(a/A) via congruence
+    //  er*ei ≡ er * neg(a/A) via congruence
     F::axiom_eqv_reflexive(er);
     lemma_mul_congruence::<F>(er, er, ei, a.div(big_a).neg());
-    // neg(bh/A) * neg(a/A) ≡ (bh/A)*(a/A) via neg_mul_neg
+    //  neg(bh/A) * neg(a/A) ≡ (bh/A)*(a/A) via neg_mul_neg
     lemma_neg_mul_neg::<F>(bh.div(big_a), a.div(big_a));
     F::axiom_eqv_transitive(
         er.mul(ei), er.mul(a.div(big_a).neg()), bh.div(big_a).mul(a.div(big_a)),
     );
-    // (bh/A)*(a/A) ≡ bha/A²
+    //  (bh/A)*(a/A) ≡ bha/A²
     lemma_div_mul_div::<F>(bh, big_a, a, big_a);
     F::axiom_eqv_transitive(
         er.mul(ei), bh.div(big_a).mul(a.div(big_a)), bh.mul(a).div(aa),
     );
 
-    // ah*b ≡ bh*a by triple reverse
+    //  ah*b ≡ bh*a by triple reverse
     lemma_triple_reverse::<F>(a, h, b);
     F::axiom_eqv_reflexive(aa);
     lemma_div_congruence::<F>(ah.mul(b), bh.mul(a), aa, aa);
     lemma_neg_congruence::<F>(ah.mul(b).div(aa), bh.mul(a).div(aa));
-    // dr*di ≡ neg(ahb/A²) ≡ neg(bha/A²)
+    //  dr*di ≡ neg(ahb/A²) ≡ neg(bha/A²)
     F::axiom_eqv_transitive(
         dr.mul(di), ah.mul(b).div(aa).neg(), bh.mul(a).div(aa).neg(),
     );
 
-    // dr*di + er*ei ≡ neg(bha/A²) + bha/A² ≡ 0
+    //  dr*di + er*ei ≡ neg(bha/A²) + bha/A² ≡ 0
     F::axiom_eqv_reflexive(er.mul(ei));
     lemma_add_congruence::<F>(
         dr.mul(di), bh.mul(a).div(aa).neg(),
@@ -243,9 +243,9 @@ pub proof fn lemma_cl_cross_cancel_minus<F: OrderedField>(
     );
 }
 
-// ===========================================================================
-//  Helper 5: Full imaginary = 0 from cross-cancel
-// ===========================================================================
+//  ===========================================================================
+//   Helper 5: Full imaginary = 0 from cross-cancel
+//  ===========================================================================
 
 pub proof fn lemma_cl_full_im_zero<F: OrderedField>(
     dr: F, di: F, er: F, ei: F,
@@ -255,11 +255,11 @@ pub proof fn lemma_cl_full_im_zero<F: OrderedField>(
     ensures
         dr.mul(di).add(di.mul(dr)).add(er.mul(ei).add(ei.mul(er))).eqv(F::zero()),
 {
-    // di*dr ≡ dr*di, ei*er ≡ er*ei
+    //  di*dr ≡ dr*di, ei*er ≡ er*ei
     F::axiom_mul_commutative(di, dr);
     F::axiom_mul_commutative(ei, er);
 
-    // di*dr + ei*er ≡ dr*di + er*ei ≡ 0
+    //  di*dr + ei*er ≡ dr*di + er*ei ≡ 0
     lemma_add_congruence::<F>(di.mul(dr), dr.mul(di), ei.mul(er), er.mul(ei));
     F::axiom_eqv_transitive(
         di.mul(dr).add(ei.mul(er)),
@@ -267,11 +267,11 @@ pub proof fn lemma_cl_full_im_zero<F: OrderedField>(
         F::zero(),
     );
 
-    // Rearrange: (dr*di + di*dr) + (er*ei + ei*er)
-    //   ≡ (dr*di + er*ei) + (di*dr + ei*er)
+    //  Rearrange: (dr*di + di*dr) + (er*ei + ei*er)
+    //    ≡ (dr*di + er*ei) + (di*dr + ei*er)
     lemma_add_rearrange_2x2::<F>(dr.mul(di), di.mul(dr), er.mul(ei), ei.mul(er));
 
-    // Both halves ≡ 0, so 0 + 0 ≡ 0
+    //  Both halves ≡ 0, so 0 + 0 ≡ 0
     lemma_add_congruence::<F>(
         dr.mul(di).add(er.mul(ei)), F::zero(),
         di.mul(dr).add(ei.mul(er)), F::zero(),
@@ -282,7 +282,7 @@ pub proof fn lemma_cl_full_im_zero<F: OrderedField>(
         F::zero().add(F::zero()),
         F::zero(),
     );
-    // Chain from rearranged to 0
+    //  Chain from rearranged to 0
     F::axiom_eqv_transitive(
         dr.mul(di).add(di.mul(dr)).add(er.mul(ei).add(ei.mul(er))),
         dr.mul(di).add(er.mul(ei)).add(di.mul(dr).add(ei.mul(er))),
@@ -290,9 +290,9 @@ pub proof fn lemma_cl_full_im_zero<F: OrderedField>(
     );
 }
 
-// ===========================================================================
-//  Helper 6: di², ei² ≡ b²/A², a²/A² regardless of ± sign
-// ===========================================================================
+//  ===========================================================================
+//   Helper 6: di², ei² ≡ b²/A², a²/A² regardless of ± sign
+//  ===========================================================================
 
 pub proof fn lemma_cl_sq_components_plus<F: OrderedField>(
     a: F, b: F, big_a: F,
@@ -307,9 +307,9 @@ pub proof fn lemma_cl_sq_components_plus<F: OrderedField>(
             a.mul(a).div(big_a.mul(big_a))
         ),
 {
-    // ix = neg(b)/A ≡ neg(b/A) by div_neg_numerator
+    //  ix = neg(b)/A ≡ neg(b/A) by div_neg_numerator
     lemma_div_neg_numerator::<F>(b, big_a);
-    // ix*ix ≡ neg(b/A)*neg(b/A) ≡ b²/A²
+    //  ix*ix ≡ neg(b/A)*neg(b/A) ≡ b²/A²
     lemma_mul_congruence::<F>(
         b.neg().div(big_a), b.div(big_a).neg(),
         b.neg().div(big_a), b.div(big_a).neg(),
@@ -320,7 +320,7 @@ pub proof fn lemma_cl_sq_components_plus<F: OrderedField>(
         b.div(big_a).neg().mul(b.div(big_a).neg()),
         b.mul(b).div(big_a.mul(big_a)),
     );
-    // iy = a/A, iy² = (a/A)² ≡ a²/A²
+    //  iy = a/A, iy² = (a/A)² ≡ a²/A²
     lemma_div_squared::<F>(a, big_a);
 }
 
@@ -337,9 +337,9 @@ pub proof fn lemma_cl_sq_components_minus<F: OrderedField>(
             a.mul(a).div(big_a.mul(big_a))
         ),
 {
-    // ix = b/A, ix² ≡ b²/A²
+    //  ix = b/A, ix² ≡ b²/A²
     lemma_div_squared::<F>(b, big_a);
-    // iy = neg(a)/A ≡ neg(a/A), iy² ≡ a²/A²
+    //  iy = neg(a)/A ≡ neg(a/A), iy² ≡ a²/A²
     lemma_div_neg_numerator::<F>(a, big_a);
     lemma_mul_congruence::<F>(
         a.neg().div(big_a), a.div(big_a).neg(),
@@ -353,12 +353,12 @@ pub proof fn lemma_cl_sq_components_minus<F: OrderedField>(
     );
 }
 
-// ===========================================================================
-//  Helper 7: Real part = rsq
-// ===========================================================================
+//  ===========================================================================
+//   Helper 7: Real part = rsq
+//  ===========================================================================
 
-/// The real part of sq_dist equals rsq.
-/// All four squared terms are expressed as fractions over A², combined, and simplified.
+///  The real part of sq_dist equals rsq.
+///  All four squared terms are expressed as fractions over A², combined, and simplified.
 pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
     a: F, b: F, h: F, big_a: F, rsq: F,
 )
@@ -387,7 +387,7 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
 
     lemma_nonzero_product::<F>(big_a, big_a);
 
-    // === Step 1: (ah)² ≡ a²h² and (bh)² ≡ b²h² ===
+    //  === Step 1: (ah)² ≡ a²h² and (bh)² ≡ b²h² ===
     lemma_square_product::<F>(a, h);
     F::axiom_eqv_reflexive(aa);
     lemma_div_congruence::<F>(a.mul(h).mul(a.mul(h)), a2.mul(h2), aa, aa);
@@ -395,8 +395,8 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
     lemma_square_product::<F>(b, h);
     lemma_div_congruence::<F>(b.mul(h).mul(b.mul(h)), b2.mul(h2), aa, aa);
 
-    // === Step 2: di_sq*D ≡ b²D/A² and ei_sq*D ≡ a²D/A² ===
-    // (b²/A²)*D ≡ D*(b²/A²) ≡ D*b²/A² ≡ b²*D/A²
+    //  === Step 2: di_sq*D ≡ b²D/A² and ei_sq*D ≡ a²D/A² ===
+    //  (b²/A²)*D ≡ D*(b²/A²) ≡ D*b²/A² ≡ b²*D/A²
     F::axiom_mul_commutative(di_sq, disc);
     lemma_mul_div_assoc::<F>(disc, b2, aa);
     F::axiom_eqv_transitive(di_sq.mul(disc), disc.mul(di_sq), disc.mul(b2).div(aa));
@@ -404,7 +404,7 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
     lemma_div_congruence::<F>(disc.mul(b2), b2.mul(disc), aa, aa);
     F::axiom_eqv_transitive(di_sq.mul(disc), disc.mul(b2).div(aa), b2.mul(disc).div(aa));
 
-    // Same for ei_sq*D
+    //  Same for ei_sq*D
     F::axiom_mul_commutative(ei_sq, disc);
     lemma_mul_div_assoc::<F>(disc, a2, aa);
     F::axiom_eqv_transitive(ei_sq.mul(disc), disc.mul(ei_sq), disc.mul(a2).div(aa));
@@ -412,7 +412,7 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
     lemma_div_congruence::<F>(disc.mul(a2), a2.mul(disc), aa, aa);
     F::axiom_eqv_transitive(ei_sq.mul(disc), disc.mul(a2).div(aa), a2.mul(disc).div(aa));
 
-    // === Step 3: Combine four fractions ===
+    //  === Step 3: Combine four fractions ===
     lemma_add_congruence::<F>(
         dr_sq, a2.mul(h2).div(aa),
         di_sq.mul(disc), b2.mul(disc).div(aa),
@@ -434,8 +434,8 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         a2.mul(h2).add(b2.mul(disc)).add(b2.mul(h2).add(a2.mul(disc))).div(aa),
     );
 
-    // === Step 4: Rearrange numerator ===
-    // (a²h² + b²D) + (b²h² + a²D) ≡ (a²h² + b²h²) + (b²D + a²D)
+    //  === Step 4: Rearrange numerator ===
+    //  (a²h² + b²D) + (b²h² + a²D) ≡ (a²h² + b²h²) + (b²D + a²D)
     lemma_add_rearrange_2x2::<F>(a2.mul(h2), b2.mul(disc), b2.mul(h2), a2.mul(disc));
     lemma_div_congruence::<F>(
         a2.mul(h2).add(b2.mul(disc)).add(b2.mul(h2).add(a2.mul(disc))),
@@ -448,15 +448,15 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         a2.mul(h2).add(b2.mul(h2)).add(b2.mul(disc).add(a2.mul(disc))).div(aa),
     );
 
-    // === Step 5: Factor (a²+b²)*h² and (b²+a²)*D ===
-    // big_a ≡ a²+b² (from requires)
+    //  === Step 5: Factor (a²+b²)*h² and (b²+a²)*D ===
+    //  big_a ≡ a²+b² (from requires)
     F::axiom_eqv_symmetric(big_a, a2.add(b2));
-    // a²+b² ≡ big_a
+    //  a²+b² ≡ big_a
 
-    // (a²h² + b²h²) = (a²+b²)*h² ≡ A*h²
+    //  (a²h² + b²h²) = (a²+b²)*h² ≡ A*h²
     lemma_mul_distributes_right::<F>(a2, b2, h2);
     F::axiom_eqv_symmetric(a2.add(b2).mul(h2), a2.mul(h2).add(b2.mul(h2)));
-    // a2.add(b2) ≡ big_a, so (a²+b²)*h² ≡ A*h²
+    //  a2.add(b2) ≡ big_a, so (a²+b²)*h² ≡ A*h²
     F::axiom_eqv_reflexive(h2);
     lemma_mul_congruence::<F>(a2.add(b2), big_a, h2, h2);
     F::axiom_eqv_transitive(
@@ -465,10 +465,10 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         big_a.mul(h2),
     );
 
-    // (b²D + a²D) = (b²+a²)*D ≡ A*D
+    //  (b²D + a²D) = (b²+a²)*D ≡ A*D
     lemma_mul_distributes_right::<F>(b2, a2, disc);
     F::axiom_eqv_symmetric(b2.add(a2).mul(disc), b2.mul(disc).add(a2.mul(disc)));
-    // b²+a² ≡ a²+b² ≡ big_a
+    //  b²+a² ≡ a²+b² ≡ big_a
     F::axiom_add_commutative(b2, a2);
     F::axiom_eqv_transitive(b2.add(a2), a2.add(b2), big_a);
     F::axiom_eqv_reflexive(disc);
@@ -479,13 +479,13 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         big_a.mul(disc),
     );
 
-    // Combine: A*h² + A*D
+    //  Combine: A*h² + A*D
     lemma_add_congruence::<F>(
         a2.mul(h2).add(b2.mul(h2)), big_a.mul(h2),
         b2.mul(disc).add(a2.mul(disc)), big_a.mul(disc),
     );
 
-    // === Step 6: A*h² + A*D = A*(h²+D) ===
+    //  === Step 6: A*h² + A*D = A*(h²+D) ===
     F::axiom_mul_distributes_left(big_a, h2, disc);
     F::axiom_eqv_symmetric(big_a.mul(h2.add(disc)), big_a.mul(h2).add(big_a.mul(disc)));
     F::axiom_eqv_transitive(
@@ -494,13 +494,13 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         big_a.mul(h2.add(disc)),
     );
 
-    // === Step 7: h²+D = A*rsq ===
-    // D = A*rsq - h², so h² + D = h² + (A*rsq - h²) = A*rsq
+    //  === Step 7: h²+D = A*rsq ===
+    //  D = A*rsq - h², so h² + D = h² + (A*rsq - h²) = A*rsq
     F::axiom_add_commutative(h2, disc);
     lemma_sub_then_add_cancel::<F>(big_a.mul(rsq), h2);
     F::axiom_eqv_transitive(h2.add(disc), disc.add(h2), big_a.mul(rsq));
 
-    // A*(h²+D) ≡ A*(A*rsq) ≡ A²*rsq
+    //  A*(h²+D) ≡ A*(A*rsq) ≡ A²*rsq
     lemma_mul_congruence_right::<F>(big_a, h2.add(disc), big_a.mul(rsq));
     F::axiom_mul_associative(big_a, big_a, rsq);
     F::axiom_eqv_symmetric(aa.mul(rsq), big_a.mul(big_a.mul(rsq)));
@@ -508,25 +508,25 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         big_a.mul(h2.add(disc)), big_a.mul(big_a.mul(rsq)), aa.mul(rsq),
     );
 
-    // === Step 8: Chain numerator to A²*rsq ===
+    //  === Step 8: Chain numerator to A²*rsq ===
     F::axiom_eqv_transitive(
         a2.mul(h2).add(b2.mul(h2)).add(b2.mul(disc).add(a2.mul(disc))),
         big_a.mul(h2.add(disc)),
         aa.mul(rsq),
     );
 
-    // === Step 9: numerator/A² = A²*rsq/A² ≡ rsq ===
+    //  === Step 9: numerator/A² = A²*rsq/A² ≡ rsq ===
     lemma_div_congruence::<F>(
         a2.mul(h2).add(b2.mul(h2)).add(b2.mul(disc).add(a2.mul(disc))),
         aa.mul(rsq),
         aa, aa,
     );
-    // aa*rsq ≡ rsq*aa by commutativity
+    //  aa*rsq ≡ rsq*aa by commutativity
     F::axiom_mul_commutative(aa, rsq);
     lemma_div_congruence::<F>(aa.mul(rsq), rsq.mul(aa), aa, aa);
-    // rsq*aa / aa ≡ rsq by mul_div_cancel
+    //  rsq*aa / aa ≡ rsq by mul_div_cancel
     lemma_mul_div_cancel::<F>(rsq, aa);
-    // Chain: num/A² ≡ aa*rsq/A² ≡ rsq*aa/A² ≡ rsq
+    //  Chain: num/A² ≡ aa*rsq/A² ≡ rsq*aa/A² ≡ rsq
     F::axiom_eqv_transitive(
         aa.mul(rsq).div(aa), rsq.mul(aa).div(aa), rsq,
     );
@@ -536,7 +536,7 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
         rsq,
     );
 
-    // Final chain
+    //  Final chain
     F::axiom_eqv_transitive(
         dr_sq.add(di_sq.mul(disc)).add(er_sq.add(ei_sq.mul(disc))),
         a2.mul(h2).add(b2.mul(h2)).add(b2.mul(disc).add(a2.mul(disc))).div(aa),
@@ -544,11 +544,11 @@ pub proof fn lemma_cl_re_eq_rsq<F: OrderedField>(
     );
 }
 
-// ===========================================================================
-//  Helper 8: Real part bridge (replaces abstract D with disc, then uses re_eq_rsq)
-// ===========================================================================
+//  ===========================================================================
+//   Helper 8: Real part bridge (replaces abstract D with disc, then uses re_eq_rsq)
+//  ===========================================================================
 
-/// Proves the real part identity with an abstract D (like R::value()).
+///  Proves the real part identity with an abstract D (like R::value()).
 pub proof fn lemma_cl_re_with_d<F: OrderedField>(
     a: F, b: F, h: F, big_a: F, rsq: F, d: F, plus: bool,
 )
@@ -581,7 +581,7 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
 
     lemma_nonzero_product::<F>(big_a, big_a);
 
-    // Replace d with disc via congruence (d ≡ disc from requires)
+    //  Replace d with disc via congruence (d ≡ disc from requires)
     lemma_mul_congruence_right::<F>(di.mul(di), d, disc);
     lemma_mul_congruence_right::<F>(ei.mul(ei), d, disc);
 
@@ -601,9 +601,9 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
         er.mul(er).add(ei.mul(ei).mul(d)),
         er.mul(er).add(ei.mul(ei).mul(disc)),
     );
-    // sum_with_d ≡ sum_with_disc
+    //  sum_with_d ≡ sum_with_disc
 
-    // Replace dr², di², er², ei² with fraction forms
+    //  Replace dr², di², er², ei² with fraction forms
     lemma_neg_div_squared(a.mul(h), big_a);
     lemma_neg_div_squared(b.mul(h), big_a);
     if plus {
@@ -612,12 +612,12 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
         lemma_cl_sq_components_minus(a, b, big_a);
     }
 
-    // di²*disc ≡ (b²/A²)*disc, ei²*disc ≡ (a²/A²)*disc
+    //  di²*disc ≡ (b²/A²)*disc, ei²*disc ≡ (a²/A²)*disc
     F::axiom_eqv_reflexive(disc);
     lemma_mul_congruence::<F>(di.mul(di), b.mul(b).div(aa), disc, disc);
     lemma_mul_congruence::<F>(ei.mul(ei), a.mul(a).div(aa), disc, disc);
 
-    // Build fraction form
+    //  Build fraction form
     lemma_add_congruence::<F>(
         dr.mul(dr), a.mul(h).mul(a.mul(h)).div(aa),
         di.mul(di).mul(disc), b.mul(b).div(aa).mul(disc),
@@ -633,10 +633,10 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
         b.mul(h).mul(b.mul(h)).div(aa).add(a.mul(a).div(aa).mul(disc)),
     );
 
-    // Apply re_eq_rsq
+    //  Apply re_eq_rsq
     lemma_cl_re_eq_rsq(a, b, h, big_a, rsq);
 
-    // Chain: sum_with_disc ≡ fraction_form ≡ rsq
+    //  Chain: sum_with_disc ≡ fraction_form ≡ rsq
     F::axiom_eqv_transitive(
         dr.mul(dr).add(di.mul(di).mul(disc)).add(
             er.mul(er).add(ei.mul(ei).mul(disc))
@@ -646,7 +646,7 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
         ),
         rsq,
     );
-    // Chain: sum_with_d ≡ sum_with_disc ≡ rsq
+    //  Chain: sum_with_d ≡ sum_with_disc ≡ rsq
     F::axiom_eqv_transitive(
         dr.mul(dr).add(di.mul(di).mul(d)).add(
             er.mul(er).add(ei.mul(ei).mul(d))
@@ -658,4 +658,4 @@ pub proof fn lemma_cl_re_with_d<F: OrderedField>(
     );
 }
 
-} // verus!
+} //  verus!

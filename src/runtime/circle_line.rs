@@ -30,7 +30,7 @@ use crate::point2::Point2;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// Compute the quadratic coefficient A = a² + b².
+///  Compute the quadratic coefficient A = a² + b².
 pub fn cl_quad_a_exec(line: &RuntimeLine2) -> (out: RuntimeRational)
     requires
         line.wf_spec(),
@@ -43,7 +43,7 @@ pub fn cl_quad_a_exec(line: &RuntimeLine2) -> (out: RuntimeRational)
     a2.add(&b2)
 }
 
-/// Compute the signed distance numerator: a*cx + b*cy + c.
+///  Compute the signed distance numerator: a*cx + b*cy + c.
 pub fn cl_signed_dist_num_exec(
     circle: &RuntimeCircle2,
     line: &RuntimeLine2,
@@ -61,7 +61,7 @@ pub fn cl_signed_dist_num_exec(
     s.add(&line.c)
 }
 
-/// Compute the circle-line discriminant: A * r² - h².
+///  Compute the circle-line discriminant: A * r² - h².
 pub fn cl_discriminant_exec(
     circle: &RuntimeCircle2,
     line: &RuntimeLine2,
@@ -80,7 +80,7 @@ pub fn cl_discriminant_exec(
     ar2.sub(&h2)
 }
 
-/// Compute the x-coordinate of a circle-line intersection.
+///  Compute the x-coordinate of a circle-line intersection.
 pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
     circle: &RuntimeCircle2,
     line: &RuntimeLine2,
@@ -97,12 +97,12 @@ pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
     let a_coef = cl_quad_a_exec(line);
     let h = cl_signed_dist_num_exec(circle, line);
 
-    // re = cx - a*h / A
+    //  re = cx - a*h / A
     let ah = line.a.mul(&h);
     let ah_div_a = ah.div(&a_coef);
     let re = circle.center.x.sub(&ah_div_a);
 
-    // im = ∓ b / A
+    //  im = ∓ b / A
     let im = if plus {
         let nb = line.b.neg();
         nb.div(&a_coef)
@@ -113,7 +113,7 @@ pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
     RuntimeQExtRat::new(re, im)
 }
 
-/// Compute the y-coordinate of a circle-line intersection.
+///  Compute the y-coordinate of a circle-line intersection.
 pub fn cl_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
     circle: &RuntimeCircle2,
     line: &RuntimeLine2,
@@ -130,12 +130,12 @@ pub fn cl_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
     let a_coef = cl_quad_a_exec(line);
     let h = cl_signed_dist_num_exec(circle, line);
 
-    // re = cy - b*h / A
+    //  re = cy - b*h / A
     let bh = line.b.mul(&h);
     let bh_div_a = bh.div(&a_coef);
     let re = circle.center.y.sub(&bh_div_a);
 
-    // im = ± a / A
+    //  im = ± a / A
     let im = if plus {
         line.a.div(&a_coef)
     } else {
@@ -146,4 +146,4 @@ pub fn cl_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
     RuntimeQExtRat::new(re, im)
 }
 
-} // verus!
+} //  verus!

@@ -15,9 +15,9 @@ pub use verus_linalg::runtime::vec2::RuntimeVec2;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// RuntimePoint2
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  RuntimePoint2
+//  ---------------------------------------------------------------------------
 
 pub struct RuntimePoint2 {
     pub x: RuntimeRational,
@@ -64,11 +64,11 @@ impl RuntimePoint2 {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Exec operations
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Exec operations
+//  ---------------------------------------------------------------------------
 
-/// Point subtraction: a - b = vector
+///  Point subtraction: a - b = vector
 pub fn sub2_exec(a: &RuntimePoint2, b: &RuntimePoint2) -> (out: RuntimeVec2)
     requires
         a.wf_spec(),
@@ -83,7 +83,7 @@ pub fn sub2_exec(a: &RuntimePoint2, b: &RuntimePoint2) -> (out: RuntimeVec2)
     RuntimeVec2 { x: dx, y: dy, model: Ghost(model) }
 }
 
-/// Point + vector = point
+///  Point + vector = point
 pub fn add_vec2_exec(p: &RuntimePoint2, v: &RuntimeVec2) -> (out: RuntimePoint2)
     requires
         p.wf_spec(),
@@ -98,4 +98,4 @@ pub fn add_vec2_exec(p: &RuntimePoint2, v: &RuntimeVec2) -> (out: RuntimePoint2)
     RuntimePoint2 { x: rx, y: ry, model: Ghost(model) }
 }
 
-} // verus!
+} //  verus!

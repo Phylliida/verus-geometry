@@ -17,7 +17,7 @@ use crate::convex_polygon::polygon_next_index;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// Compute cross_origin(p, q) = p.x * q.y - p.y * q.x at runtime.
+///  Compute cross_origin(p, q) = p.x * q.y - p.y * q.x at runtime.
 fn cross_origin_exec(p: &RuntimePoint2, q: &RuntimePoint2) -> (out: RuntimeRational)
     requires
         p.wf_spec(),
@@ -31,9 +31,9 @@ fn cross_origin_exec(p: &RuntimePoint2, q: &RuntimePoint2) -> (out: RuntimeRatio
     a.sub(&b)
 }
 
-/// Compute twice the signed area of a simple polygon (shoelace formula).
+///  Compute twice the signed area of a simple polygon (shoelace formula).
 ///
-/// Returns a RuntimeRational whose view equals signed_area_2x(polygon.model()).
+///  Returns a RuntimeRational whose view equals signed_area_2x(polygon.model()).
 pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
     requires
         polygon.wf_spec(),
@@ -74,8 +74,8 @@ pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
         acc = acc.add(&term);
 
         proof {
-            // acc now equals old_acc + cross_origin(polygon[i], polygon[j])
-            // which equals signed_area_2x_prefix(polygon.model(), i+1)
+            //  acc now equals old_acc + cross_origin(polygon[i], polygon[j])
+            //  which equals signed_area_2x_prefix(polygon.model(), i+1)
             assert(acc@ == signed_area_2x_prefix::<RationalModel>(
                 polygon.model(), (i + 1) as int));
         }
@@ -86,4 +86,4 @@ pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
     acc
 }
 
-} // verus!
+} //  verus!

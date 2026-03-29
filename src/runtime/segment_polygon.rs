@@ -21,9 +21,9 @@ use crate::convex_polygon::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// SegmentIntersection2dKind helper (avoid derived PartialEq)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  SegmentIntersection2dKind helper (avoid derived PartialEq)
+//  ---------------------------------------------------------------------------
 
 pub fn is_disjoint(k: &SegmentIntersection2dKind) -> (out: bool)
     ensures out == (*k == SegmentIntersection2dKind::Disjoint),
@@ -34,11 +34,11 @@ pub fn is_disjoint(k: &SegmentIntersection2dKind) -> (out: bool)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Segment overlaps convex polygon
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Segment overlaps convex polygon
+//  ---------------------------------------------------------------------------
 
-/// Does the segment overlap the convex polygon?
+///  Does the segment overlap the convex polygon?
 pub fn segment_overlaps_convex_polygon_exec(
     seg_start: &RuntimePoint2, seg_end: &RuntimePoint2,
     polygon: &RuntimePolygon2,
@@ -53,7 +53,7 @@ pub fn segment_overlaps_convex_polygon_exec(
             seg_start@, seg_end@, polygon.model(),
         ),
 {
-    // Check endpoint containment
+    //  Check endpoint containment
     let start_in = point_in_convex_polygon_boundary_inclusive_exec(seg_start, polygon);
     if start_in {
         return true;
@@ -63,7 +63,7 @@ pub fn segment_overlaps_convex_polygon_exec(
         return true;
     }
 
-    // Check edge hits
+    //  Check edge hits
     let n = polygon.len();
     let mut has_hit = false;
     let mut i: usize = 0;
@@ -92,7 +92,7 @@ pub fn segment_overlaps_convex_polygon_exec(
         }
 
         proof {
-            // Update prefix predicate
+            //  Update prefix predicate
             if has_hit {
                 if not_disjoint {
                     assert(segment_hits_polygon_edge::<RationalModel>(
@@ -104,7 +104,7 @@ pub fn segment_overlaps_convex_polygon_exec(
                 ));
             }
             if !has_hit {
-                // Neither the old prefix nor the current edge hit
+                //  Neither the old prefix nor the current edge hit
                 assert(!segment_prefix_hits_polygon_edge::<RationalModel>(
                     seg_start@, seg_end@, polygon.model(), (i + 1) as int,
                 ));
@@ -117,4 +117,4 @@ pub fn segment_overlaps_convex_polygon_exec(
     has_hit
 }
 
-} // verus!
+} //  verus!

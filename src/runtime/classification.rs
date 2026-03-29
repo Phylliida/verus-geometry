@@ -33,17 +33,17 @@ use verus_rational::RuntimeRational;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// Helper: bridge signum ↔ OrderedRing lt/eqv
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Helper: bridge signum ↔ OrderedRing lt/eqv
+//  ---------------------------------------------------------------------------
 
-/// Connect RuntimeRational signum to the Rational OrderedRing trait lt/eqv.
+///  Connect RuntimeRational signum to the Rational OrderedRing trait lt/eqv.
 ///
-/// Since all specs are open:
-/// - `Rational::zero() = from_int_spec(0) = Rational { num: 0, den: 0 }`
-/// - `Rational::zero().lt(v) = from_int_spec(0).lt_spec(v) = 0 * v.denom() < v.num * 1 = 0 < v.num`
-/// - `v.signum() == 1` iff `v.num > 0`
-/// So `Rational::zero().lt(v)` iff `v.signum() == 1`.
+///  Since all specs are open:
+///  - `Rational::zero() = from_int_spec(0) = Rational { num: 0, den: 0 }`
+///  - `Rational::zero().lt(v) = from_int_spec(0).lt_spec(v) = 0 * v.denom() < v.num * 1 = 0 < v.num`
+///  - `v.signum() == 1` iff `v.num > 0`
+///  So `Rational::zero().lt(v)` iff `v.signum() == 1`.
 pub proof fn lemma_signum_bridge(val: RationalModel)
     ensures
         (val.signum() == 1) == Rational::from_int_spec(0).lt_spec(val),
@@ -64,9 +64,9 @@ pub proof fn lemma_signum_bridge(val: RationalModel)
     assert(val.eqv_spec(zero) == (val.num * 1 == 0 * val.denom()));
 }
 
-// ---------------------------------------------------------------------------
-// orient2d_sign_exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  orient2d_sign_exec
+//  ---------------------------------------------------------------------------
 
 pub fn orient2d_sign_exec(
     a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
@@ -92,9 +92,9 @@ pub fn orient2d_sign_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// orient3d_sign_exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  orient3d_sign_exec
+//  ---------------------------------------------------------------------------
 
 pub fn orient3d_sign_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
@@ -122,11 +122,11 @@ pub fn orient3d_sign_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Boolean predicates: 2D line sidedness
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Boolean predicates: 2D line sidedness
+//  ---------------------------------------------------------------------------
 
-/// Test collinearity: orient2d(a, b, c) ≡ 0
+///  Test collinearity: orient2d(a, b, c) ≡ 0
 pub fn collinear2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
 ) -> (out: bool)
@@ -140,15 +140,15 @@ pub fn collinear2d_exec(
     let val = orient2d_exec(a, b, c);
     let z = val.is_zero();
     proof {
-        // collinear2d(a@,b@,c@) = orient2d(a@,b@,c@).eqv(zero())
-        // is_zero ensures: z == val@.eqv_spec(from_int_spec(0))
-        // Since Rational::eqv = eqv_spec and Rational::zero() = from_int_spec(0),
-        // orient2d(a@,b@,c@).eqv(RationalModel::zero()) = val@.eqv_spec(from_int_spec(0)) = z
+        //  collinear2d(a@,b@,c@) = orient2d(a@,b@,c@).eqv(zero())
+        //  is_zero ensures: z == val@.eqv_spec(from_int_spec(0))
+        //  Since Rational::eqv = eqv_spec and Rational::zero() = from_int_spec(0),
+        //  orient2d(a@,b@,c@).eqv(RationalModel::zero()) = val@.eqv_spec(from_int_spec(0)) = z
     }
     z
 }
 
-/// Test 3D collinearity: cross(b-a, c-a) ≡ Vec3::zero()
+///  Test 3D collinearity: cross(b-a, c-a) ≡ Vec3::zero()
 pub fn collinear3d_exec(
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
 ) -> (out: bool)
@@ -166,7 +166,7 @@ pub fn collinear3d_exec(
     cr.x.is_zero() && cr.y.is_zero() && cr.z.is_zero()
 }
 
-/// Test coplanarity: orient3d(a,b,c,d) ≡ 0
+///  Test coplanarity: orient3d(a,b,c,d) ≡ 0
 pub fn coplanar_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -183,7 +183,7 @@ pub fn coplanar_exec(
     val.is_zero()
 }
 
-/// Point is strictly left of line a→b
+///  Point is strictly left of line a→b
 pub fn point_left_of_line_exec(
     p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: bool)
@@ -202,7 +202,7 @@ pub fn point_left_of_line_exec(
     s == 1i8
 }
 
-/// Point is strictly right of line a→b
+///  Point is strictly right of line a→b
 pub fn point_right_of_line_exec(
     p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: bool)
@@ -221,7 +221,7 @@ pub fn point_right_of_line_exec(
     s == -1i8
 }
 
-/// Point lies on line through a and b
+///  Point lies on line through a and b
 pub fn point_on_line_exec(
     p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
 ) -> (out: bool)
@@ -235,16 +235,16 @@ pub fn point_on_line_exec(
     let val = orient2d_exec(a, b, p);
     let z = val.is_zero();
     proof {
-        // point_on_line = orient2d_zero(a, b, p) = orient2d(a,b,p).eqv(zero())
+        //  point_on_line = orient2d_zero(a, b, p) = orient2d(a,b,p).eqv(zero())
     }
     z
 }
 
-// ---------------------------------------------------------------------------
-// Boolean predicates: 3D plane sidedness
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Boolean predicates: 3D plane sidedness
+//  ---------------------------------------------------------------------------
 
-/// Point is strictly above oriented plane (a, b, c)
+///  Point is strictly above oriented plane (a, b, c)
 pub fn point_above_plane_exec(
     p: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -265,7 +265,7 @@ pub fn point_above_plane_exec(
     s == 1i8
 }
 
-/// Point is strictly below oriented plane (a, b, c)
+///  Point is strictly below oriented plane (a, b, c)
 pub fn point_below_plane_exec(
     p: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -286,7 +286,7 @@ pub fn point_below_plane_exec(
     s == -1i8
 }
 
-/// Point lies on the plane through a, b, c
+///  Point lies on the plane through a, b, c
 pub fn point_on_plane_exec(
     p: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -303,7 +303,7 @@ pub fn point_on_plane_exec(
     val.is_zero()
 }
 
-/// Segment (d, e) strictly crosses the oriented plane (a, b, c)
+///  Segment (d, e) strictly crosses the oriented plane (a, b, c)
 pub fn segment_crosses_plane_strict_exec(
     d: &RuntimePoint3, e: &RuntimePoint3,
     a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
@@ -324,11 +324,11 @@ pub fn segment_crosses_plane_strict_exec(
     (above_d && below_e) || (below_d && above_e)
 }
 
-// ---------------------------------------------------------------------------
-// Consistent face orientation
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Consistent face orientation
+//  ---------------------------------------------------------------------------
 
-/// Two adjacent triangles have consistent orientation.
+///  Two adjacent triangles have consistent orientation.
 pub fn faces_consistently_oriented_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -344,11 +344,11 @@ pub fn faces_consistently_oriented_exec(
     point_above_plane_exec(d, a, b, c)
 }
 
-// ---------------------------------------------------------------------------
-// Incircle sign
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Incircle sign
+//  ---------------------------------------------------------------------------
 
-/// Compute the incircle determinant at runtime.
+///  Compute the incircle determinant at runtime.
 fn incircle2d_compute(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -362,7 +362,7 @@ fn incircle2d_compute(
         out.wf_spec(),
         out@ == incircle2d::<RationalModel>(a@, b@, c@, d@),
 {
-    // p = a - d, q = b - d, r = c - d
+    //  p = a - d, q = b - d, r = c - d
     let px = a.x.sub(&d.x);
     let py = a.y.sub(&d.y);
     let qx = b.x.sub(&d.x);
@@ -370,23 +370,23 @@ fn incircle2d_compute(
     let rx = c.x.sub(&d.x);
     let ry = c.y.sub(&d.y);
 
-    // lift coords: pw = px² + py², qw = qx² + qy², rw = rx² + ry²
+    //  lift coords: pw = px² + py², qw = qx² + qy², rw = rx² + ry²
     let pw = px.mul(&px).add(&py.mul(&py));
     let qw = qx.mul(&qx).add(&qy.mul(&qy));
     let rw = rx.mul(&rx).add(&ry.mul(&ry));
 
-    // det2d(q, r) = qx*ry - qy*rx
+    //  det2d(q, r) = qx*ry - qy*rx
     let det_qr = qx.mul(&ry).sub(&qy.mul(&rx));
-    // det2d(p, r) = px*ry - py*rx
+    //  det2d(p, r) = px*ry - py*rx
     let det_pr = px.mul(&ry).sub(&py.mul(&rx));
-    // det2d(p, q) = px*qy - py*qx
+    //  det2d(p, q) = px*qy - py*qx
     let det_pq = px.mul(&qy).sub(&py.mul(&qx));
 
-    // pw * det_qr - qw * det_pr + rw * det_pq
+    //  pw * det_qr - qw * det_pr + rw * det_pq
     pw.mul(&det_qr).sub(&qw.mul(&det_pr)).add(&rw.mul(&det_pq))
 }
 
-/// Classify the incircle sign: Positive (inside), Negative (outside), Zero (cocircular).
+///  Classify the incircle sign: Positive (inside), Negative (outside), Zero (cocircular).
 pub fn incircle2d_sign_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -413,11 +413,11 @@ pub fn incircle2d_sign_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Insphere sign
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Insphere sign
+//  ---------------------------------------------------------------------------
 
-/// Compute the insphere determinant at runtime.
+///  Compute the insphere determinant at runtime.
 fn insphere3d_compute(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
@@ -435,29 +435,29 @@ fn insphere3d_compute(
     use super::point3::sub3_exec;
     use verus_linalg::runtime::vec3::RuntimeVec3;
 
-    // p = a - e, q = b - e, r = c - e, s = d - e
+    //  p = a - e, q = b - e, r = c - e, s = d - e
     let p = sub3_exec(a, e);
     let q = sub3_exec(b, e);
     let r = sub3_exec(c, e);
     let s = sub3_exec(d, e);
 
-    // lift coords
+    //  lift coords
     let pw = p.norm_sq_exec();
     let qw = q.norm_sq_exec();
     let rw = r.norm_sq_exec();
     let sw = s.norm_sq_exec();
 
-    // triple products
+    //  triple products
     let t_qrs = q.triple_exec(&r, &s);
     let t_prs = p.triple_exec(&r, &s);
     let t_pqs = p.triple_exec(&q, &s);
     let t_pqr = p.triple_exec(&q, &r);
 
-    // pw * t_qrs - qw * t_prs + rw * t_pqs - sw * t_pqr
+    //  pw * t_qrs - qw * t_prs + rw * t_pqs - sw * t_pqr
     pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
 }
 
-/// Classify the insphere sign: Positive (inside), Negative (outside), Zero (cospherical).
+///  Classify the insphere sign: Positive (inside), Negative (outside), Zero (cospherical).
 pub fn insphere3d_sign_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
@@ -485,4 +485,4 @@ pub fn insphere3d_sign_exec(
     }
 }
 
-} // verus!
+} //  verus!

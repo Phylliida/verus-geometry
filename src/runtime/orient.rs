@@ -17,7 +17,7 @@ use crate::orient3d::orient3d;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// det2d(u, v) = u.x * v.y - u.y * v.x
+///  det2d(u, v) = u.x * v.y - u.y * v.x
 pub fn det2d_exec(u: &RuntimeVec2, v: &RuntimeVec2) -> (out: RuntimeRational)
     requires
         u.wf_spec(),
@@ -31,7 +31,7 @@ pub fn det2d_exec(u: &RuntimeVec2, v: &RuntimeVec2) -> (out: RuntimeRational)
     a.sub(&b)
 }
 
-/// orient2d(a, b, c) = det2d(b - a, c - a)
+///  orient2d(a, b, c) = det2d(b - a, c - a)
 pub fn orient2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
 ) -> (out: RuntimeRational)
@@ -48,7 +48,7 @@ pub fn orient2d_exec(
     det2d_exec(&ba, &ca)
 }
 
-/// orient3d(a, b, c, d) = dot(b-a, cross(c-a, d-a))
+///  orient3d(a, b, c, d) = dot(b-a, cross(c-a, d-a))
 pub fn orient3d_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -69,4 +69,4 @@ pub fn orient3d_exec(
     dot3_exec(&ba, &cr)
 }
 
-} // verus!
+} //  verus!

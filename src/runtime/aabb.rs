@@ -13,7 +13,7 @@ use crate::aabb::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// Point p is inside the 2D AABB [min, max].
+///  Point p is inside the 2D AABB [min, max].
 pub fn point_in_aabb2_exec(
     p: &RuntimePoint2, min: &RuntimePoint2, max: &RuntimePoint2,
 ) -> (out: bool)
@@ -28,7 +28,7 @@ pub fn point_in_aabb2_exec(
     && min.y.le(&p.y) && p.y.le(&max.y)
 }
 
-/// Point p is inside the 3D AABB [min, max].
+///  Point p is inside the 3D AABB [min, max].
 pub fn point_in_aabb3_exec(
     p: &RuntimePoint3, min: &RuntimePoint3, max: &RuntimePoint3,
 ) -> (out: bool)
@@ -44,7 +44,7 @@ pub fn point_in_aabb3_exec(
     && min.z.le(&p.z) && p.z.le(&max.z)
 }
 
-/// Two 2D AABBs are separated along some axis.
+///  Two 2D AABBs are separated along some axis.
 pub fn aabb2_separated_exec(
     min_a: &RuntimePoint2, max_a: &RuntimePoint2,
     min_b: &RuntimePoint2, max_b: &RuntimePoint2,
@@ -61,7 +61,7 @@ pub fn aabb2_separated_exec(
     || max_a.y.lt(&min_b.y) || max_b.y.lt(&min_a.y)
 }
 
-/// Two 3D AABBs are separated along some axis.
+///  Two 3D AABBs are separated along some axis.
 pub fn aabb3_separated_exec(
     min_a: &RuntimePoint3, max_a: &RuntimePoint3,
     min_b: &RuntimePoint3, max_b: &RuntimePoint3,
@@ -79,4 +79,4 @@ pub fn aabb3_separated_exec(
     || max_a.z.lt(&min_b.z) || max_b.z.lt(&min_a.z)
 }
 
-} // verus!
+} //  verus!

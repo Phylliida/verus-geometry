@@ -25,11 +25,11 @@ use crate::point3::sub3;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// 2D: Point in triangle (exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point in triangle (exec)
+//  ---------------------------------------------------------------------------
 
-/// Test if point q is inside triangle (a, b, c), boundary inclusive.
+///  Test if point q is inside triangle (a, b, c), boundary inclusive.
 pub fn point_in_triangle_2d_exec(
     q: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
 ) -> (out: bool)
@@ -54,11 +54,11 @@ pub fn point_in_triangle_2d_exec(
     (o1_ge && o2_ge && o3_ge) || (o1_le && o2_le && o3_le)
 }
 
-// ---------------------------------------------------------------------------
-// Min helper (exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Min helper (exec)
+//  ---------------------------------------------------------------------------
 
-/// Minimum of two RuntimeRationals.
+///  Minimum of two RuntimeRationals.
 fn min_of_exec(a: RuntimeRational, b: RuntimeRational) -> (out: RuntimeRational)
     requires a.wf_spec(), b.wf_spec(),
     ensures
@@ -68,7 +68,7 @@ fn min_of_exec(a: RuntimeRational, b: RuntimeRational) -> (out: RuntimeRational)
     if a.le(&b) { a } else { b }
 }
 
-/// Minimum of three RuntimeRationals.
+///  Minimum of three RuntimeRationals.
 fn min_of_three_exec(a: RuntimeRational, b: RuntimeRational, c: RuntimeRational) -> (out: RuntimeRational)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
     ensures
@@ -78,11 +78,11 @@ fn min_of_three_exec(a: RuntimeRational, b: RuntimeRational, c: RuntimeRational)
     min_of_exec(a, min_of_exec(b, c))
 }
 
-// ---------------------------------------------------------------------------
-// 2D: Point-triangle squared distance (exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point-triangle squared distance (exec)
+//  ---------------------------------------------------------------------------
 
-/// Squared distance from point q to triangle (a, b, c) in 2D.
+///  Squared distance from point q to triangle (a, b, c) in 2D.
 pub fn squared_distance_point_triangle_2d_exec(
     q: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
 ) -> (out: RuntimeRational)
@@ -105,12 +105,12 @@ pub fn squared_distance_point_triangle_2d_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3D: Min edge squared distance (exec)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D: Min edge squared distance (exec)
+//  ---------------------------------------------------------------------------
 
-/// Minimum squared distance from point q to the three edges of triangle
-/// (a, b, c) in 3D.
+///  Minimum squared distance from point q to the three edges of triangle
+///  (a, b, c) in 3D.
 pub fn min_edge_squared_distance_3d_exec(
     q: &RuntimePoint3, a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
 ) -> (out: RuntimeRational)
@@ -129,4 +129,4 @@ pub fn min_edge_squared_distance_3d_exec(
     min_of_three_exec(d_ab, d_bc, d_ca)
 }
 
-} // verus!
+} //  verus!

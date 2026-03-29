@@ -25,9 +25,9 @@ use verus_rational::rational::Rational;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// OrientationSign exec helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  OrientationSign exec helpers
+//  ---------------------------------------------------------------------------
 
 pub fn is_zero_sign(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Zero),
@@ -49,11 +49,11 @@ pub fn signs_equal(a: &OrientationSign, b: &OrientationSign) -> (out: bool)
     }
 }
 
-// (scalar_min_exec / scalar_max_exec not needed — direct comparisons used instead)
+//  (scalar_min_exec / scalar_max_exec not needed — direct comparisons used instead)
 
-// ---------------------------------------------------------------------------
-// Point-on-segment predicate
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point-on-segment predicate
+//  ---------------------------------------------------------------------------
 
 pub fn point_on_segment_inclusive_2d_exec(
     p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
@@ -69,8 +69,8 @@ pub fn point_on_segment_inclusive_2d_exec(
     if !val.is_zero() {
         return false;
     }
-    // Check bounding box using direct comparisons
-    // scalar_le(scalar_min(a.x, b.x), p.x)
+    //  Check bounding box using direct comparisons
+    //  scalar_le(scalar_min(a.x, b.x), p.x)
     let min_x_le_px = if a.x.le(&b.x) { a.x.le(&p.x) } else { b.x.le(&p.x) };
     let px_le_max_x = if a.x.le(&b.x) { p.x.le(&b.x) } else { p.x.le(&a.x) };
     let min_y_le_py = if a.y.le(&b.y) { a.y.le(&p.y) } else { b.y.le(&p.y) };
@@ -95,9 +95,9 @@ pub fn point_on_both_segments_2d_exec(
     point_on_segment_inclusive_2d_exec(p, a, b) && point_on_segment_inclusive_2d_exec(p, c, d)
 }
 
-// ---------------------------------------------------------------------------
-// 1D interval overlap for collinear case
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  1D interval overlap for collinear case
+//  ---------------------------------------------------------------------------
 
 pub fn collinear_overlap_kind_1d_exec(
     a1: &RuntimeRational, a2: &RuntimeRational,
@@ -113,32 +113,32 @@ pub fn collinear_overlap_kind_1d_exec(
         (out == 0i8) == (collinear_overlap_kind_1d::<RationalModel>(a1@, a2@, b1@, b2@) == 0),
         (out == 1i8) == (collinear_overlap_kind_1d::<RationalModel>(a1@, a2@, b1@, b2@) > 0),
 {
-    // a_lo = min(a1, a2), a_hi = max(a1, a2)
+    //  a_lo = min(a1, a2), a_hi = max(a1, a2)
     let a1_le_a2 = a1.le(a2);
-    // b_lo = min(b1, b2), b_hi = max(b1, b2)
+    //  b_lo = min(b1, b2), b_hi = max(b1, b2)
     let b1_le_b2 = b1.le(b2);
-    // lo = max(a_lo, b_lo), hi = min(a_hi, b_hi)
-    // lo = max(min(a1,a2), min(b1,b2))
-    // hi = min(max(a1,a2), max(b1,b2))
+    //  lo = max(a_lo, b_lo), hi = min(a_hi, b_hi)
+    //  lo = max(min(a1,a2), min(b1,b2))
+    //  hi = min(max(a1,a2), max(b1,b2))
 
-    // Instead of materializing min/max RuntimeRationals, compare directly:
-    // lo = max(a_lo, b_lo): if a_lo ≤ b_lo then b_lo else a_lo
-    // hi = min(a_hi, b_hi): if a_hi ≤ b_hi then a_hi else b_hi
-    // We need: if hi < lo → -1, if hi ≡ lo → 0, else 1
+    //  Instead of materializing min/max RuntimeRationals, compare directly:
+    //  lo = max(a_lo, b_lo): if a_lo ≤ b_lo then b_lo else a_lo
+    //  hi = min(a_hi, b_hi): if a_hi ≤ b_hi then a_hi else b_hi
+    //  We need: if hi < lo → -1, if hi ≡ lo → 0, else 1
 
-    // Get references to a_lo, a_hi, b_lo, b_hi
+    //  Get references to a_lo, a_hi, b_lo, b_hi
     let (a_lo, a_hi) = if a1_le_a2 { (a1, a2) } else { (a2, a1) };
     let (b_lo, b_hi) = if b1_le_b2 { (b1, b2) } else { (b2, b1) };
 
-    // lo = max(a_lo, b_lo)
+    //  lo = max(a_lo, b_lo)
     let a_lo_le_b_lo = a_lo.le(b_lo);
     let lo = if a_lo_le_b_lo { b_lo } else { a_lo };
 
-    // hi = min(a_hi, b_hi)
+    //  hi = min(a_hi, b_hi)
     let a_hi_le_b_hi = a_hi.le(b_hi);
     let hi = if a_hi_le_b_hi { a_hi } else { b_hi };
 
-    // Compare hi vs lo
+    //  Compare hi vs lo
     if hi.lt(lo) {
         -1i8
     } else if hi.eq(lo) {
@@ -148,9 +148,9 @@ pub fn collinear_overlap_kind_1d_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Main classification exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Main classification exec
+//  ---------------------------------------------------------------------------
 
 pub fn segment_intersection_kind_2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
@@ -180,7 +180,7 @@ pub fn segment_intersection_kind_2d_exec(
     let o4z = is_zero_sign(&o4);
 
     if o1z && o2z && o3z && o4z {
-        // All collinear — check 1D overlap
+        //  All collinear — check 1D overlap
         let use_x = !a.x.eq(&b.x) || !c.x.eq(&d.x);
         let overlap_kind = if use_x {
             collinear_overlap_kind_1d_exec(&a.x, &b.x, &c.x, &d.x)
@@ -205,11 +205,11 @@ pub fn segment_intersection_kind_2d_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 2D segment intersection parameter & point (Proper case)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D segment intersection parameter & point (Proper case)
+//  ---------------------------------------------------------------------------
 
-/// Intersection parameter t on AB: t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))
+///  Intersection parameter t on AB: t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))
 pub fn segment_intersection_parameter_2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -235,7 +235,7 @@ pub fn segment_intersection_parameter_2d_exec(
     o3.div(&denom)
 }
 
-/// Intersection point on AB: a + t * (b - a)
+///  Intersection point on AB: a + t * (b - a)
 pub fn segment_intersection_point_2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -257,7 +257,7 @@ pub fn segment_intersection_point_2d_exec(
     add_vec2_exec(a, &tv)
 }
 
-/// Intersection parameter s on CD: s = orient2d(a,b,c) / (orient2d(a,b,c) - orient2d(a,b,d))
+///  Intersection parameter s on CD: s = orient2d(a,b,c) / (orient2d(a,b,c) - orient2d(a,b,d))
 pub fn segment_intersection_parameter_cd_2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -283,7 +283,7 @@ pub fn segment_intersection_parameter_cd_2d_exec(
     o1.div(&denom)
 }
 
-/// Intersection point on CD: c + s * (d - c)
+///  Intersection point on CD: c + s * (d - c)
 pub fn segment_intersection_point_cd_2d_exec(
     a: &RuntimePoint2, b: &RuntimePoint2,
     c: &RuntimePoint2, d: &RuntimePoint2,
@@ -305,4 +305,4 @@ pub fn segment_intersection_point_cd_2d_exec(
     add_vec2_exec(c, &sv)
 }
 
-} // verus!
+} //  verus!

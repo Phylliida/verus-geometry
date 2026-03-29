@@ -10,11 +10,11 @@ use crate::point3::*;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Clamp to [0, 1]
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Clamp to [0, 1]
+//  ---------------------------------------------------------------------------
 
-/// Clamp a scalar to the interval [0, 1].
+///  Clamp a scalar to the interval [0, 1].
 pub open spec fn clamp01<T: OrderedRing>(t: T) -> T {
     if t.le(T::zero()) {
         T::zero()
@@ -25,40 +25,40 @@ pub open spec fn clamp01<T: OrderedRing>(t: T) -> T {
     }
 }
 
-/// clamp01 always returns a value in [0, 1].
+///  clamp01 always returns a value in [0, 1].
 pub proof fn lemma_clamp01_bounds<T: OrderedRing>(t: T)
     ensures
         T::zero().le(clamp01(t)),
         clamp01(t).le(T::one()),
 {
-    // 0 < 1, so 0 ≤ 1
+    //  0 < 1, so 0 ≤ 1
     ordered_ring_lemmas::lemma_zero_lt_one::<T>();
     T::axiom_lt_iff_le_and_not_eqv(T::zero(), T::one());
-    // Now: T::zero().le(T::one())
+    //  Now: T::zero().le(T::one())
 
     if t.le(T::zero()) {
-        // clamp01(t) = zero
+        //  clamp01(t) = zero
         T::axiom_le_reflexive(T::zero());
-        // 0 ≤ 0 ✓, 0 ≤ 1 ✓
+        //  0 ≤ 0 ✓, 0 ≤ 1 ✓
     } else if T::one().le(t) {
-        // clamp01(t) = one
+        //  clamp01(t) = one
         T::axiom_le_reflexive(T::one());
-        // 0 ≤ 1 ✓, 1 ≤ 1 ✓
+        //  0 ≤ 1 ✓, 1 ≤ 1 ✓
     } else {
-        // clamp01(t) = t, ¬(t ≤ 0) and ¬(1 ≤ t)
-        // By totality: 0 ≤ t (since ¬(t ≤ 0) → 0 ≤ t by total order)
+        //  clamp01(t) = t, ¬(t ≤ 0) and ¬(1 ≤ t)
+        //  By totality: 0 ≤ t (since ¬(t ≤ 0) → 0 ≤ t by total order)
         T::axiom_le_total(T::zero(), t);
-        // By totality: t ≤ 1 (since ¬(1 ≤ t) → t ≤ 1 by total order)
+        //  By totality: t ≤ 1 (since ¬(1 ≤ t) → t ≤ 1 by total order)
         T::axiom_le_total(t, T::one());
     }
 }
 
-// ---------------------------------------------------------------------------
-// 2D: Point-segment closest point
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D: Point-segment closest point
+//  ---------------------------------------------------------------------------
 
-/// Unclamped projection parameter of q onto line through a, b.
-/// t = dot(q - a, b - a) / norm_sq(b - a)
+///  Unclamped projection parameter of q onto line through a, b.
+///  t = dot(q - a, b - a) / norm_sq(b - a)
 pub open spec fn segment_project_parameter_2d<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>,
 ) -> T
@@ -69,7 +69,7 @@ pub open spec fn segment_project_parameter_2d<T: OrderedField>(
     dot2(w, d).div(norm_sq2(d))
 }
 
-/// Clamped parameter for closest point on segment [a, b] to query q.
+///  Clamped parameter for closest point on segment [a, b] to query q.
 pub open spec fn closest_parameter_2d<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>,
 ) -> T
@@ -78,8 +78,8 @@ pub open spec fn closest_parameter_2d<T: OrderedField>(
     clamp01(segment_project_parameter_2d(q, a, b))
 }
 
-/// Closest point on segment [a, b] to query point q.
-/// Returns a + clamp01(t) * (b - a).
+///  Closest point on segment [a, b] to query point q.
+///  Returns a + clamp01(t) * (b - a).
 pub open spec fn closest_point_on_segment_2d<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>,
 ) -> Point2<T>
@@ -89,7 +89,7 @@ pub open spec fn closest_point_on_segment_2d<T: OrderedField>(
     add_vec2(a, scale2(t, sub2(b, a)))
 }
 
-/// Squared distance from point q to segment [a, b].
+///  Squared distance from point q to segment [a, b].
 pub open spec fn squared_distance_point_segment_2d<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>,
 ) -> T
@@ -99,12 +99,12 @@ pub open spec fn squared_distance_point_segment_2d<T: OrderedField>(
     norm_sq2(sub2(cp, q))
 }
 
-// ---------------------------------------------------------------------------
-// 3D: Point-segment closest point
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D: Point-segment closest point
+//  ---------------------------------------------------------------------------
 
-/// Unclamped projection parameter of q onto line through a, b.
-/// t = dot(q - a, b - a) / norm_sq(b - a)
+///  Unclamped projection parameter of q onto line through a, b.
+///  t = dot(q - a, b - a) / norm_sq(b - a)
 pub open spec fn segment_project_parameter_3d<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>,
 ) -> T
@@ -115,7 +115,7 @@ pub open spec fn segment_project_parameter_3d<T: OrderedField>(
     dot3(w, d).div(norm_sq3(d))
 }
 
-/// Clamped parameter for closest point on segment [a, b] to query q.
+///  Clamped parameter for closest point on segment [a, b] to query q.
 pub open spec fn closest_parameter_3d<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>,
 ) -> T
@@ -124,8 +124,8 @@ pub open spec fn closest_parameter_3d<T: OrderedField>(
     clamp01(segment_project_parameter_3d(q, a, b))
 }
 
-/// Closest point on segment [a, b] to query point q.
-/// Returns a + clamp01(t) * (b - a).
+///  Closest point on segment [a, b] to query point q.
+///  Returns a + clamp01(t) * (b - a).
 pub open spec fn closest_point_on_segment_3d<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>,
 ) -> Point3<T>
@@ -135,7 +135,7 @@ pub open spec fn closest_point_on_segment_3d<T: OrderedField>(
     add_vec3(a, scale3(t, sub3(b, a)))
 }
 
-/// Squared distance from point q to segment [a, b].
+///  Squared distance from point q to segment [a, b].
 pub open spec fn squared_distance_point_segment_3d<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>,
 ) -> T
@@ -145,11 +145,11 @@ pub open spec fn squared_distance_point_segment_3d<T: OrderedField>(
     norm_sq3(sub3(cp, q))
 }
 
-// ---------------------------------------------------------------------------
-// Lemmas
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Lemmas
+//  ---------------------------------------------------------------------------
 
-/// The closest parameter is in [0, 1].
+///  The closest parameter is in [0, 1].
 pub proof fn lemma_closest_parameter_2d_bounds<T: OrderedField>(
     q: Point2<T>, a: Point2<T>, b: Point2<T>,
 )
@@ -162,7 +162,7 @@ pub proof fn lemma_closest_parameter_2d_bounds<T: OrderedField>(
     lemma_clamp01_bounds::<T>(segment_project_parameter_2d(q, a, b));
 }
 
-/// The closest parameter is in [0, 1].
+///  The closest parameter is in [0, 1].
 pub proof fn lemma_closest_parameter_3d_bounds<T: OrderedField>(
     q: Point3<T>, a: Point3<T>, b: Point3<T>,
 )
@@ -175,4 +175,4 @@ pub proof fn lemma_closest_parameter_3d_bounds<T: OrderedField>(
     lemma_clamp01_bounds::<T>(segment_project_parameter_3d(q, a, b));
 }
 
-} // verus!
+} //  verus!

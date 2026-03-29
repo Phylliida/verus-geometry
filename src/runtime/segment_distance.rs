@@ -17,7 +17,7 @@ use verus_linalg::vec3::ops::{dot, scale, norm_sq};
 #[cfg(verus_keep_ghost)]
 verus! {
 
-/// Compute the 5 Gram matrix entries for lines (a,b) and (c,d).
+///  Compute the 5 Gram matrix entries for lines (a,b) and (c,d).
 pub fn gram_entries_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -48,7 +48,7 @@ pub fn gram_entries_exec(
     (uu, vv, uv, uw, vw)
 }
 
-/// Compute the Gram determinant: uu*vv - uv^2.
+///  Compute the Gram determinant: uu*vv - uv^2.
 pub fn gram_determinant_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -66,7 +66,7 @@ pub fn gram_determinant_exec(
     uu.mul(&vv).sub(&uv.mul(&uv))
 }
 
-/// Closest-approach parameter s on line (a,b).
+///  Closest-approach parameter s on line (a,b).
 pub fn closest_parameter_s_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -87,7 +87,7 @@ pub fn closest_parameter_s_exec(
     numer.div(&denom)
 }
 
-/// Closest-approach parameter t on line (c,d).
+///  Closest-approach parameter t on line (c,d).
 pub fn closest_parameter_t_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -108,7 +108,7 @@ pub fn closest_parameter_t_exec(
     numer.div(&denom)
 }
 
-/// Squared distance between closest approach points on two lines.
+///  Squared distance between closest approach points on two lines.
 pub fn line_line_squared_distance_exec(
     a: &RuntimePoint3, b: &RuntimePoint3,
     c: &RuntimePoint3, d: &RuntimePoint3,
@@ -125,17 +125,17 @@ pub fn line_line_squared_distance_exec(
 {
     let s = closest_parameter_s_exec(a, b, c, d);
     let t = closest_parameter_t_exec(a, b, c, d);
-    // p1 = a + s*(b-a)
+    //  p1 = a + s*(b-a)
     let u = sub3_exec(b, a);
     let su = RuntimeVec3::scale_exec(&s, &u);
     let p1 = add_vec3_exec(a, &su);
-    // p2 = c + t*(d-c)
+    //  p2 = c + t*(d-c)
     let v = sub3_exec(d, c);
     let tv = RuntimeVec3::scale_exec(&t, &v);
     let p2 = add_vec3_exec(c, &tv);
-    // ||p1 - p2||^2
+    //  ||p1 - p2||^2
     let diff = sub3_exec(&p1, &p2);
     diff.norm_sq_exec()
 }
 
-} // verus!
+} //  verus!

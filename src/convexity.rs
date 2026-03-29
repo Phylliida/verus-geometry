@@ -7,13 +7,13 @@ use crate::convex_polygon::*;
 
 verus! {
 
-// =========================================================================
-// Local convexity predicates (consecutive triples only)
-// =========================================================================
+//  =========================================================================
+//  Local convexity predicates (consecutive triples only)
+//  =========================================================================
 
-/// All consecutive vertex triples have non-negative (CCW) orientation.
-/// WARNING: This is necessary but NOT sufficient for true convexity —
-/// it admits star polygons (see docs/convexity-redesign.md).
+///  All consecutive vertex triples have non-negative (CCW) orientation.
+///  WARNING: This is necessary but NOT sufficient for true convexity —
+///  it admits star polygons (see docs/convexity-redesign.md).
 pub open spec fn is_locally_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T>>) -> bool {
     &&& polygon.len() >= 3
     &&& (forall|i: int| 0 <= i < polygon.len() ==> {
@@ -23,9 +23,9 @@ pub open spec fn is_locally_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T
     })
 }
 
-/// All consecutive vertex triples have strictly positive (CCW) orientation.
-/// WARNING: This is necessary but NOT sufficient for true strict convexity —
-/// it admits star polygons (see docs/convexity-redesign.md).
+///  All consecutive vertex triples have strictly positive (CCW) orientation.
+///  WARNING: This is necessary but NOT sufficient for true strict convexity —
+///  it admits star polygons (see docs/convexity-redesign.md).
 pub open spec fn is_locally_strictly_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T>>) -> bool {
     &&& polygon.len() >= 3
     &&& (forall|i: int| 0 <= i < polygon.len() ==> {
@@ -35,13 +35,13 @@ pub open spec fn is_locally_strictly_convex_polygon<T: OrderedRing>(polygon: Seq
     })
 }
 
-// =========================================================================
-// Global convexity predicates (half-plane definition)
-// =========================================================================
+//  =========================================================================
+//  Global convexity predicates (half-plane definition)
+//  =========================================================================
 
-/// Every vertex lies on the non-negative side of every directed edge.
-/// This is the standard mathematical definition: the polygon is the
-/// intersection of half-planes defined by its edges.
+///  Every vertex lies on the non-negative side of every directed edge.
+///  This is the standard mathematical definition: the polygon is the
+///  intersection of half-planes defined by its edges.
 pub open spec fn is_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T>>) -> bool {
     &&& polygon.len() >= 3
     &&& (forall|i: int, j: int|
@@ -51,8 +51,8 @@ pub open spec fn is_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T>>) -> b
     })
 }
 
-/// Every non-adjacent vertex is strictly on the positive side of every
-/// directed edge, and the polygon is (globally) convex.
+///  Every non-adjacent vertex is strictly on the positive side of every
+///  directed edge, and the polygon is (globally) convex.
 pub open spec fn is_strictly_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<T>>) -> bool {
     &&& is_convex_polygon(polygon)
     &&& (forall|i: int, j: int|
@@ -63,12 +63,12 @@ pub open spec fn is_strictly_convex_polygon<T: OrderedRing>(polygon: Seq<Point2<
     })
 }
 
-// =========================================================================
-// Relationships between local and global convexity
-// =========================================================================
+//  =========================================================================
+//  Relationships between local and global convexity
+//  =========================================================================
 
-/// Global convexity implies local convexity (consecutive triples are
-/// a special case of all pairs).
+///  Global convexity implies local convexity (consecutive triples are
+///  a special case of all pairs).
 pub proof fn lemma_convex_implies_locally_convex<T: OrderedRing>(
     polygon: Seq<Point2<T>>,
 )
@@ -85,16 +85,16 @@ pub proof fn lemma_convex_implies_locally_convex<T: OrderedRing>(
     } by {
         let j = polygon_next_index(n, i);
         let k = polygon_next_index(n, j);
-        // k is a vertex, so the global condition with edge (i, j) and vertex k applies.
-        // We need: 0 <= k < n. polygon_next_index always returns a value in [0, n).
+        //  k is a vertex, so the global condition with edge (i, j) and vertex k applies.
+        //  We need: 0 <= k < n. polygon_next_index always returns a value in [0, n).
         assert(0 <= k < n);
-        // The global condition gives !orient2d_negative(polygon[i], polygon[j], polygon[k])
-        // since polygon[j] == polygon[next_i] by definition of j.
+        //  The global condition gives !orient2d_negative(polygon[i], polygon[j], polygon[k])
+        //  since polygon[j] == polygon[next_i] by definition of j.
         assert(!orient2d_negative(polygon[i], polygon[j], polygon[k]));
     }
 }
 
-/// A locally strictly convex polygon is also locally convex.
+///  A locally strictly convex polygon is also locally convex.
 pub proof fn lemma_locally_strictly_convex_implies_locally_convex<T: OrderedRing>(
     polygon: Seq<Point2<T>>,
 )
@@ -114,7 +114,7 @@ pub proof fn lemma_locally_strictly_convex_implies_locally_convex<T: OrderedRing
     }
 }
 
-/// A strictly convex polygon is also convex (global versions).
+///  A strictly convex polygon is also convex (global versions).
 pub proof fn lemma_strictly_convex_implies_convex<T: OrderedRing>(
     polygon: Seq<Point2<T>>,
 )
@@ -123,19 +123,19 @@ pub proof fn lemma_strictly_convex_implies_convex<T: OrderedRing>(
     ensures
         is_convex_polygon(polygon),
 {
-    // Direct from definition: is_strictly_convex_polygon includes is_convex_polygon.
+    //  Direct from definition: is_strictly_convex_polygon includes is_convex_polygon.
 }
 
-// =========================================================================
-// Vertex-in-polygon lemma (now trivial from global definition)
-// =========================================================================
+//  =========================================================================
+//  Vertex-in-polygon lemma (now trivial from global definition)
+//  =========================================================================
 
-/// Every vertex of a convex polygon is inside the polygon (boundary inclusive).
+///  Every vertex of a convex polygon is inside the polygon (boundary inclusive).
 ///
-/// With the global half-plane definition, this is immediate: every vertex
-/// is on the non-negative side of every edge (by definition), so no vertex
-/// can see both Positive and Negative signs, which is exactly the
-/// point_in_convex_polygon_boundary_inclusive predicate.
+///  With the global half-plane definition, this is immediate: every vertex
+///  is on the non-negative side of every edge (by definition), so no vertex
+///  can see both Positive and Negative signs, which is exactly the
+///  point_in_convex_polygon_boundary_inclusive predicate.
 pub proof fn lemma_vertex_in_convex_polygon<T: OrderedRing>(
     polygon: Seq<Point2<T>>, k: int,
 )
@@ -148,30 +148,30 @@ pub proof fn lemma_vertex_in_convex_polygon<T: OrderedRing>(
     let p = polygon[k];
     let n = polygon.len() as int;
 
-    // We need: !(has_positive && has_negative)
-    // i.e., NOT (exists edge with Positive AND exists edge with Negative).
+    //  We need: !(has_positive && has_negative)
+    //  i.e., NOT (exists edge with Positive AND exists edge with Negative).
     //
-    // From is_convex_polygon, for all edges i:
-    //   !orient2d_negative(polygon[i], polygon[next(i)], polygon[k])
-    // This means no edge gives Negative orientation for vertex k.
-    // So polygon_has_negative_sign(p, polygon) is false.
+    //  From is_convex_polygon, for all edges i:
+    //    !orient2d_negative(polygon[i], polygon[next(i)], polygon[k])
+    //  This means no edge gives Negative orientation for vertex k.
+    //  So polygon_has_negative_sign(p, polygon) is false.
 
-    // Show that no edge has negative sign for point p = polygon[k]
+    //  Show that no edge has negative sign for point p = polygon[k]
     assert forall|i: int| 0 <= i < n implies
         polygon_edge_orient_sign(p, polygon, i) != OrientationSign::Negative
     by {
         let next_i = polygon_next_index(n, i);
-        // From is_convex_polygon: !orient2d_negative(polygon[i], polygon[next_i], polygon[k])
+        //  From is_convex_polygon: !orient2d_negative(polygon[i], polygon[next_i], polygon[k])
         assert(!orient2d_negative(polygon[i], polygon[next_i], polygon[k]));
-        // polygon_edge_orient_sign(p, polygon, i) = orient2d_sign(polygon[i], polygon[next_i], p)
-        // and p == polygon[k], so this is orient2d_sign(polygon[i], polygon[next_i], polygon[k])
+        //  polygon_edge_orient_sign(p, polygon, i) = orient2d_sign(polygon[i], polygon[next_i], p)
+        //  and p == polygon[k], so this is orient2d_sign(polygon[i], polygon[next_i], polygon[k])
         lemma_orient2d_sign_matches::<T>(polygon[i], polygon[next_i], p);
-        // orient2d_sign == Negative iff orient2d_negative, and we have !orient2d_negative
+        //  orient2d_sign == Negative iff orient2d_negative, and we have !orient2d_negative
     }
 
-    // Therefore polygon_has_negative_sign(p, polygon) is false
-    // (no witness exists in [0, n))
+    //  Therefore polygon_has_negative_sign(p, polygon) is false
+    //  (no witness exists in [0, n))
     assert(!polygon_has_negative_sign(p, polygon));
 }
 
-} // verus!
+} //  verus!

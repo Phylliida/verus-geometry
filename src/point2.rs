@@ -5,18 +5,18 @@ use vstd::prelude::*;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Point2 type
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point2 type
+//  ---------------------------------------------------------------------------
 
 pub struct Point2<T: Ring> {
     pub x: T,
     pub y: T,
 }
 
-// ---------------------------------------------------------------------------
-// Equivalence
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Equivalence
+//  ---------------------------------------------------------------------------
 
 impl<T: Ring> Equivalence for Point2<T> {
     open spec fn eqv(self, other: Self) -> bool {
@@ -46,25 +46,25 @@ impl<T: Ring> Equivalence for Point2<T> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Point-vector operations
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Point-vector operations
+//  ---------------------------------------------------------------------------
 
-/// Point subtraction: point - point = vector
+///  Point subtraction: point - point = vector
 pub open spec fn sub2<T: Ring>(a: Point2<T>, b: Point2<T>) -> Vec2<T> {
     Vec2 { x: a.x.sub(b.x), y: a.y.sub(b.y) }
 }
 
-/// Point-vector addition: point + vector = point
+///  Point-vector addition: point + vector = point
 pub open spec fn add_vec2<T: Ring>(p: Point2<T>, v: Vec2<T>) -> Point2<T> {
     Point2 { x: p.x.add(v.x), y: p.y.add(v.y) }
 }
 
-// ---------------------------------------------------------------------------
-// Lemmas
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Lemmas
+//  ---------------------------------------------------------------------------
 
-/// sub2(a, a) ≡ Vec2::zero()
+///  sub2(a, a) ≡ Vec2::zero()
 pub proof fn lemma_sub2_self_zero<T: Ring>(a: Point2<T>)
     ensures
         sub2(a, a).eqv(Vec2 { x: T::zero(), y: T::zero() }),
@@ -73,49 +73,49 @@ pub proof fn lemma_sub2_self_zero<T: Ring>(a: Point2<T>)
     additive_group_lemmas::lemma_sub_self::<T>(a.y);
 }
 
-/// sub2(add_vec2(b, t), add_vec2(a, t)) ≡ sub2(b, a)
+///  sub2(add_vec2(b, t), add_vec2(a, t)) ≡ sub2(b, a)
 pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2<T>)
     ensures
         sub2(add_vec2(b, t), add_vec2(a, t)).eqv(sub2(b, a)),
 {
-    // (b.x + t.x) - (a.x + t.x) ≡ b.x - a.x
+    //  (b.x + t.x) - (a.x + t.x) ≡ b.x - a.x
     additive_group_lemmas::lemma_add_then_sub_cancel::<T>(b.x.sub(a.x), t.x);
-    // Need: (b.x+t.x)-(a.x+t.x) ≡ (b.x-a.x+t.x)-t.x ≡ b.x-a.x
-    // Actually use: (b.x+t.x) - (a.x+t.x) directly
-    // sub_add_sub: a.sub(b).add(b.sub(c)) ≡ a.sub(c)
-    // Let's use a different approach: expand and cancel
-    // (b.x + t.x) - (a.x + t.x)
-    // = (b.x + t.x) + (-(a.x + t.x))
-    // = (b.x + t.x) + (-a.x + -t.x)     [neg_add]
-    // We need to show this equals b.x - a.x
+    //  Need: (b.x+t.x)-(a.x+t.x) ≡ (b.x-a.x+t.x)-t.x ≡ b.x-a.x
+    //  Actually use: (b.x+t.x) - (a.x+t.x) directly
+    //  sub_add_sub: a.sub(b).add(b.sub(c)) ≡ a.sub(c)
+    //  Let's use a different approach: expand and cancel
+    //  (b.x + t.x) - (a.x + t.x)
+    //  = (b.x + t.x) + (-(a.x + t.x))
+    //  = (b.x + t.x) + (-a.x + -t.x)     [neg_add]
+    //  We need to show this equals b.x - a.x
 
-    // Component x:
-    // (b.x+t.x).sub(a.x+t.x) ≡ b.x.sub(a.x)
+    //  Component x:
+    //  (b.x+t.x).sub(a.x+t.x) ≡ b.x.sub(a.x)
     additive_group_lemmas::lemma_neg_add::<T>(a.x, t.x);
-    // -(a.x+t.x) ≡ -a.x + -t.x
+    //  -(a.x+t.x) ≡ -a.x + -t.x
     T::axiom_sub_is_add_neg(b.x.add(t.x), a.x.add(t.x));
-    // (b.x+t.x)-(a.x+t.x) ≡ (b.x+t.x)+-(a.x+t.x)
+    //  (b.x+t.x)-(a.x+t.x) ≡ (b.x+t.x)+-(a.x+t.x)
     additive_group_lemmas::lemma_add_congruence_right::<T>(
         b.x.add(t.x),
         a.x.add(t.x).neg(),
         a.x.neg().add(t.x.neg()),
     );
-    // (b.x+t.x)+-(a.x+t.x) ≡ (b.x+t.x)+(-a.x+-t.x)
+    //  (b.x+t.x)+-(a.x+t.x) ≡ (b.x+t.x)+(-a.x+-t.x)
     T::axiom_eqv_transitive(
         b.x.add(t.x).sub(a.x.add(t.x)),
         b.x.add(t.x).add(a.x.add(t.x).neg()),
         b.x.add(t.x).add(a.x.neg().add(t.x.neg())),
     );
-    // (b.x+t.x)+(-a.x+-t.x) rearrange via 2x2: (b.x+(-a.x))+(t.x+(-t.x))
+    //  (b.x+t.x)+(-a.x+-t.x) rearrange via 2x2: (b.x+(-a.x))+(t.x+(-t.x))
     additive_group_lemmas::lemma_add_rearrange_2x2::<T>(b.x, t.x, a.x.neg(), t.x.neg());
     T::axiom_eqv_transitive(
         b.x.add(t.x).sub(a.x.add(t.x)),
         b.x.add(t.x).add(a.x.neg().add(t.x.neg())),
         b.x.add(a.x.neg()).add(t.x.add(t.x.neg())),
     );
-    // t.x + -t.x ≡ 0
+    //  t.x + -t.x ≡ 0
     T::axiom_add_inverse_right(t.x);
-    // b.x+(-a.x) + (t.x+(-t.x)) ≡ b.x+(-a.x) + 0
+    //  b.x+(-a.x) + (t.x+(-t.x)) ≡ b.x+(-a.x) + 0
     additive_group_lemmas::lemma_add_congruence_right::<T>(
         b.x.add(a.x.neg()),
         t.x.add(t.x.neg()),
@@ -132,7 +132,7 @@ pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2
         b.x.add(a.x.neg()).add(T::zero()),
         b.x.add(a.x.neg()),
     );
-    // b.x+(-a.x) ≡ b.x-a.x
+    //  b.x+(-a.x) ≡ b.x-a.x
     T::axiom_sub_is_add_neg(b.x, a.x);
     T::axiom_eqv_symmetric(b.x.sub(a.x), b.x.add(a.x.neg()));
     T::axiom_eqv_transitive(
@@ -141,7 +141,7 @@ pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2
         b.x.sub(a.x),
     );
 
-    // Component y: same argument
+    //  Component y: same argument
     additive_group_lemmas::lemma_neg_add::<T>(a.y, t.y);
     T::axiom_sub_is_add_neg(b.y.add(t.y), a.y.add(t.y));
     additive_group_lemmas::lemma_add_congruence_right::<T>(
@@ -186,7 +186,7 @@ pub proof fn lemma_sub2_translation<T: Ring>(a: Point2<T>, b: Point2<T>, t: Vec2
     );
 }
 
-/// (a - p) - (b - p) ≡ a - b for Ring elements (componentwise helper).
+///  (a - p) - (b - p) ≡ a - b for Ring elements (componentwise helper).
 pub proof fn lemma_sub_rebase_component<T: Ring>(a: T, b: T, p: T)
     ensures
         a.sub(p).sub(b.sub(p)).eqv(a.sub(b)),
@@ -250,7 +250,7 @@ pub proof fn lemma_sub_rebase_component<T: Ring>(a: T, b: T, p: T)
     );
 }
 
-/// sub2(a, b) ≡ sub2(a, p).sub(sub2(b, p)) — rebase point subtraction.
+///  sub2(a, b) ≡ sub2(a, p).sub(sub2(b, p)) — rebase point subtraction.
 pub proof fn lemma_sub2_rebase<T: Ring>(a: Point2<T>, b: Point2<T>, p: Point2<T>)
     ensures
         sub2(a, b).eqv(sub2(a, p).sub(sub2(b, p))),
@@ -261,7 +261,7 @@ pub proof fn lemma_sub2_rebase<T: Ring>(a: Point2<T>, b: Point2<T>, p: Point2<T>
     T::axiom_eqv_symmetric(a.y.sub(p.y).sub(b.y.sub(p.y)), a.y.sub(b.y));
 }
 
-/// sub2(a, b) ≡ sub2(b, a).neg()
+///  sub2(a, b) ≡ sub2(b, a).neg()
 pub proof fn lemma_sub2_antisymmetric<T: Ring>(a: Point2<T>, b: Point2<T>)
     ensures
         sub2(a, b).eqv(sub2(b, a).neg()),
@@ -270,4 +270,4 @@ pub proof fn lemma_sub2_antisymmetric<T: Ring>(a: Point2<T>, b: Point2<T>)
     additive_group_lemmas::lemma_sub_antisymmetric::<T>(a.y, b.y);
 }
 
-} // verus!
+} //  verus!

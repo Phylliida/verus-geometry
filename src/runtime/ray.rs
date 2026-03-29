@@ -17,11 +17,11 @@ use crate::ray::*;
 #[cfg(verus_keep_ghost)]
 verus! {
 
-// ---------------------------------------------------------------------------
-// Per-axis slab helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Per-axis slab helpers
+//  ---------------------------------------------------------------------------
 
-/// Check if ray is parallel to axis and misses slab.
+///  Check if ray is parallel to axis and misses slab.
 fn axis_parallel_miss_exec(
     origin_c: &RuntimeRational, dir_c: &RuntimeRational,
     min_c: &RuntimeRational, max_c: &RuntimeRational,
@@ -41,7 +41,7 @@ fn axis_parallel_miss_exec(
     }
 }
 
-/// Compute t_near for a non-parallel axis.
+///  Compute t_near for a non-parallel axis.
 fn slab_t_near_exec(
     origin_c: &RuntimeRational, dir_c: &RuntimeRational,
     min_c: &RuntimeRational, max_c: &RuntimeRational,
@@ -62,7 +62,7 @@ fn slab_t_near_exec(
     }
 }
 
-/// Compute t_far for a non-parallel axis.
+///  Compute t_far for a non-parallel axis.
 fn slab_t_far_exec(
     origin_c: &RuntimeRational, dir_c: &RuntimeRational,
     min_c: &RuntimeRational, max_c: &RuntimeRational,
@@ -83,11 +83,11 @@ fn slab_t_far_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3D slab t_enter / t_exit helpers (extracted to reduce Z3 path explosion)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D slab t_enter / t_exit helpers (extracted to reduce Z3 path explosion)
+//  ---------------------------------------------------------------------------
 
-/// Compute t_enter = max(0, t_near for non-parallel axes) at runtime (3D).
+///  Compute t_enter = max(0, t_near for non-parallel axes) at runtime (3D).
 fn slab_t_enter_3d_exec(
     origin: &RuntimePoint3, dir: &RuntimePoint3,
     aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
@@ -120,7 +120,7 @@ fn slab_t_enter_3d_exec(
     t
 }
 
-/// Compute t_exit = min(t_far for non-parallel axes) at runtime (3D).
+///  Compute t_exit = min(t_far for non-parallel axes) at runtime (3D).
 fn slab_t_exit_3d_exec(
     origin: &RuntimePoint3, dir: &RuntimePoint3,
     aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
@@ -171,11 +171,11 @@ fn slab_t_exit_3d_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3D ray-AABB exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  3D ray-AABB exec
+//  ---------------------------------------------------------------------------
 
-/// Ray-AABB intersection test (3D) at runtime.
+///  Ray-AABB intersection test (3D) at runtime.
 pub fn ray_hits_aabb3_exec(
     origin: &RuntimePoint3, dir: &RuntimePoint3,
     aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
@@ -205,11 +205,11 @@ pub fn ray_hits_aabb3_exec(
     t_enter.le(&t_exit)
 }
 
-// ---------------------------------------------------------------------------
-// 2D slab t_enter / t_exit helpers
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D slab t_enter / t_exit helpers
+//  ---------------------------------------------------------------------------
 
-/// Compute t_enter = max(0, t_near for non-parallel axes) at runtime (2D).
+///  Compute t_enter = max(0, t_near for non-parallel axes) at runtime (2D).
 fn slab_t_enter_2d_exec(
     origin: &RuntimePoint2, dir: &RuntimePoint2,
     aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
@@ -238,7 +238,7 @@ fn slab_t_enter_2d_exec(
     t
 }
 
-/// Compute t_exit = min(t_far for non-parallel axes) at runtime (2D).
+///  Compute t_exit = min(t_far for non-parallel axes) at runtime (2D).
 fn slab_t_exit_2d_exec(
     origin: &RuntimePoint2, dir: &RuntimePoint2,
     aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
@@ -271,11 +271,11 @@ fn slab_t_exit_2d_exec(
     }
 }
 
-// ---------------------------------------------------------------------------
-// 2D ray-AABB exec
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  2D ray-AABB exec
+//  ---------------------------------------------------------------------------
 
-/// Ray-AABB intersection test (2D) at runtime.
+///  Ray-AABB intersection test (2D) at runtime.
 pub fn ray_hits_aabb2_exec(
     origin: &RuntimePoint2, dir: &RuntimePoint2,
     aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
@@ -302,4 +302,4 @@ pub fn ray_hits_aabb2_exec(
     t_enter.le(&t_exit)
 }
 
-} // verus!
+} //  verus!

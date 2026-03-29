@@ -26,7 +26,7 @@ This is the single highest-ROI optimization pattern for Verus runtime code: if a
 The inner loop carried a quantifier restating that all *previous outer iterations* still hold:
 
 ```rust
-// REMOVED — Verus preserves facts about non-modified variables
+//  REMOVED — Verus preserves facts about non-modified variables
 forall|ii: int, jj: int|
     0 <= ii < i && 0 <= jj < polygon.model().len() ==> {
         let next_ii = polygon_next_index(n, ii);
@@ -46,12 +46,12 @@ Since the inner loop only modifies `j` (not `i` or `polygon`), Verus/Z3 automati
 Changed `RuntimePolygon2::model()`:
 
 ```rust
-// BEFORE — Seq::map requires axiom unfolding
+//  BEFORE — Seq::map requires axiom unfolding
 pub open spec fn model(&self) -> Seq<Point2<RationalModel>> {
     self.vertices@.map(|_i: int, v: RuntimePoint2| v@)
 }
 
-// AFTER — Seq::new triggers fire automatically
+//  AFTER — Seq::new triggers fire automatically
 pub open spec fn model(&self) -> Seq<Point2<RationalModel>> {
     Seq::new(self.vertices@.len(), |i: int| self.vertices@[i]@)
 }
@@ -88,13 +88,13 @@ Z3 needs the explicit assertions to guide its search. The witness (`polygon_edge
 Invariant quantifiers referenced `polygon.model().len() as int` which expands to `Seq::new(self.vertices@.len(), ...).len()`. Z3 must apply the `Seq::new(n, f).len() == n` axiom every time it instantiates the quantifier. Since `n == polygon.vertices@.len()` is already in the invariant, replacing with `n as int` avoids the axiom application entirely:
 
 ```rust
-// BEFORE — Z3 must prove Seq::new(n, f).len() == n on each instantiation
+//  BEFORE — Z3 must prove Seq::new(n, f).len() == n on each instantiation
 forall|k: int| 0 <= k < i ==> {
     let j = polygon_next_index(polygon.model().len() as int, k);
     ...
 }
 
-// AFTER — n is already a concrete usize, no axiom needed
+//  AFTER — n is already a concrete usize, no axiom needed
 forall|k: int| 0 <= k < i ==> {
     let j = polygon_next_index(n as int, k);
     ...
@@ -105,7 +105,7 @@ forall|k: int| 0 <= k < i ==> {
 
 ## 6. Remove empty proof blocks
 
-Empty `proof { // comment }` blocks left over from removing assertions can be safely deleted — they add no verification cost but add noise. However, don't remove proof blocks that contain *any* assertions, even ones that look redundant (see finding 4).
+Empty `proof { //  comment }` blocks left over from removing assertions can be safely deleted — they add no verification cost but add noise. However, don't remove proof blocks that contain *any* assertions, even ones that look redundant (see finding 4).
 
 ## Summary of rlimit reductions
 

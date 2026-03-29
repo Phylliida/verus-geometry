@@ -9,18 +9,18 @@ use crate::convex_polygon::polygon_next_index;
 
 verus! {
 
-// ---------------------------------------------------------------------------
-// Spec functions
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Spec functions
+//  ---------------------------------------------------------------------------
 
-/// Cross product of two points treated as position vectors from origin:
-/// cross_origin(p, q) = p.x * q.y - p.y * q.x
+///  Cross product of two points treated as position vectors from origin:
+///  cross_origin(p, q) = p.x * q.y - p.y * q.x
 pub open spec fn cross_origin<T: Ring>(p: Point2<T>, q: Point2<T>) -> T {
     p.x.mul(q.y).sub(p.y.mul(q.x))
 }
 
-/// Recursive prefix sum of shoelace terms for edges [0, k).
-/// Each term is cross_origin(polygon[i], polygon[(i+1) % n]).
+///  Recursive prefix sum of shoelace terms for edges [0, k).
+///  Each term is cross_origin(polygon[i], polygon[(i+1) % n]).
 pub open spec fn signed_area_2x_prefix<T: Ring>(
     polygon: Seq<Point2<T>>, k: int,
 ) -> T
@@ -38,34 +38,34 @@ pub open spec fn signed_area_2x_prefix<T: Ring>(
     }
 }
 
-/// Twice the signed area of a simple polygon (shoelace formula).
-/// Positive for CCW winding, negative for CW, zero for degenerate.
+///  Twice the signed area of a simple polygon (shoelace formula).
+///  Positive for CCW winding, negative for CW, zero for degenerate.
 pub open spec fn signed_area_2x<T: Ring>(polygon: Seq<Point2<T>>) -> T
     recommends polygon.len() >= 3,
 {
     signed_area_2x_prefix(polygon, polygon.len() as int)
 }
 
-// ---------------------------------------------------------------------------
-// Lemma: cross_origin relates to det2d
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Lemma: cross_origin relates to det2d
+//  ---------------------------------------------------------------------------
 
-/// cross_origin(p, q) ≡ det2d(Vec2{p.x, p.y}, Vec2{q.x, q.y})
+///  cross_origin(p, q) ≡ det2d(Vec2{p.x, p.y}, Vec2{q.x, q.y})
 pub proof fn lemma_cross_origin_is_det2d<T: Ring>(p: Point2<T>, q: Point2<T>)
     ensures
         cross_origin(p, q).eqv(
             det2d(Vec2 { x: p.x, y: p.y }, Vec2 { x: q.x, y: q.y })
         ),
 {
-    // Both expand to p.x.mul(q.y).sub(p.y.mul(q.x))
+    //  Both expand to p.x.mul(q.y).sub(p.y.mul(q.x))
     T::axiom_eqv_reflexive(cross_origin(p, q));
 }
 
-// ---------------------------------------------------------------------------
-// Prefix sum unfold (for exec loop invariant)
-// ---------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------
+//  Prefix sum unfold (for exec loop invariant)
+//  ---------------------------------------------------------------------------
 
-/// Adding one more edge term to the prefix sum.
+///  Adding one more edge term to the prefix sum.
 pub proof fn lemma_prefix_unfold<T: Ring>(
     polygon: Seq<Point2<T>>, k: int,
 )
@@ -81,10 +81,10 @@ pub proof fn lemma_prefix_unfold<T: Ring>(
                 )
             ),
 {
-    // Direct from definition
+    //  Direct from definition
 }
 
-/// For a triangle [a, b, c], the shoelace area equals orient2d(a, b, c).
+///  For a triangle [a, b, c], the shoelace area equals orient2d(a, b, c).
 pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>,
 )
@@ -93,7 +93,7 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
 {
     let poly = seq![a, b, c];
 
-    // Help Verus unfold the prefix sum
+    //  Help Verus unfold the prefix sum
     assert(poly.len() == 3);
     assert(poly[0] == a);
     assert(poly[1] == b);
@@ -106,7 +106,7 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
     let co_bc = cross_origin(b, c);
     let co_ca = cross_origin(c, a);
 
-    // Help Verus unfold the recursive prefix sum
+    //  Help Verus unfold the recursive prefix sum
     assert(signed_area_2x_prefix(poly, 0) == T::zero());
     assert(signed_area_2x_prefix(poly, 1) == T::zero().add(co_ab));
     assert(signed_area_2x_prefix(poly, 2) == T::zero().add(co_ab).add(co_bc));
@@ -115,7 +115,7 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
     let sa = T::zero().add(co_ab).add(co_bc).add(co_ca);
     assert(signed_area_2x(poly) == sa);
 
-    // Vec2 versions for det2d calls
+    //  Vec2 versions for det2d calls
     let a_v = Vec2 { x: a.x, y: a.y };
     let b_v = Vec2 { x: b.x, y: b.y };
     let c_v = Vec2 { x: c.x, y: c.y };
@@ -126,38 +126,38 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
     let ba = det2d(b_v, a_v);
     let ac = det2d(a_v, c_v);
 
-    // === Part 1: signed_area ≡ ab + bc + ca ===
+    //  === Part 1: signed_area ≡ ab + bc + ca ===
 
-    // cross_origin ≡ det2d
-    lemma_cross_origin_is_det2d::<T>(a, b); // co_ab.eqv(ab)
-    lemma_cross_origin_is_det2d::<T>(b, c); // co_bc.eqv(bc)
-    lemma_cross_origin_is_det2d::<T>(c, a); // co_ca.eqv(ca)
+    //  cross_origin ≡ det2d
+    lemma_cross_origin_is_det2d::<T>(a, b); //  co_ab.eqv(ab)
+    lemma_cross_origin_is_det2d::<T>(b, c); //  co_bc.eqv(bc)
+    lemma_cross_origin_is_det2d::<T>(c, a); //  co_ca.eqv(ca)
 
-    // 0 + co_ab ≡ co_ab ≡ ab
+    //  0 + co_ab ≡ co_ab ≡ ab
     additive_group_lemmas::lemma_add_zero_left::<T>(co_ab);
     T::axiom_eqv_transitive(T::zero().add(co_ab), co_ab, ab);
 
-    // sa = ((0+co_ab)+co_bc)+co_ca ≡ (ab+bc)+ca
+    //  sa = ((0+co_ab)+co_bc)+co_ca ≡ (ab+bc)+ca
     additive_group_lemmas::lemma_add_congruence::<T>(
         T::zero().add(co_ab), ab, co_bc, bc,
     );
     additive_group_lemmas::lemma_add_congruence::<T>(
         T::zero().add(co_ab).add(co_bc), ab.add(bc), co_ca, ca,
     );
-    // → sa.eqv(ab.add(bc).add(ca))
+    //  → sa.eqv(ab.add(bc).add(ca))
 
-    // === Part 2: orient2d ≡ ab + bc + ca ===
+    //  === Part 2: orient2d ≡ ab + bc + ca ===
 
-    // orient2d(a,b,c) = det2d(sub2(b,a), sub2(c,a)) ≡ bc - ba - ac
+    //  orient2d(a,b,c) = det2d(sub2(b,a), sub2(c,a)) ≡ bc - ba - ac
     crate::barycentric::lemma_det2d_expand_vsub_qsub::<T>(a_v, b_v, c_v);
 
-    // Convert subs to add-negs:
-    // bc.sub(ba) ≡ bc.add(ba.neg())
+    //  Convert subs to add-negs:
+    //  bc.sub(ba) ≡ bc.add(ba.neg())
     T::axiom_sub_is_add_neg(bc, ba);
-    // bc.sub(ba).sub(ac) ≡ bc.sub(ba).add(ac.neg())
+    //  bc.sub(ba).sub(ac) ≡ bc.sub(ba).add(ac.neg())
     T::axiom_sub_is_add_neg(bc.sub(ba), ac);
 
-    // Propagate: bc.sub(ba).add(ac.neg()) ≡ bc.add(ba.neg()).add(ac.neg())
+    //  Propagate: bc.sub(ba).add(ac.neg()) ≡ bc.add(ba.neg()).add(ac.neg())
     T::axiom_eqv_reflexive(ac.neg());
     additive_group_lemmas::lemma_add_congruence::<T>(
         bc.sub(ba), bc.add(ba.neg()), ac.neg(), ac.neg(),
@@ -167,57 +167,57 @@ pub proof fn lemma_triangle_area_is_orient2d<T: Ring>(
         bc.sub(ba).add(ac.neg()),
         bc.add(ba.neg()).add(ac.neg()),
     );
-    // → bc.sub(ba).sub(ac) ≡ bc.add(ba.neg()).add(ac.neg())
+    //  → bc.sub(ba).sub(ac) ≡ bc.add(ba.neg()).add(ac.neg())
 
-    // Antisymmetry: ba.neg() ≡ ab, ac.neg() ≡ ca
-    lemma_det2d_antisymmetric::<T>(a_v, b_v); // ab.eqv(ba.neg())
-    T::axiom_eqv_symmetric(ab, ba.neg());     // ba.neg().eqv(ab)
-    lemma_det2d_antisymmetric::<T>(c_v, a_v); // ca.eqv(ac.neg())
-    T::axiom_eqv_symmetric(ca, ac.neg());     // ac.neg().eqv(ca)
+    //  Antisymmetry: ba.neg() ≡ ab, ac.neg() ≡ ca
+    lemma_det2d_antisymmetric::<T>(a_v, b_v); //  ab.eqv(ba.neg())
+    T::axiom_eqv_symmetric(ab, ba.neg());     //  ba.neg().eqv(ab)
+    lemma_det2d_antisymmetric::<T>(c_v, a_v); //  ca.eqv(ac.neg())
+    T::axiom_eqv_symmetric(ca, ac.neg());     //  ac.neg().eqv(ca)
 
-    // bc.add(ba.neg()).add(ac.neg()) ≡ bc.add(ab).add(ca)
+    //  bc.add(ba.neg()).add(ac.neg()) ≡ bc.add(ab).add(ca)
     T::axiom_eqv_reflexive(bc);
     additive_group_lemmas::lemma_add_congruence::<T>(bc, bc, ba.neg(), ab);
     additive_group_lemmas::lemma_add_congruence::<T>(
         bc.add(ba.neg()), bc.add(ab), ac.neg(), ca,
     );
 
-    // Chain: bc.sub(ba).sub(ac) ≡ bc.add(ab).add(ca)
+    //  Chain: bc.sub(ba).sub(ac) ≡ bc.add(ab).add(ca)
     T::axiom_eqv_transitive(
         bc.sub(ba).sub(ac),
         bc.add(ba.neg()).add(ac.neg()),
         bc.add(ab).add(ca),
     );
 
-    // Commutativity: bc+ab ≡ ab+bc, so bc+ab+ca ≡ ab+bc+ca
+    //  Commutativity: bc+ab ≡ ab+bc, so bc+ab+ca ≡ ab+bc+ca
     T::axiom_add_commutative(bc, ab);
     T::axiom_eqv_reflexive(ca);
     additive_group_lemmas::lemma_add_congruence::<T>(
         bc.add(ab), ab.add(bc), ca, ca,
     );
 
-    // Chain: bc.sub(ba).sub(ac) ≡ ab+bc+ca
+    //  Chain: bc.sub(ba).sub(ac) ≡ ab+bc+ca
     T::axiom_eqv_transitive(
         bc.sub(ba).sub(ac),
         bc.add(ab).add(ca),
         ab.add(bc).add(ca),
     );
 
-    // orient2d ≡ bc.sub(ba).sub(ac) ≡ ab+bc+ca
+    //  orient2d ≡ bc.sub(ba).sub(ac) ≡ ab+bc+ca
     T::axiom_eqv_transitive(
         orient2d(a, b, c),
         bc.sub(ba).sub(ac),
         ab.add(bc).add(ca),
     );
 
-    // === Part 3: sa ≡ orient2d ===
-    // sa ≡ ab+bc+ca, orient2d ≡ ab+bc+ca → ab+bc+ca ≡ orient2d
+    //  === Part 3: sa ≡ orient2d ===
+    //  sa ≡ ab+bc+ca, orient2d ≡ ab+bc+ca → ab+bc+ca ≡ orient2d
     T::axiom_eqv_symmetric(orient2d(a, b, c), ab.add(bc).add(ca));
     T::axiom_eqv_transitive(sa, ab.add(bc).add(ca), orient2d(a, b, c));
 }
 
-/// For a triangle, signed area and orient2d have the same sign (both directions of lt).
-/// Follows from signed_area_2x ≡ orient2d + order congruence.
+///  For a triangle, signed area and orient2d have the same sign (both directions of lt).
+///  Follows from signed_area_2x ≡ orient2d + order congruence.
 pub proof fn lemma_triangle_area_orient2d_sign<T: OrderedRing>(
     a: Point2<T>, b: Point2<T>, c: Point2<T>,
 )
@@ -233,29 +233,29 @@ pub proof fn lemma_triangle_area_orient2d_sign<T: OrderedRing>(
     let z = T::zero();
     T::axiom_eqv_reflexive(z);
 
-    // lemma_lt_congruence_both(a, c, b, d): a<b, a≡c, b≡d → c<d
+    //  lemma_lt_congruence_both(a, c, b, d): a<b, a≡c, b≡d → c<d
 
-    // 0 < sa <==> 0 < orient2d
+    //  0 < sa <==> 0 < orient2d
     if z.lt(sa) {
-        // a=z, c=z, b=sa, d=o: z<sa, z≡z, sa≡o → z<o
+        //  a=z, c=z, b=sa, d=o: z<sa, z≡z, sa≡o → z<o
         ordered_ring_lemmas::lemma_lt_congruence_both::<T>(z, z, sa, o);
     }
     if z.lt(o) {
         T::axiom_eqv_symmetric(sa, o);
-        // a=z, c=z, b=o, d=sa: z<o, z≡z, o≡sa → z<sa
+        //  a=z, c=z, b=o, d=sa: z<o, z≡z, o≡sa → z<sa
         ordered_ring_lemmas::lemma_lt_congruence_both::<T>(z, z, o, sa);
     }
 
-    // sa < 0 <==> orient2d < 0
+    //  sa < 0 <==> orient2d < 0
     if sa.lt(z) {
-        // a=sa, c=o, b=z, d=z: sa<z, sa≡o, z≡z → o<z
+        //  a=sa, c=o, b=z, d=z: sa<z, sa≡o, z≡z → o<z
         ordered_ring_lemmas::lemma_lt_congruence_both::<T>(sa, o, z, z);
     }
     if o.lt(z) {
         T::axiom_eqv_symmetric(sa, o);
-        // a=o, c=sa, b=z, d=z: o<z, o≡sa, z≡z → sa<z
+        //  a=o, c=sa, b=z, d=z: o<z, o≡sa, z≡z → sa<z
         ordered_ring_lemmas::lemma_lt_congruence_both::<T>(o, sa, z, z);
     }
 }
 
-} // verus!
+} //  verus!
