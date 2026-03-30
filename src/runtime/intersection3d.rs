@@ -10,7 +10,7 @@ use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
 use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
-use super::point3::{RuntimePoint3, sub3_exec, add_vec3_exec};
+use super::point3::RuntimePoint3;
 #[cfg(verus_keep_ghost)]
 use super::orient::{orient2d_exec, orient3d_exec};
 #[cfg(verus_keep_ghost)]
@@ -81,11 +81,8 @@ pub fn segment_plane_intersection_point_exec<R: RuntimeOrderedFieldOps<V>, V: Or
         out.model@ == segment_plane_intersection_point::<V>(d.model@, e.model@, a.model@, b.model@, c.model@),
 {
     let t = segment_plane_intersection_parameter_exec(d, e, a, b, c);
-    let (dx, dy, dz) = e.sub(d);
-    let tx = t.mul(&dx);
-    let ty = t.mul(&dy);
-    let tz = t.mul(&dz);
-    d.add(&RuntimePoint3::new(&tx, &ty, &tz))
+    let dir = e.sub(d);
+    d.add(&dir.scale(&t))
 }
 
 pub fn project_drop_z_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -138,11 +135,11 @@ pub fn triangle_projection_axis_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFie
 {
     let ba = b.sub(a);
     let ca = c.sub(a);
-    let n = &ba.cross(&ca);
-    let zero = n.0.zero_like();
-    if !n.0.eq(&zero) {
+    let n = ba.cross(&ca);
+    let zero = n.x.zero_like();
+    if !n.x.eq(&zero) {
         0u8
-    } else if !n.1.eq(&zero) {
+    } else if !n.y.eq(&zero) {
         1u8
     } else {
         2u8

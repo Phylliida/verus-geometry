@@ -8,7 +8,7 @@ use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
-use super::point3::{RuntimePoint3, sub3_exec, add_vec3_exec, dot3_exec};
+use super::point3::RuntimePoint3;
 #[cfg(verus_keep_ghost)]
 use crate::segment_distance::*;
 
@@ -33,12 +33,7 @@ pub fn gram_entries_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     let u = b.sub(a);
     let v = d.sub(c);
     let w = a.sub(c);
-    let uu = &u.dot(&u);
-    let vv = &v.dot(&v);
-    let uv = &u.dot(&v);
-    let uw = &u.dot(&w);
-    let vw = &v.dot(&w);
-    (uu, vv, uv, uw, vw)
+    (u.dot(&u), v.dot(&v), u.dot(&v), u.dot(&w), v.dot(&w))
 }
 
 pub fn gram_determinant_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -99,12 +94,9 @@ pub fn line_line_squared_distance_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
 {
     let s = closest_parameter_s_exec(a, b, c, d);
     let t = closest_parameter_t_exec(a, b, c, d);
-    let u = b.sub(a);
-    let p1 = a.add(&RuntimePoint3::new(&s.mul(&u.0), &s.mul(&u.1), &s.mul(&u.2)));
-    let v = d.sub(c);
-    let p2 = c.add(&RuntimePoint3::new(&t.mul(&v.0), &t.mul(&v.1), &t.mul(&v.2)));
-    let diff = &p1.sub(&p2);
-    &diff.dot(&diff)
+    let p1 = a.add(&b.sub(a).scale(&s));
+    let p2 = c.add(&d.sub(c).scale(&t));
+    p1.sub(&p2).norm_sq()
 }
 
 } //  verus!

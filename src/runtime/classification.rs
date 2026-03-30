@@ -162,9 +162,9 @@ pub fn collinear3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 {
     let ba = b.sub(a);
     let ca = c.sub(a);
-    let cr = &ba.cross(&ca);
-    let zero = cr.0.zero_like();
-    cr.0.eq(&zero) && cr.1.eq(&zero) && cr.2.eq(&zero)
+    let cr = ba.cross(&ca);
+    let zero = cr.x.zero_like();
+    cr.x.eq(&zero) && cr.y.eq(&zero) && cr.z.eq(&zero)
 }
 
 pub fn coplanar_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -294,31 +294,20 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(), e.wf_spec(),
     ensures out.wf_spec(), out.model() == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
 {
-    use super::point3::{sub3_exec, cross_exec, dot3_exec};
-
     let p = a.sub(e);
     let q = b.sub(e);
     let r = c.sub(e);
     let s = d.sub(e);
 
-    //  lift: w = x² + y² + z²
-    let pw = p.0.mul(&p.0).add(&p.1.mul(&p.1)).add(&p.2.mul(&p.2));
-    let qw = q.0.mul(&q.0).add(&q.1.mul(&q.1)).add(&q.2.mul(&q.2));
-    let rw = r.0.mul(&r.0).add(&r.1.mul(&r.1)).add(&r.2.mul(&r.2));
-    let sw = s.0.mul(&s.0).add(&s.1.mul(&s.1)).add(&s.2.mul(&s.2));
+    let pw = p.norm_sq();
+    let qw = q.norm_sq();
+    let rw = r.norm_sq();
+    let sw = s.norm_sq();
 
-    //  triple products: dot(a, cross(b, c))
-    let cr_rs = &r.cross(&s);
-    let t_qrs = &q.dot(&cr_rs);
-
-    let cr_rs2 = &r.cross(&s);
-    let t_prs = &p.dot(&cr_rs2);
-
-    let cr_qs = &q.cross(&s);
-    let t_pqs = &p.dot(&cr_qs);
-
-    let cr_qr = &q.cross(&r);
-    let t_pqr = &p.dot(&cr_qr);
+    let t_qrs = q.dot(&r.cross(&s));
+    let t_prs = p.dot(&r.cross(&s));
+    let t_pqs = p.dot(&q.cross(&s));
+    let t_pqr = p.dot(&q.cross(&r));
 
     pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
 }
