@@ -6,12 +6,18 @@ use crate::point2::Point2;
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
+use verus_algebra::traits::ring::Ring;
+#[cfg(verus_keep_ghost)]
 use verus_algebra::traits::runtime::RuntimeRingOps;
+#[cfg(verus_keep_ghost)]
+use verus_linalg::vec2::Vec2;
+#[cfg(verus_keep_ghost)]
+use verus_linalg::runtime::vec2::RuntimeVec2;
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-///  A runtime 2D point/vector, generic over any runtime field.
+///  A runtime 2D point, generic over any runtime field. Models Point2<V>.
 pub struct RuntimePoint2<R, V: OrderedField> where R: RuntimeRingOps<V> {
     pub x: R,
     pub y: R,
@@ -41,73 +47,35 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
         requires self.wf_spec(),
         ensures out.wf_spec(), out.model@ == self.model@,
     {
-        let x = self.x.copy();
-        let y = self.y.copy();
-        RuntimePoint2 { x, y, model: Ghost(self.model@) }
+        RuntimePoint2::new(self.x.copy(), self.y.copy())
     }
 
-    ///  Component-wise subtraction: self - other.
-    pub fn sub(&self, other: &Self) -> (out: Self)
+    ///  Point - Point = Vec2.
+    pub fn sub(&self, other: &Self) -> (out: RuntimeVec2<R, V>)
         requires self.wf_spec(), other.wf_spec(),
         ensures
             out.wf_spec(),
             out.model@.x == self.model@.x.sub(other.model@.x),
             out.model@.y == self.model@.y.sub(other.model@.y),
     {
-        RuntimePoint2::new(
+        RuntimeVec2::new(
             self.x.sub(&other.x),
             self.y.sub(&other.y),
         )
     }
 
-    ///  Component-wise addition: self + other.
-    pub fn add(&self, other: &Self) -> (out: Self)
-        requires self.wf_spec(), other.wf_spec(),
+    ///  Point + Vec2 = Point.
+    pub fn add(&self, v: &RuntimeVec2<R, V>) -> (out: Self)
+        requires self.wf_spec(), v.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.x == self.model@.x.add(other.model@.x),
-            out.model@.y == self.model@.y.add(other.model@.y),
+            out.model@.x == self.model@.x.add(v.model@.x),
+            out.model@.y == self.model@.y.add(v.model@.y),
     {
         RuntimePoint2::new(
-            self.x.add(&other.x),
-            self.y.add(&other.y),
+            self.x.add(&v.x),
+            self.y.add(&v.y),
         )
-    }
-
-    ///  Scalar multiply: t * self.
-    pub fn scale(&self, t: &R) -> (out: Self)
-        requires self.wf_spec(), t.wf_spec(),
-        ensures
-            out.wf_spec(),
-            out.model@.x == t.model().mul(self.model@.x),
-            out.model@.y == t.model().mul(self.model@.y),
-    {
-        RuntimePoint2::new(
-            t.mul(&self.x),
-            t.mul(&self.y),
-        )
-    }
-
-    ///  Dot product: self · other.
-    pub fn dot(&self, other: &Self) -> (out: R)
-        requires self.wf_spec(), other.wf_spec(),
-        ensures
-            out.wf_spec(),
-            out.model() == self.model@.x.mul(other.model@.x)
-                .add(self.model@.y.mul(other.model@.y)),
-    {
-        self.x.mul(&other.x).add(&self.y.mul(&other.y))
-    }
-
-    ///  Squared norm: self · self.
-    pub fn norm_sq(&self) -> (out: R)
-        requires self.wf_spec(),
-        ensures
-            out.wf_spec(),
-            out.model() == self.model@.x.mul(self.model@.x)
-                .add(self.model@.y.mul(self.model@.y)),
-    {
-        self.dot(self)
     }
 }
 
