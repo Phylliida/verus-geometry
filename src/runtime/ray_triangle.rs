@@ -1,23 +1,14 @@
-use verus_rational::RuntimeRational;
-
-#[cfg(verus_keep_ghost)]
-use verus_rational::rational::Rational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
-
+use verus_algebra::traits::field::OrderedField;
+#[cfg(verus_keep_ghost)]
+use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
 use super::point3::RuntimePoint3;
-#[cfg(verus_keep_ghost)]
-use super::point3::{sub3_exec, cross_exec, dot3_exec};
-#[cfg(verus_keep_ghost)]
-use verus_linalg::runtime::vec3::RuntimeVec3;
-#[cfg(verus_keep_ghost)]
-use verus_linalg::vec3::Vec3;
 #[cfg(verus_keep_ghost)]
 use crate::ray_triangle::*;
 
@@ -26,60 +17,59 @@ verus! {
 
 ///  Ray-triangle intersection test (Möller-Trumbore, division-free).
 ///
-///  Tests whether ray (origin + t*dir, t ≥ 0) hits triangle (v0, v1, v2).
-///  Uses sign comparisons to avoid division.
-pub fn ray_hits_triangle_nodiv_exec(
-    origin: &RuntimePoint3<RuntimeRational, Rational>, dir: &RuntimeVec3,
-    v0: &RuntimePoint3<RuntimeRational, Rational>, v1: &RuntimePoint3<RuntimeRational, Rational>, v2: &RuntimePoint3<RuntimeRational, Rational>,
+///  Tests whether ray (origin + t*dir, t >= 0) hits triangle (v0, v1, v2).
+///  dir is represented as a RuntimePoint3 (same struct, used as a direction vector).
+pub fn ray_hits_triangle_nodiv_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    origin: &RuntimePoint3<R, V>, dir: &RuntimePoint3<R, V>,
+    v0: &RuntimePoint3<R, V>, v1: &RuntimePoint3<R, V>, v2: &RuntimePoint3<R, V>,
 ) -> (out: bool)
     requires
         origin.wf_spec(), dir.wf_spec(),
         v0.wf_spec(), v1.wf_spec(), v2.wf_spec(),
     ensures
-        out == ray_hits_triangle_nodiv::<Rational>(
-            origin.model@, dir.model@, v0.model@, v1.model@, v2.model@,
+        out == ray_hits_triangle_nodiv::<V>(
+            origin.model@,
+            verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
+            v0.model@, v1.model@, v2.model@,
         ),
 {
-    //  Edge vectors
-    let e1 = sub3_exec(v1, v0);
-    let e2 = sub3_exec(v2, v0);
+    let e1 = v1.sub(v0);
+    let e2 = v2.sub(v0);
 
-    //  P = dir × edge2
-    let p = cross_exec(dir, &e2);
+    //  P = dir × e2
+    let p = dir.cross(&e2);
 
-    //  det = dot(edge1, P)
-    let det = dot3_exec(&e1, &p);
+    //  det = e1 · P
+    let det = e1.dot(&p);
 
-    let zero = RuntimeRational::from_int(0);
+    let zero = det.zero_like();
 
     if det.eq(&zero) {
         return false;
     }
 
     //  T = origin - v0
-    let tvec = sub3_exec(origin, v0);
+    let tvec = origin.sub(v0);
 
-    //  u_unnorm = dot(T, P)
-    let u = dot3_exec(&tvec, &p);
+    //  u = T · P
+    let u = tvec.dot(&p);
 
-    //  Q = T × edge1
-    let q = cross_exec(&tvec, &e1);
+    //  Q = T × e1
+    let q = tvec.cross(&e1);
 
-    //  v_unnorm = dot(dir, Q)
-    let v = dot3_exec(dir, &q);
+    //  v = dir · Q
+    let v = dir.dot(&q);
 
-    //  t_unnorm = dot(edge2, Q)
-    let t = dot3_exec(&e2, &q);
+    //  t_param = e2 · Q
+    let t_param = e2.dot(&q);
 
     //  u + v
     let uv = u.add(&v);
 
     if zero.lt(&det) {
-        //  det > 0: u ≥ 0, v ≥ 0, u + v ≤ det, t ≥ 0
-        zero.le(&u) && zero.le(&v) && uv.le(&det) && zero.le(&t)
+        zero.le(&u) && zero.le(&v) && uv.le(&det) && zero.le(&t_param)
     } else {
-        //  det < 0: u ≤ 0, v ≤ 0, u + v ≥ det, t ≤ 0
-        u.le(&zero) && v.le(&zero) && det.le(&uv) && t.le(&zero)
+        u.le(&zero) && v.le(&zero) && det.le(&uv) && t_param.le(&zero)
     }
 }
 
