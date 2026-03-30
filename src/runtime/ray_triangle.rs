@@ -10,6 +10,8 @@ use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
 use super::point3::RuntimePoint3;
 #[cfg(verus_keep_ghost)]
+use verus_linalg::runtime::vec3::RuntimeVec3;
+#[cfg(verus_keep_ghost)]
 use crate::ray_triangle::*;
 
 #[cfg(verus_keep_ghost)]
@@ -18,9 +20,8 @@ verus! {
 ///  Ray-triangle intersection test (Möller-Trumbore, division-free).
 ///
 ///  Tests whether ray (origin + t*dir, t >= 0) hits triangle (v0, v1, v2).
-///  dir is represented as a RuntimePoint3 (same struct, used as a direction vector).
 pub fn ray_hits_triangle_nodiv_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
-    origin: &RuntimePoint3<R, V>, dir: &RuntimePoint3<R, V>,
+    origin: &RuntimePoint3<R, V>, dir: &RuntimeVec3<R, V>,
     v0: &RuntimePoint3<R, V>, v1: &RuntimePoint3<R, V>, v2: &RuntimePoint3<R, V>,
 ) -> (out: bool)
     requires
@@ -28,9 +29,7 @@ pub fn ray_hits_triangle_nodiv_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFiel
         v0.wf_spec(), v1.wf_spec(), v2.wf_spec(),
     ensures
         out == ray_hits_triangle_nodiv::<V>(
-            origin.model@,
-            verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
-            v0.model@, v1.model@, v2.model@,
+            origin.model@, dir.model@, v0.model@, v1.model@, v2.model@,
         ),
 {
     let e1 = v1.sub(v0);
