@@ -160,11 +160,11 @@ pub fn collinear3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
     ensures out == collinear3d::<V>(a.model@, b.model@, c.model@),
 {
-    let (bax, bay, baz) = super::point3::sub3_exec(b, a);
-    let (cax, cay, caz) = super::point3::sub3_exec(c, a);
-    let (crx, cry, crz) = super::point3::cross_exec(&bax, &bay, &baz, &cax, &cay, &caz);
-    let zero = crx.zero_like();
-    crx.eq(&zero) && cry.eq(&zero) && crz.eq(&zero)
+    let ba = b.sub(a);
+    let ca = c.sub(a);
+    let cr = &ba.cross(&ca);
+    let zero = cr.0.zero_like();
+    cr.0.eq(&zero) && cr.1.eq(&zero) && cr.2.eq(&zero)
 }
 
 pub fn coplanar_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -296,29 +296,29 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 {
     use super::point3::{sub3_exec, cross_exec, dot3_exec};
 
-    let (px, py, pz) = sub3_exec(a, e);
-    let (qx, qy, qz) = sub3_exec(b, e);
-    let (rx, ry, rz) = sub3_exec(c, e);
-    let (sx, sy, sz) = sub3_exec(d, e);
+    let p = a.sub(e);
+    let q = b.sub(e);
+    let r = c.sub(e);
+    let s = d.sub(e);
 
     //  lift: w = x² + y² + z²
-    let pw = px.mul(&px).add(&py.mul(&py)).add(&pz.mul(&pz));
-    let qw = qx.mul(&qx).add(&qy.mul(&qy)).add(&qz.mul(&qz));
-    let rw = rx.mul(&rx).add(&ry.mul(&ry)).add(&rz.mul(&rz));
-    let sw = sx.mul(&sx).add(&sy.mul(&sy)).add(&sz.mul(&sz));
+    let pw = p.0.mul(&p.0).add(&p.1.mul(&p.1)).add(&p.2.mul(&p.2));
+    let qw = q.0.mul(&q.0).add(&q.1.mul(&q.1)).add(&q.2.mul(&q.2));
+    let rw = r.0.mul(&r.0).add(&r.1.mul(&r.1)).add(&r.2.mul(&r.2));
+    let sw = s.0.mul(&s.0).add(&s.1.mul(&s.1)).add(&s.2.mul(&s.2));
 
     //  triple products: dot(a, cross(b, c))
-    let (cr_rs_x, cr_rs_y, cr_rs_z) = cross_exec(&rx, &ry, &rz, &sx, &sy, &sz);
-    let t_qrs = dot3_exec(&qx, &qy, &qz, &cr_rs_x, &cr_rs_y, &cr_rs_z);
+    let cr_rs = &r.cross(&s);
+    let t_qrs = &q.dot(&cr_rs);
 
-    let (cr_rs2_x, cr_rs2_y, cr_rs2_z) = cross_exec(&rx, &ry, &rz, &sx, &sy, &sz);
-    let t_prs = dot3_exec(&px, &py, &pz, &cr_rs2_x, &cr_rs2_y, &cr_rs2_z);
+    let cr_rs2 = &r.cross(&s);
+    let t_prs = &p.dot(&cr_rs2);
 
-    let (cr_qs_x, cr_qs_y, cr_qs_z) = cross_exec(&qx, &qy, &qz, &sx, &sy, &sz);
-    let t_pqs = dot3_exec(&px, &py, &pz, &cr_qs_x, &cr_qs_y, &cr_qs_z);
+    let cr_qs = &q.cross(&s);
+    let t_pqs = &p.dot(&cr_qs);
 
-    let (cr_qr_x, cr_qr_y, cr_qr_z) = cross_exec(&qx, &qy, &qz, &rx, &ry, &rz);
-    let t_pqr = dot3_exec(&px, &py, &pz, &cr_qr_x, &cr_qr_y, &cr_qr_z);
+    let cr_qr = &q.cross(&r);
+    let t_pqr = &p.dot(&cr_qr);
 
     pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
 }

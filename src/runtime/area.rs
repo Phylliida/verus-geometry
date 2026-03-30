@@ -1,10 +1,6 @@
-use verus_rational::RuntimeRational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
-#[cfg(verus_keep_ghost)]
-use super::RationalModel;
 #[cfg(verus_keep_ghost)]
 use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
@@ -13,43 +9,43 @@ use super::polygon::RuntimePolygon2;
 use crate::area::*;
 #[cfg(verus_keep_ghost)]
 use crate::convex_polygon::polygon_next_index;
+#[cfg(verus_keep_ghost)]
+use verus_algebra::traits::field::OrderedField;
+#[cfg(verus_keep_ghost)]
+use verus_algebra::traits::runtime::*;
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-///  Compute cross_origin(p, q) = p.x * q.y - p.y * q.x at runtime.
-fn cross_origin_exec(p: &RuntimePoint2, q: &RuntimePoint2) -> (out: RuntimeRational)
-    requires
-        p.wf_spec(),
-        q.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out@ == cross_origin::<RationalModel>(p@, q@),
+fn cross_origin_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>, q: &RuntimePoint2<R, V>,
+) -> (out: R)
+    requires p.wf_spec(), q.wf_spec(),
+    ensures out.wf_spec(), out.model() == cross_origin::<V>(p.model@, q.model@),
 {
     let a = p.x.mul(&q.y);
     let b = p.y.mul(&q.x);
     a.sub(&b)
 }
 
-///  Compute twice the signed area of a simple polygon (shoelace formula).
-///
-///  Returns a RuntimeRational whose view equals signed_area_2x(polygon.model()).
-pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
+pub fn signed_area_2x_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    polygon: &RuntimePolygon2<R, V>,
+) -> (out: R)
     requires
         polygon.wf_spec(),
         polygon.vertices@.len() >= 3,
     ensures
         out.wf_spec(),
-        out@ == signed_area_2x::<RationalModel>(polygon.model()),
+        out.model() == signed_area_2x::<V>(polygon.model()),
 {
     let n = polygon.len();
-    let mut acc = RuntimeRational::from_int(0);
+    let first = polygon.get(0);
+    let mut acc = first.x.zero_like();
     let mut i: usize = 0;
 
     proof {
-        assert(acc@ == RationalModel::from_int_spec(0));
-        assert(signed_area_2x_prefix::<RationalModel>(polygon.model(), 0)
-            == RationalModel::from_int_spec(0));
+        assert(acc.model() == V::zero());
+        assert(signed_area_2x_prefix::<V>(polygon.model(), 0) == V::zero());
     }
 
     while i < n
@@ -59,7 +55,7 @@ pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
             n >= 3,
             polygon.wf_spec(),
             acc.wf_spec(),
-            acc@ == signed_area_2x_prefix::<RationalModel>(polygon.model(), i as int),
+            acc.model() == signed_area_2x_prefix::<V>(polygon.model(), i as int),
         decreases n - i,
     {
         let j = if i + 1 < n { i + 1 } else { 0usize };
@@ -74,9 +70,7 @@ pub fn signed_area_2x_exec(polygon: &RuntimePolygon2) -> (out: RuntimeRational)
         acc = acc.add(&term);
 
         proof {
-            //  acc now equals old_acc + cross_origin(polygon[i], polygon[j])
-            //  which equals signed_area_2x_prefix(polygon.model(), i+1)
-            assert(acc@ == signed_area_2x_prefix::<RationalModel>(
+            assert(acc.model() == signed_area_2x_prefix::<V>(
                 polygon.model(), (i + 1) as int));
         }
 

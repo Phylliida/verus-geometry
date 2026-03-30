@@ -1,85 +1,67 @@
-use verus_rational::RuntimeRational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
-use super::point3::{RuntimePoint3, RuntimeVec3, sub3_exec, add_vec3_exec};
+use verus_algebra::traits::runtime::*;
+#[cfg(verus_keep_ghost)]
+use super::point3::{RuntimePoint3, sub3_exec, add_vec3_exec, dot3_exec};
 #[cfg(verus_keep_ghost)]
 use crate::segment_distance::*;
-#[cfg(verus_keep_ghost)]
-use verus_linalg::vec3::ops::{dot, scale, norm_sq};
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-///  Compute the 5 Gram matrix entries for lines (a,b) and (c,d).
-pub fn gram_entries_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
-) -> (out: (RuntimeRational, RuntimeRational, RuntimeRational, RuntimeRational, RuntimeRational))
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
+pub fn gram_entries_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
+) -> (out: (R, R, R, R, R))
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
     ensures ({
         let (uu, vv, uv, uw, vw) = out;
-        let (suu, svv, suv, suw, svw) = gram_entries::<RationalModel>(a@, b@, c@, d@);
-        &&& uu.wf_spec() && uu@ == suu
-        &&& vv.wf_spec() && vv@ == svv
-        &&& uv.wf_spec() && uv@ == suv
-        &&& uw.wf_spec() && uw@ == suw
-        &&& vw.wf_spec() && vw@ == svw
+        let (suu, svv, suv, suw, svw) = gram_entries::<V>(a.model@, b.model@, c.model@, d.model@);
+        &&& uu.wf_spec() && uu.model() == suu
+        &&& vv.wf_spec() && vv.model() == svv
+        &&& uv.wf_spec() && uv.model() == suv
+        &&& uw.wf_spec() && uw.model() == suw
+        &&& vw.wf_spec() && vw.model() == svw
     }),
 {
-    let u = sub3_exec(b, a);
-    let v = sub3_exec(d, c);
-    let w = sub3_exec(a, c);
-    let uu = u.dot_exec(&u);
-    let vv = v.dot_exec(&v);
-    let uv = u.dot_exec(&v);
-    let uw = u.dot_exec(&w);
-    let vw = v.dot_exec(&w);
+    let u = b.sub(a);
+    let v = d.sub(c);
+    let w = a.sub(c);
+    let uu = &u.dot(&u);
+    let vv = &v.dot(&v);
+    let uv = &u.dot(&v);
+    let uw = &u.dot(&w);
+    let vw = &v.dot(&w);
     (uu, vv, uv, uw, vw)
 }
 
-///  Compute the Gram determinant: uu*vv - uv^2.
-pub fn gram_determinant_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
-) -> (out: RuntimeRational)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out@ == gram_determinant::<RationalModel>(a@, b@, c@, d@),
+pub fn gram_determinant_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
+) -> (out: R)
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out.wf_spec(), out.model() == gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, _, _) = gram_entries_exec(a, b, c, d);
     uu.mul(&vv).sub(&uv.mul(&uv))
 }
 
-///  Closest-approach parameter s on line (a,b).
-pub fn closest_parameter_s_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
-) -> (out: RuntimeRational)
+pub fn closest_parameter_s_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
+) -> (out: R)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        !gram_determinant::<RationalModel>(a@, b@, c@, d@).eqv(RationalModel::from_int_spec(0)),
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out@ == closest_parameter_s::<RationalModel>(a@, b@, c@, d@),
+        out.model() == closest_parameter_s::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, uw, vw) = gram_entries_exec(a, b, c, d);
     let denom = uu.mul(&vv).sub(&uv.mul(&uv));
@@ -87,20 +69,16 @@ pub fn closest_parameter_s_exec(
     numer.div(&denom)
 }
 
-///  Closest-approach parameter t on line (c,d).
-pub fn closest_parameter_t_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
-) -> (out: RuntimeRational)
+pub fn closest_parameter_t_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
+) -> (out: R)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        !gram_determinant::<RationalModel>(a@, b@, c@, d@).eqv(RationalModel::from_int_spec(0)),
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out@ == closest_parameter_t::<RationalModel>(a@, b@, c@, d@),
+        out.model() == closest_parameter_t::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, uw, vw) = gram_entries_exec(a, b, c, d);
     let denom = uu.mul(&vv).sub(&uv.mul(&uv));
@@ -108,34 +86,25 @@ pub fn closest_parameter_t_exec(
     numer.div(&denom)
 }
 
-///  Squared distance between closest approach points on two lines.
-pub fn line_line_squared_distance_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
-) -> (out: RuntimeRational)
+pub fn line_line_squared_distance_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
+) -> (out: R)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        !gram_determinant::<RationalModel>(a@, b@, c@, d@).eqv(RationalModel::from_int_spec(0)),
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out@ == line_line_squared_distance::<RationalModel>(a@, b@, c@, d@),
+        out.model() == line_line_squared_distance::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let s = closest_parameter_s_exec(a, b, c, d);
     let t = closest_parameter_t_exec(a, b, c, d);
-    //  p1 = a + s*(b-a)
-    let u = sub3_exec(b, a);
-    let su = RuntimeVec3::scale_exec(&s, &u);
-    let p1 = add_vec3_exec(a, &su);
-    //  p2 = c + t*(d-c)
-    let v = sub3_exec(d, c);
-    let tv = RuntimeVec3::scale_exec(&t, &v);
-    let p2 = add_vec3_exec(c, &tv);
-    //  ||p1 - p2||^2
-    let diff = sub3_exec(&p1, &p2);
-    diff.norm_sq_exec()
+    let u = b.sub(a);
+    let p1 = a.add(&RuntimePoint3::new(&s.mul(&u.0), &s.mul(&u.1), &s.mul(&u.2)));
+    let v = d.sub(c);
+    let p2 = c.add(&RuntimePoint3::new(&t.mul(&v.0), &t.mul(&v.1), &t.mul(&v.2)));
+    let diff = &p1.sub(&p2);
+    &diff.dot(&diff)
 }
 
 } //  verus!
