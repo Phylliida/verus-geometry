@@ -25,7 +25,7 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeCircle2<R, V> {
         &&& self.center.wf_spec()
         &&& self.radius_sq.wf_spec()
         &&& self.center.model@ == self.model@.center
-        &&& self.radius_sq.rf_view() == self.model@.radius_sq
+        &&& self.radius_sq.model() == self.model@.radius_sq
     }
 
     pub fn from_center_radius_sq(
@@ -36,9 +36,9 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeCircle2<R, V> {
         ensures
             out.wf_spec(),
             out.model@.center == center.model@,
-            out.model@.radius_sq == radius_sq.rf_view(),
+            out.model@.radius_sq == radius_sq.model(),
     {
-        let ghost model = Circle2 { center: center.model@, radius_sq: radius_sq.rf_view() };
+        let ghost model = Circle2 { center: center.model@, radius_sq: radius_sq.model() };
         RuntimeCircle2 { center, radius_sq, model: Ghost(model) }
     }
 }

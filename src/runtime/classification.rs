@@ -45,14 +45,14 @@ pub fn sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: OrientationSign)
     requires val.wf_spec(),
     ensures
-        out == (if val.rf_view().eqv(V::zero()) { OrientationSign::Zero }
-                else if V::zero().lt(val.rf_view()) { OrientationSign::Positive }
+        out == (if val.model().eqv(V::zero()) { OrientationSign::Zero }
+                else if V::zero().lt(val.model()) { OrientationSign::Positive }
                 else { OrientationSign::Negative }),
 {
-    let zero = val.rf_zero_like();
-    if val.rf_eq(&zero) {
+    let zero = val.zero_like();
+    if val.eq(&zero) {
         OrientationSign::Zero
-    } else if zero.rf_lt(val) {
+    } else if zero.lt(val) {
         OrientationSign::Positive
     } else {
         OrientationSign::Negative
@@ -105,8 +105,8 @@ pub fn collinear2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == collinear2d::<V>(a.model@, b.model@, c.model@),
 {
     let val = orient2d_exec(a, b, c);
-    let zero = val.rf_zero_like();
-    val.rf_eq(&zero)
+    let zero = val.zero_like();
+    val.eq(&zero)
 }
 
 pub fn point_left_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -118,8 +118,8 @@ pub fn point_left_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_left_of_line::<V>(p.model@, a.model@, b.model@),
 {
     let val = orient2d_exec(a, b, p);
-    let zero = val.rf_zero_like();
-    zero.rf_lt(&val)
+    let zero = val.zero_like();
+    zero.lt(&val)
 }
 
 pub fn point_right_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -131,8 +131,8 @@ pub fn point_right_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_right_of_line::<V>(p.model@, a.model@, b.model@),
 {
     let val = orient2d_exec(a, b, p);
-    let zero = val.rf_zero_like();
-    val.rf_lt(&zero)
+    let zero = val.zero_like();
+    val.lt(&zero)
 }
 
 pub fn point_on_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -144,8 +144,8 @@ pub fn point_on_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_on_line::<V>(p.model@, a.model@, b.model@),
 {
     let val = orient2d_exec(a, b, p);
-    let zero = val.rf_zero_like();
-    val.rf_eq(&zero)
+    let zero = val.zero_like();
+    val.eq(&zero)
 }
 
 //  ---------------------------------------------------------------------------
@@ -163,8 +163,8 @@ pub fn collinear3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     let (bax, bay, baz) = super::point3::sub3_exec(b, a);
     let (cax, cay, caz) = super::point3::sub3_exec(c, a);
     let (crx, cry, crz) = super::point3::cross_exec(&bax, &bay, &baz, &cax, &cay, &caz);
-    let zero = crx.rf_zero_like();
-    crx.rf_eq(&zero) && cry.rf_eq(&zero) && crz.rf_eq(&zero)
+    let zero = crx.zero_like();
+    crx.eq(&zero) && cry.eq(&zero) && crz.eq(&zero)
 }
 
 pub fn coplanar_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -177,8 +177,8 @@ pub fn coplanar_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == coplanar::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let val = orient3d_exec(a, b, c, d);
-    let zero = val.rf_zero_like();
-    val.rf_eq(&zero)
+    let zero = val.zero_like();
+    val.eq(&zero)
 }
 
 pub fn point_above_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -191,8 +191,8 @@ pub fn point_above_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_above_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    let zero = val.rf_zero_like();
-    zero.rf_lt(&val)
+    let zero = val.zero_like();
+    zero.lt(&val)
 }
 
 pub fn point_below_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -205,8 +205,8 @@ pub fn point_below_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_below_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    let zero = val.rf_zero_like();
-    val.rf_lt(&zero)
+    let zero = val.zero_like();
+    val.lt(&zero)
 }
 
 pub fn point_on_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -219,8 +219,8 @@ pub fn point_on_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures out == point_on_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    let zero = val.rf_zero_like();
-    val.rf_eq(&zero)
+    let zero = val.zero_like();
+    val.eq(&zero)
 }
 
 pub fn segment_crosses_plane_strict_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -256,24 +256,24 @@ fn incircle2d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
-    ensures out.wf_spec(), out.rf_view() == incircle2d::<V>(a.model@, b.model@, c.model@, d.model@),
+    ensures out.wf_spec(), out.model() == incircle2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
-    let px = a.x.rf_sub(&d.x);
-    let py = a.y.rf_sub(&d.y);
-    let qx = b.x.rf_sub(&d.x);
-    let qy = b.y.rf_sub(&d.y);
-    let rx = c.x.rf_sub(&d.x);
-    let ry = c.y.rf_sub(&d.y);
+    let px = a.x.sub(&d.x);
+    let py = a.y.sub(&d.y);
+    let qx = b.x.sub(&d.x);
+    let qy = b.y.sub(&d.y);
+    let rx = c.x.sub(&d.x);
+    let ry = c.y.sub(&d.y);
 
-    let pw = px.rf_mul(&px).rf_add(&py.rf_mul(&py));
-    let qw = qx.rf_mul(&qx).rf_add(&qy.rf_mul(&qy));
-    let rw = rx.rf_mul(&rx).rf_add(&ry.rf_mul(&ry));
+    let pw = px.mul(&px).add(&py.mul(&py));
+    let qw = qx.mul(&qx).add(&qy.mul(&qy));
+    let rw = rx.mul(&rx).add(&ry.mul(&ry));
 
-    let det_qr = qx.rf_mul(&ry).rf_sub(&qy.rf_mul(&rx));
-    let det_pr = px.rf_mul(&ry).rf_sub(&py.rf_mul(&rx));
-    let det_pq = px.rf_mul(&qy).rf_sub(&py.rf_mul(&qx));
+    let det_qr = qx.mul(&ry).sub(&qy.mul(&rx));
+    let det_pr = px.mul(&ry).sub(&py.mul(&rx));
+    let det_pq = px.mul(&qy).sub(&py.mul(&qx));
 
-    pw.rf_mul(&det_qr).rf_sub(&qw.rf_mul(&det_pr)).rf_add(&rw.rf_mul(&det_pq))
+    pw.mul(&det_qr).sub(&qw.mul(&det_pr)).add(&rw.mul(&det_pq))
 }
 
 pub fn incircle2d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -292,7 +292,7 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>, e: &RuntimePoint3<R, V>,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(), e.wf_spec(),
-    ensures out.wf_spec(), out.rf_view() == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
+    ensures out.wf_spec(), out.model() == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
 {
     use super::point3::{sub3_exec, cross_exec, dot3_exec};
 
@@ -302,10 +302,10 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     let (sx, sy, sz) = sub3_exec(d, e);
 
     //  lift: w = x² + y² + z²
-    let pw = px.rf_mul(&px).rf_add(&py.rf_mul(&py)).rf_add(&pz.rf_mul(&pz));
-    let qw = qx.rf_mul(&qx).rf_add(&qy.rf_mul(&qy)).rf_add(&qz.rf_mul(&qz));
-    let rw = rx.rf_mul(&rx).rf_add(&ry.rf_mul(&ry)).rf_add(&rz.rf_mul(&rz));
-    let sw = sx.rf_mul(&sx).rf_add(&sy.rf_mul(&sy)).rf_add(&sz.rf_mul(&sz));
+    let pw = px.mul(&px).add(&py.mul(&py)).add(&pz.mul(&pz));
+    let qw = qx.mul(&qx).add(&qy.mul(&qy)).add(&qz.mul(&qz));
+    let rw = rx.mul(&rx).add(&ry.mul(&ry)).add(&rz.mul(&rz));
+    let sw = sx.mul(&sx).add(&sy.mul(&sy)).add(&sz.mul(&sz));
 
     //  triple products: dot(a, cross(b, c))
     let (cr_rs_x, cr_rs_y, cr_rs_z) = cross_exec(&rx, &ry, &rz, &sx, &sy, &sz);
@@ -320,7 +320,7 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     let (cr_qr_x, cr_qr_y, cr_qr_z) = cross_exec(&qx, &qy, &qz, &rx, &ry, &rz);
     let t_pqr = dot3_exec(&px, &py, &pz, &cr_qr_x, &cr_qr_y, &cr_qr_z);
 
-    pw.rf_mul(&t_qrs).rf_sub(&qw.rf_mul(&t_prs)).rf_add(&rw.rf_mul(&t_pqs)).rf_sub(&sw.rf_mul(&t_pqr))
+    pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
 }
 
 pub fn insphere3d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(

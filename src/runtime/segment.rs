@@ -50,14 +50,14 @@ pub fn point_on_segment_inclusive_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Order
     ensures out == point_on_segment_inclusive_2d::<V>(p.model@, a.model@, b.model@),
 {
     let val = orient2d_exec(a, b, p);
-    let zero = val.rf_zero_like();
-    if !val.rf_eq(&zero) {
+    let zero = val.zero_like();
+    if !val.eq(&zero) {
         return false;
     }
-    let min_x_le_px = if a.x.rf_le(&b.x) { a.x.rf_le(&p.x) } else { b.x.rf_le(&p.x) };
-    let px_le_max_x = if a.x.rf_le(&b.x) { p.x.rf_le(&b.x) } else { p.x.rf_le(&a.x) };
-    let min_y_le_py = if a.y.rf_le(&b.y) { a.y.rf_le(&p.y) } else { b.y.rf_le(&p.y) };
-    let py_le_max_y = if a.y.rf_le(&b.y) { p.y.rf_le(&b.y) } else { p.y.rf_le(&a.y) };
+    let min_x_le_px = if a.x.le(&b.x) { a.x.le(&p.x) } else { b.x.le(&p.x) };
+    let px_le_max_x = if a.x.le(&b.x) { p.x.le(&b.x) } else { p.x.le(&a.x) };
+    let min_y_le_py = if a.y.le(&b.y) { a.y.le(&p.y) } else { b.y.le(&p.y) };
+    let py_le_max_y = if a.y.le(&b.y) { p.y.le(&b.y) } else { p.y.le(&a.y) };
     min_x_le_px && px_le_max_x && min_y_le_py && py_le_max_y
 }
 
@@ -77,21 +77,21 @@ pub fn collinear_overlap_kind_1d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFi
 ) -> (out: i8)
     requires a1.wf_spec(), a2.wf_spec(), b1.wf_spec(), b2.wf_spec(),
     ensures
-        (out == -1i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) < 0),
-        (out == 0i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) == 0),
-        (out == 1i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) > 0),
+        (out == -1i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) < 0),
+        (out == 0i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) == 0),
+        (out == 1i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) > 0),
 {
-    let a1_le_a2 = a1.rf_le(a2);
-    let b1_le_b2 = b1.rf_le(b2);
+    let a1_le_a2 = a1.le(a2);
+    let b1_le_b2 = b1.le(b2);
     let (a_lo, a_hi) = if a1_le_a2 { (a1, a2) } else { (a2, a1) };
     let (b_lo, b_hi) = if b1_le_b2 { (b1, b2) } else { (b2, b1) };
-    let a_lo_le_b_lo = a_lo.rf_le(b_lo);
+    let a_lo_le_b_lo = a_lo.le(b_lo);
     let lo = if a_lo_le_b_lo { b_lo } else { a_lo };
-    let a_hi_le_b_hi = a_hi.rf_le(b_hi);
+    let a_hi_le_b_hi = a_hi.le(b_hi);
     let hi = if a_hi_le_b_hi { a_hi } else { b_hi };
-    if hi.rf_lt(lo) {
+    if hi.lt(lo) {
         -1i8
-    } else if hi.rf_eq(lo) {
+    } else if hi.eq(lo) {
         0i8
     } else {
         1i8
@@ -121,7 +121,7 @@ pub fn segment_intersection_kind_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Ordere
     let o4z = is_zero_sign(&o4);
 
     if o1z && o2z && o3z && o4z {
-        let use_x = !a.x.rf_eq(&b.x) || !c.x.rf_eq(&d.x);
+        let use_x = !a.x.eq(&b.x) || !c.x.eq(&d.x);
         let overlap_kind = if use_x {
             collinear_overlap_kind_1d_exec(&a.x, &b.x, &c.x, &d.x)
         } else {
@@ -155,16 +155,16 @@ pub fn segment_intersection_parameter_2d_exec<R: RuntimeOrderedFieldOps<V>, V: O
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out.rf_view() == segment_intersection_parameter_2d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out.model() == segment_intersection_parameter_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o3 = orient2d_exec(c, d, a);
     let o4 = orient2d_exec(c, d, b);
-    let neg_o4 = o4.rf_neg();
-    let denom = o3.rf_add(&neg_o4);
+    let neg_o4 = o4.neg();
+    let denom = o3.add(&neg_o4);
     proof {
         lemma_proper_denominator_nonzero_2d::<V>(a.model@, b.model@, c.model@, d.model@);
     }
-    o3.rf_div(&denom)
+    o3.div(&denom)
 }
 
 ///  Intersection point on AB: a + t * (b - a)
@@ -182,8 +182,8 @@ pub fn segment_intersection_point_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Order
 {
     let t = segment_intersection_parameter_2d_exec(a, b, c, d);
     let (dx, dy) = sub2_exec(b, a);
-    let tx = t.rf_mul(&dx);
-    let ty = t.rf_mul(&dy);
+    let tx = t.mul(&dx);
+    let ty = t.mul(&dy);
     add_vec2_exec(a, &tx, &ty)
 }
 
@@ -197,16 +197,16 @@ pub fn segment_intersection_parameter_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out.rf_view() == segment_intersection_parameter_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out.model() == segment_intersection_parameter_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o1 = orient2d_exec(a, b, c);
     let o2 = orient2d_exec(a, b, d);
-    let neg_o2 = o2.rf_neg();
-    let denom = o1.rf_add(&neg_o2);
+    let neg_o2 = o2.neg();
+    let denom = o1.add(&neg_o2);
     proof {
         lemma_proper_cd_denominator_nonzero_2d::<V>(a.model@, b.model@, c.model@, d.model@);
     }
-    o1.rf_div(&denom)
+    o1.div(&denom)
 }
 
 pub fn segment_intersection_point_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -223,8 +223,8 @@ pub fn segment_intersection_point_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Or
 {
     let s = segment_intersection_parameter_cd_2d_exec(a, b, c, d);
     let (dx, dy) = sub2_exec(d, c);
-    let sx = s.rf_mul(&dx);
-    let sy = s.rf_mul(&dy);
+    let sx = s.mul(&dx);
+    let sy = s.mul(&dy);
     add_vec2_exec(c, &sx, &sy)
 }
 
