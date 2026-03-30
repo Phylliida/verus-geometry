@@ -40,22 +40,22 @@ verus! {
 //  using only the RuntimeOrderedFieldOps trait.
 //  ---------------------------------------------------------------------------
 
+///  Classify a scalar's sign, matching the spec `scalar_sign` definition:
+///  zero.lt(val) → Positive, val.lt(zero) → Negative, else → Zero.
 pub fn sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     val: &R,
 ) -> (out: OrientationSign)
     requires val.wf_spec(),
     ensures
-        out == (if val.model().eqv(V::zero()) { OrientationSign::Zero }
-                else if V::zero().lt(val.model()) { OrientationSign::Positive }
-                else { OrientationSign::Negative }),
+        out == scalar_sign::<V>(val.model()),
 {
     let zero = val.zero_like();
-    if val.eq(&zero) {
-        OrientationSign::Zero
-    } else if zero.lt(val) {
+    if zero.lt(val) {
         OrientationSign::Positive
-    } else {
+    } else if val.lt(&zero) {
         OrientationSign::Negative
+    } else {
+        OrientationSign::Zero
     }
 }
 
