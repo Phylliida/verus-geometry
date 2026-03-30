@@ -28,20 +28,20 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeLine2<R, V> {
         &&& self.a.wf_spec()
         &&& self.b.wf_spec()
         &&& self.c.wf_spec()
-        &&& self.a.rf_view() == self.model@.a
-        &&& self.b.rf_view() == self.model@.b
-        &&& self.c.rf_view() == self.model@.c
+        &&& self.a.model() == self.model@.a
+        &&& self.b.model() == self.model@.b
+        &&& self.c.model() == self.model@.c
     }
 
     pub fn new(a: R, b: R, c: R) -> (out: Self)
         requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.a == a.rf_view(),
-            out.model@.b == b.rf_view(),
-            out.model@.c == c.rf_view(),
+            out.model@.a == a.model(),
+            out.model@.b == b.model(),
+            out.model@.c == c.model(),
     {
-        let ghost model = Line2 { a: a.rf_view(), b: b.rf_view(), c: c.rf_view() };
+        let ghost model = Line2 { a: a.model(), b: b.model(), c: c.model() };
         RuntimeLine2 { a, b, c, model: Ghost(model) }
     }
 }
@@ -56,13 +56,13 @@ pub fn line2_from_points_exec<R: RuntimeRingOps<V>, V: OrderedField>(
         out.wf_spec(),
         out.model@ == line2_from_points::<V>(p.model@, q.model@),
 {
-    let dy = q.y.rf_sub(&p.y);
-    let a = dy.rf_neg();
-    let b = q.x.rf_sub(&p.x);
-    let apx = a.rf_mul(&p.x);
-    let bpy = b.rf_mul(&p.y);
-    let s = apx.rf_add(&bpy);
-    let c = s.rf_neg();
+    let dy = q.y.sub(&p.y);
+    let a = dy.neg();
+    let b = q.x.sub(&p.x);
+    let apx = a.mul(&p.x);
+    let bpy = b.mul(&p.y);
+    let s = apx.add(&bpy);
+    let c = s.neg();
     let ghost model = line2_from_points::<V>(p.model@, q.model@);
     RuntimeLine2 { a, b, c, model: Ghost(model) }
 }
@@ -75,12 +75,12 @@ pub fn line2_eval_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires line.wf_spec(), p.wf_spec(),
     ensures
         out.wf_spec(),
-        out.rf_view() == line2_eval::<V>(line.model@, p.model@),
+        out.model() == line2_eval::<V>(line.model@, p.model@),
 {
-    let apx = line.a.rf_mul(&p.x);
-    let bpy = line.b.rf_mul(&p.y);
-    let s = apx.rf_add(&bpy);
-    s.rf_add(&line.c)
+    let apx = line.a.mul(&p.x);
+    let bpy = line.b.mul(&p.y);
+    let s = apx.add(&bpy);
+    s.add(&line.c)
 }
 
 } //  verus!

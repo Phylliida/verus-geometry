@@ -24,20 +24,20 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint3<R, V> {
         &&& self.x.wf_spec()
         &&& self.y.wf_spec()
         &&& self.z.wf_spec()
-        &&& self.x.rf_view() == self.model@.x
-        &&& self.y.rf_view() == self.model@.y
-        &&& self.z.rf_view() == self.model@.z
+        &&& self.x.model() == self.model@.x
+        &&& self.y.model() == self.model@.y
+        &&& self.z.model() == self.model@.z
     }
 
     pub fn new(x: R, y: R, z: R) -> (out: Self)
         requires x.wf_spec(), y.wf_spec(), z.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.x == x.rf_view(),
-            out.model@.y == y.rf_view(),
-            out.model@.z == z.rf_view(),
+            out.model@.x == x.model(),
+            out.model@.y == y.model(),
+            out.model@.z == z.model(),
     {
-        let ghost model = Point3 { x: x.rf_view(), y: y.rf_view(), z: z.rf_view() };
+        let ghost model = Point3 { x: x.model(), y: y.model(), z: z.model() };
         RuntimePoint3 { x, y, z, model: Ghost(model) }
     }
 
@@ -45,9 +45,9 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint3<R, V> {
         requires self.wf_spec(),
         ensures out.wf_spec(), out.model@ == self.model@,
     {
-        let x = self.x.rf_copy();
-        let y = self.y.rf_copy();
-        let z = self.z.rf_copy();
+        let x = self.x.copy();
+        let y = self.y.copy();
+        let z = self.z.copy();
         RuntimePoint3 { x, y, z, model: Ghost(self.model@) }
     }
 }
@@ -60,11 +60,11 @@ pub fn sub3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(),
     ensures
         out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.rf_view() == a.model@.x.sub(b.model@.x),
-        out.1.rf_view() == a.model@.y.sub(b.model@.y),
-        out.2.rf_view() == a.model@.z.sub(b.model@.z),
+        out.0.model() == a.model@.x.sub(b.model@.x),
+        out.1.model() == a.model@.y.sub(b.model@.y),
+        out.2.model() == a.model@.z.sub(b.model@.z),
 {
-    (a.x.rf_sub(&b.x), a.y.rf_sub(&b.y), a.z.rf_sub(&b.z))
+    (a.x.sub(&b.x), a.y.sub(&b.y), a.z.sub(&b.z))
 }
 
 ///  Point + (dx, dy, dz) = point.
@@ -75,17 +75,17 @@ pub fn add_vec3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires p.wf_spec(), dx.wf_spec(), dy.wf_spec(), dz.wf_spec(),
     ensures
         out.wf_spec(),
-        out.model@.x == p.model@.x.add(dx.rf_view()),
-        out.model@.y == p.model@.y.add(dy.rf_view()),
-        out.model@.z == p.model@.z.add(dz.rf_view()),
+        out.model@.x == p.model@.x.add(dx.model()),
+        out.model@.y == p.model@.y.add(dy.model()),
+        out.model@.z == p.model@.z.add(dz.model()),
 {
-    let rx = p.x.rf_add(dx);
-    let ry = p.y.rf_add(dy);
-    let rz = p.z.rf_add(dz);
+    let rx = p.x.add(dx);
+    let ry = p.y.add(dy);
+    let rz = p.z.add(dz);
     let ghost model = Point3 {
-        x: p.model@.x.add(dx.rf_view()),
-        y: p.model@.y.add(dy.rf_view()),
-        z: p.model@.z.add(dz.rf_view()),
+        x: p.model@.x.add(dx.model()),
+        y: p.model@.y.add(dy.model()),
+        z: p.model@.z.add(dz.model()),
     };
     RuntimePoint3 { x: rx, y: ry, z: rz, model: Ghost(model) }
 }
@@ -100,13 +100,13 @@ pub fn cross_exec<R: RuntimeRingOps<V>, V: OrderedField>(
         vx.wf_spec(), vy.wf_spec(), vz.wf_spec(),
     ensures
         out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.rf_view() == uy.rf_view().mul(vz.rf_view()).sub(uz.rf_view().mul(vy.rf_view())),
-        out.1.rf_view() == uz.rf_view().mul(vx.rf_view()).sub(ux.rf_view().mul(vz.rf_view())),
-        out.2.rf_view() == ux.rf_view().mul(vy.rf_view()).sub(uy.rf_view().mul(vx.rf_view())),
+        out.0.model() == uy.model().mul(vz.model()).sub(uz.model().mul(vy.model())),
+        out.1.model() == uz.model().mul(vx.model()).sub(ux.model().mul(vz.model())),
+        out.2.model() == ux.model().mul(vy.model()).sub(uy.model().mul(vx.model())),
 {
-    let a = uy.rf_mul(vz).rf_sub(&uz.rf_mul(vy));
-    let b = uz.rf_mul(vx).rf_sub(&ux.rf_mul(vz));
-    let c = ux.rf_mul(vy).rf_sub(&uy.rf_mul(vx));
+    let a = uy.mul(vz).sub(&uz.mul(vy));
+    let b = uz.mul(vx).sub(&ux.mul(vz));
+    let c = ux.mul(vy).sub(&uy.mul(vx));
     (a, b, c)
 }
 
@@ -120,14 +120,14 @@ pub fn dot3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
         vx.wf_spec(), vy.wf_spec(), vz.wf_spec(),
     ensures
         out.wf_spec(),
-        out.rf_view() == ux.rf_view().mul(vx.rf_view())
-            .add(uy.rf_view().mul(vy.rf_view()))
-            .add(uz.rf_view().mul(vz.rf_view())),
+        out.model() == ux.model().mul(vx.model())
+            .add(uy.model().mul(vy.model()))
+            .add(uz.model().mul(vz.model())),
 {
-    let a = ux.rf_mul(vx);
-    let b = uy.rf_mul(vy);
-    let c = uz.rf_mul(vz);
-    a.rf_add(&b).rf_add(&c)
+    let a = ux.mul(vx);
+    let b = uy.mul(vy);
+    let c = uz.mul(vz);
+    a.add(&b).add(&c)
 }
 
 } //  verus!

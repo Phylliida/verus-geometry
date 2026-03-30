@@ -22,18 +22,18 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.x.wf_spec()
         &&& self.y.wf_spec()
-        &&& self.x.rf_view() == self.model@.x
-        &&& self.y.rf_view() == self.model@.y
+        &&& self.x.model() == self.model@.x
+        &&& self.y.model() == self.model@.y
     }
 
     pub fn new(x: R, y: R) -> (out: Self)
         requires x.wf_spec(), y.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.x == x.rf_view(),
-            out.model@.y == y.rf_view(),
+            out.model@.x == x.model(),
+            out.model@.y == y.model(),
     {
-        let ghost model = Point2 { x: x.rf_view(), y: y.rf_view() };
+        let ghost model = Point2 { x: x.model(), y: y.model() };
         RuntimePoint2 { x, y, model: Ghost(model) }
     }
 
@@ -41,8 +41,8 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
         requires self.wf_spec(),
         ensures out.wf_spec(), out.model@ == self.model@,
     {
-        let x = self.x.rf_copy();
-        let y = self.y.rf_copy();
+        let x = self.x.copy();
+        let y = self.y.copy();
         RuntimePoint2 { x, y, model: Ghost(self.model@) }
     }
 }
@@ -55,10 +55,10 @@ pub fn sub2_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(),
     ensures
         out.0.wf_spec(), out.1.wf_spec(),
-        out.0.rf_view() == a.model@.x.sub(b.model@.x),
-        out.1.rf_view() == a.model@.y.sub(b.model@.y),
+        out.0.model() == a.model@.x.sub(b.model@.x),
+        out.1.model() == a.model@.y.sub(b.model@.y),
 {
-    (a.x.rf_sub(&b.x), a.y.rf_sub(&b.y))
+    (a.x.sub(&b.x), a.y.sub(&b.y))
 }
 
 ///  Point + (dx, dy) = point.
@@ -70,12 +70,12 @@ pub fn add_vec2_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires p.wf_spec(), dx.wf_spec(), dy.wf_spec(),
     ensures
         out.wf_spec(),
-        out.model@.x == p.model@.x.add(dx.rf_view()),
-        out.model@.y == p.model@.y.add(dy.rf_view()),
+        out.model@.x == p.model@.x.add(dx.model()),
+        out.model@.y == p.model@.y.add(dy.model()),
 {
-    let rx = p.x.rf_add(dx);
-    let ry = p.y.rf_add(dy);
-    let ghost model = Point2 { x: p.model@.x.add(dx.rf_view()), y: p.model@.y.add(dy.rf_view()) };
+    let rx = p.x.add(dx);
+    let ry = p.y.add(dy);
+    let ghost model = Point2 { x: p.model@.x.add(dx.model()), y: p.model@.y.add(dy.model()) };
     RuntimePoint2 { x: rx, y: ry, model: Ghost(model) }
 }
 

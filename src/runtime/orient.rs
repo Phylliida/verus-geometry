@@ -24,13 +24,13 @@ pub fn det2d_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires ux.wf_spec(), uy.wf_spec(), vx.wf_spec(), vy.wf_spec(),
     ensures
         out.wf_spec(),
-        out.rf_view() == det2d::<V>(
-            verus_linalg::vec2::Vec2 { x: ux.rf_view(), y: uy.rf_view() },
-            verus_linalg::vec2::Vec2 { x: vx.rf_view(), y: vy.rf_view() }),
+        out.model() == det2d::<V>(
+            verus_linalg::vec2::Vec2 { x: ux.model(), y: uy.model() },
+            verus_linalg::vec2::Vec2 { x: vx.model(), y: vy.model() }),
 {
-    let a = ux.rf_mul(vy);
-    let b = uy.rf_mul(vx);
-    a.rf_sub(&b)
+    let a = ux.mul(vy);
+    let b = uy.mul(vx);
+    a.sub(&b)
 }
 
 ///  orient2d(a, b, c) = det2d(b - a, c - a)
@@ -42,7 +42,7 @@ pub fn orient2d_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
     ensures
         out.wf_spec(),
-        out.rf_view() == orient2d::<V>(a.model@, b.model@, c.model@),
+        out.model() == orient2d::<V>(a.model@, b.model@, c.model@),
 {
     let (bax, bay) = super::point2::sub2_exec(b, a);
     let (cax, cay) = super::point2::sub2_exec(c, a);
@@ -59,7 +59,7 @@ pub fn orient3d_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
     ensures
         out.wf_spec(),
-        out.rf_view() == orient3d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out.model() == orient3d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (bax, bay, baz) = super::point3::sub3_exec(b, a);
     let (cax, cay, caz) = super::point3::sub3_exec(c, a);
