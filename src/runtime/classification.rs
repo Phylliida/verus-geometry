@@ -1,10 +1,10 @@
+use verus_rational::RuntimeRational;
+
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
-#[cfg(verus_keep_ghost)]
-use super::RationalModel;
 #[cfg(verus_keep_ghost)]
 use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
@@ -26,296 +26,209 @@ use crate::incircle::*;
 #[cfg(verus_keep_ghost)]
 use crate::insphere::*;
 #[cfg(verus_keep_ghost)]
-use verus_rational::rational::Rational;
+use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
-use verus_rational::RuntimeRational;
+use verus_algebra::traits::field::OrderedField;
+#[cfg(verus_keep_ghost)]
+use verus_rational::rational::Rational;
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
 //  ---------------------------------------------------------------------------
-//  Helper: bridge signum ↔ OrderedRing lt/eqv
+//  Generic sign detection: classifies a value as Positive, Negative, or Zero
+//  using only the RuntimeOrderedFieldOps trait.
 //  ---------------------------------------------------------------------------
 
-///  Connect RuntimeRational signum to the Rational OrderedRing trait lt/eqv.
-///
-///  Since all specs are open:
-///  - `Rational::zero() = from_int_spec(0) = Rational { num: 0, den: 0 }`
-///  - `Rational::zero().lt(v) = from_int_spec(0).lt_spec(v) = 0 * v.denom() < v.num * 1 = 0 < v.num`
-///  - `v.signum() == 1` iff `v.num > 0`
-///  So `Rational::zero().lt(v)` iff `v.signum() == 1`.
-pub proof fn lemma_signum_bridge(val: RationalModel)
+pub fn sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    val: &R,
+) -> (out: OrientationSign)
+    requires val.wf_spec(),
     ensures
-        (val.signum() == 1) == Rational::from_int_spec(0).lt_spec(val),
-        (val.signum() == -1) == val.lt_spec(Rational::from_int_spec(0)),
-        (val.signum() == 0) == val.eqv_spec(Rational::from_int_spec(0)),
+        out == (if val.rf_view().eqv(V::zero()) { OrientationSign::Zero }
+                else if V::zero().lt(val.rf_view()) { OrientationSign::Positive }
+                else { OrientationSign::Negative }),
 {
-    Rational::lemma_signum_positive_iff(val);
-    Rational::lemma_signum_negative_iff(val);
-    Rational::lemma_signum_zero_iff(val);
-    Rational::lemma_denom_positive(val);
-    let zero = Rational::from_int_spec(0);
-    assert(zero.num == 0);
-    assert(zero.den == 0nat);
-    assert(zero.denom_nat() == 1nat);
-    assert(zero.denom() == 1);
-    assert(zero.lt_spec(val) == (0 * val.denom() < val.num * 1));
-    assert(val.lt_spec(zero) == (val.num * 1 < 0 * val.denom()));
-    assert(val.eqv_spec(zero) == (val.num * 1 == 0 * val.denom()));
+    let zero = val.rf_zero_like();
+    if val.rf_eq(&zero) {
+        OrientationSign::Zero
+    } else if zero.rf_lt(val) {
+        OrientationSign::Positive
+    } else {
+        OrientationSign::Negative
+    }
 }
 
 //  ---------------------------------------------------------------------------
-//  orient2d_sign_exec
+//  orient2d_sign_exec (generic)
 //  ---------------------------------------------------------------------------
 
-pub fn orient2d_sign_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
+pub fn orient2d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>,
 ) -> (out: OrientationSign)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == orient2d_sign::<RationalModel>(a@, b@, c@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == orient2d_sign::<V>(a.model@, b.model@, c.model@),
 {
     let val = orient2d_exec(a, b, c);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    if s == 1i8 {
-        OrientationSign::Positive
-    } else if s == -1i8 {
-        OrientationSign::Negative
-    } else {
-        OrientationSign::Zero
-    }
+    sign_exec(&val)
 }
 
 //  ---------------------------------------------------------------------------
-//  orient3d_sign_exec
+//  orient3d_sign_exec (generic)
 //  ---------------------------------------------------------------------------
 
-pub fn orient3d_sign_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
+pub fn orient3d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
+    d: &RuntimePoint3<R, V>,
 ) -> (out: OrientationSign)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == orient3d_sign::<RationalModel>(a@, b@, c@, d@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == orient3d_sign::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let val = orient3d_exec(a, b, c, d);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    if s == 1i8 {
-        OrientationSign::Positive
-    } else if s == -1i8 {
-        OrientationSign::Negative
-    } else {
-        OrientationSign::Zero
-    }
+    sign_exec(&val)
 }
 
 //  ---------------------------------------------------------------------------
-//  Boolean predicates: 2D line sidedness
+//  Boolean predicates: 2D (generic)
 //  ---------------------------------------------------------------------------
 
-///  Test collinearity: orient2d(a, b, c) ≡ 0
-pub fn collinear2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2, c: &RuntimePoint2,
+pub fn collinear2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>,
 ) -> (out: bool)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == collinear2d::<RationalModel>(a@, b@, c@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == collinear2d::<V>(a.model@, b.model@, c.model@),
 {
     let val = orient2d_exec(a, b, c);
-    let z = val.is_zero();
-    proof {
-        //  collinear2d(a@,b@,c@) = orient2d(a@,b@,c@).eqv(zero())
-        //  is_zero ensures: z == val@.eqv_spec(from_int_spec(0))
-        //  Since Rational::eqv = eqv_spec and Rational::zero() = from_int_spec(0),
-        //  orient2d(a@,b@,c@).eqv(RationalModel::zero()) = val@.eqv_spec(from_int_spec(0)) = z
-    }
-    z
+    let zero = val.rf_zero_like();
+    val.rf_eq(&zero)
 }
 
-///  Test 3D collinearity: cross(b-a, c-a) ≡ Vec3::zero()
-pub fn collinear3d_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
+pub fn point_left_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
 ) -> (out: bool)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == collinear3d::<RationalModel>(a@, b@, c@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(),
+    ensures out == point_left_of_line::<V>(p.model@, a.model@, b.model@),
 {
-    use super::point3::{sub3_exec, cross_exec};
-    let ba = sub3_exec(b, a);
-    let ca = sub3_exec(c, a);
-    let cr = cross_exec(&ba, &ca);
-    cr.x.is_zero() && cr.y.is_zero() && cr.z.is_zero()
+    let val = orient2d_exec(a, b, p);
+    let zero = val.rf_zero_like();
+    zero.rf_lt(&val)
 }
 
-///  Test coplanarity: orient3d(a,b,c,d) ≡ 0
-pub fn coplanar_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
+pub fn point_right_of_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
 ) -> (out: bool)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == coplanar::<RationalModel>(a@, b@, c@, d@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(),
+    ensures out == point_right_of_line::<V>(p.model@, a.model@, b.model@),
+{
+    let val = orient2d_exec(a, b, p);
+    let zero = val.rf_zero_like();
+    val.rf_lt(&zero)
+}
+
+pub fn point_on_line_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
+) -> (out: bool)
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(),
+    ensures out == point_on_line::<V>(p.model@, a.model@, b.model@),
+{
+    let val = orient2d_exec(a, b, p);
+    let zero = val.rf_zero_like();
+    val.rf_eq(&zero)
+}
+
+//  ---------------------------------------------------------------------------
+//  Boolean predicates: 3D (generic)
+//  ---------------------------------------------------------------------------
+
+pub fn collinear3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
+) -> (out: bool)
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == collinear3d::<V>(a.model@, b.model@, c.model@),
+{
+    let (bax, bay, baz) = super::point3::sub3_exec(b, a);
+    let (cax, cay, caz) = super::point3::sub3_exec(c, a);
+    let (crx, cry, crz) = super::point3::cross_exec(&bax, &bay, &baz, &cax, &cay, &caz);
+    let zero = crx.rf_zero_like();
+    crx.rf_eq(&zero) && cry.rf_eq(&zero) && crz.rf_eq(&zero)
+}
+
+pub fn coplanar_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
+    d: &RuntimePoint3<R, V>,
+) -> (out: bool)
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == coplanar::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let val = orient3d_exec(a, b, c, d);
-    val.is_zero()
+    let zero = val.rf_zero_like();
+    val.rf_eq(&zero)
 }
 
-///  Point is strictly left of line a→b
-pub fn point_left_of_line_exec(
-    p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
+pub fn point_above_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint3<R, V>,
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
 ) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-    ensures
-        out == point_left_of_line::<RationalModel>(p@, a@, b@),
-{
-    let val = orient2d_exec(a, b, p);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    s == 1i8
-}
-
-///  Point is strictly right of line a→b
-pub fn point_right_of_line_exec(
-    p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
-) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-    ensures
-        out == point_right_of_line::<RationalModel>(p@, a@, b@),
-{
-    let val = orient2d_exec(a, b, p);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    s == -1i8
-}
-
-///  Point lies on line through a and b
-pub fn point_on_line_exec(
-    p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
-) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-    ensures
-        out == point_on_line::<RationalModel>(p@, a@, b@),
-{
-    let val = orient2d_exec(a, b, p);
-    let z = val.is_zero();
-    proof {
-        //  point_on_line = orient2d_zero(a, b, p) = orient2d(a,b,p).eqv(zero())
-    }
-    z
-}
-
-//  ---------------------------------------------------------------------------
-//  Boolean predicates: 3D plane sidedness
-//  ---------------------------------------------------------------------------
-
-///  Point is strictly above oriented plane (a, b, c)
-pub fn point_above_plane_exec(
-    p: &RuntimePoint3,
-    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
-) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == point_above_plane::<RationalModel>(p@, a@, b@, c@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == point_above_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    s == 1i8
+    let zero = val.rf_zero_like();
+    zero.rf_lt(&val)
 }
 
-///  Point is strictly below oriented plane (a, b, c)
-pub fn point_below_plane_exec(
-    p: &RuntimePoint3,
-    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
+pub fn point_below_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint3<R, V>,
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
 ) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == point_below_plane::<RationalModel>(p@, a@, b@, c@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == point_below_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    s == -1i8
+    let zero = val.rf_zero_like();
+    val.rf_lt(&zero)
 }
 
-///  Point lies on the plane through a, b, c
-pub fn point_on_plane_exec(
-    p: &RuntimePoint3,
-    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
+pub fn point_on_plane_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint3<R, V>,
+    a: &RuntimePoint3<R, V>,
+    b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>,
 ) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == point_on_plane::<RationalModel>(p@, a@, b@, c@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == point_on_plane::<V>(p.model@, a.model@, b.model@, c.model@),
 {
     let val = orient3d_exec(a, b, c, p);
-    val.is_zero()
+    let zero = val.rf_zero_like();
+    val.rf_eq(&zero)
 }
 
-///  Segment (d, e) strictly crosses the oriented plane (a, b, c)
-pub fn segment_crosses_plane_strict_exec(
-    d: &RuntimePoint3, e: &RuntimePoint3,
-    a: &RuntimePoint3, b: &RuntimePoint3, c: &RuntimePoint3,
+pub fn segment_crosses_plane_strict_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    d: &RuntimePoint3<R, V>, e: &RuntimePoint3<R, V>,
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>, c: &RuntimePoint3<R, V>,
 ) -> (out: bool)
-    requires
-        d.wf_spec(),
-        e.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-    ensures
-        out == segment_crosses_plane_strict::<RationalModel>(d@, e@, a@, b@, c@),
+    requires d.wf_spec(), e.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(),
+    ensures out == segment_crosses_plane_strict::<V>(d.model@, e.model@, a.model@, b.model@, c.model@),
 {
     let above_d = point_above_plane_exec(d, a, b, c);
     let below_d = point_below_plane_exec(d, a, b, c);
@@ -324,165 +237,101 @@ pub fn segment_crosses_plane_strict_exec(
     (above_d && below_e) || (below_d && above_e)
 }
 
-//  ---------------------------------------------------------------------------
-//  Consistent face orientation
-//  ---------------------------------------------------------------------------
-
-///  Two adjacent triangles have consistent orientation.
-pub fn faces_consistently_oriented_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3,
+pub fn faces_consistently_oriented_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
 ) -> (out: bool)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == crate::face_normal::faces_consistently_oriented::<RationalModel>(a@, b@, c@, d@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == crate::face_normal::faces_consistently_oriented::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     point_above_plane_exec(d, a, b, c)
 }
 
 //  ---------------------------------------------------------------------------
-//  Incircle sign
+//  Incircle / Insphere (generic)
 //  ---------------------------------------------------------------------------
 
-///  Compute the incircle determinant at runtime.
-fn incircle2d_compute(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
-) -> (out: RuntimeRational)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out@ == incircle2d::<RationalModel>(a@, b@, c@, d@),
+fn incircle2d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
+) -> (out: R)
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out.wf_spec(), out.rf_view() == incircle2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
-    //  p = a - d, q = b - d, r = c - d
-    let px = a.x.sub(&d.x);
-    let py = a.y.sub(&d.y);
-    let qx = b.x.sub(&d.x);
-    let qy = b.y.sub(&d.y);
-    let rx = c.x.sub(&d.x);
-    let ry = c.y.sub(&d.y);
+    let px = a.x.rf_sub(&d.x);
+    let py = a.y.rf_sub(&d.y);
+    let qx = b.x.rf_sub(&d.x);
+    let qy = b.y.rf_sub(&d.y);
+    let rx = c.x.rf_sub(&d.x);
+    let ry = c.y.rf_sub(&d.y);
 
-    //  lift coords: pw = px² + py², qw = qx² + qy², rw = rx² + ry²
-    let pw = px.mul(&px).add(&py.mul(&py));
-    let qw = qx.mul(&qx).add(&qy.mul(&qy));
-    let rw = rx.mul(&rx).add(&ry.mul(&ry));
+    let pw = px.rf_mul(&px).rf_add(&py.rf_mul(&py));
+    let qw = qx.rf_mul(&qx).rf_add(&qy.rf_mul(&qy));
+    let rw = rx.rf_mul(&rx).rf_add(&ry.rf_mul(&ry));
 
-    //  det2d(q, r) = qx*ry - qy*rx
-    let det_qr = qx.mul(&ry).sub(&qy.mul(&rx));
-    //  det2d(p, r) = px*ry - py*rx
-    let det_pr = px.mul(&ry).sub(&py.mul(&rx));
-    //  det2d(p, q) = px*qy - py*qx
-    let det_pq = px.mul(&qy).sub(&py.mul(&qx));
+    let det_qr = qx.rf_mul(&ry).rf_sub(&qy.rf_mul(&rx));
+    let det_pr = px.rf_mul(&ry).rf_sub(&py.rf_mul(&rx));
+    let det_pq = px.rf_mul(&qy).rf_sub(&py.rf_mul(&qx));
 
-    //  pw * det_qr - qw * det_pr + rw * det_pq
-    pw.mul(&det_qr).sub(&qw.mul(&det_pr)).add(&rw.mul(&det_pq))
+    pw.rf_mul(&det_qr).rf_sub(&qw.rf_mul(&det_pr)).rf_add(&rw.rf_mul(&det_pq))
 }
 
-///  Classify the incircle sign: Positive (inside), Negative (outside), Zero (cocircular).
-pub fn incircle2d_sign_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
+pub fn incircle2d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
 ) -> (out: OrientationSign)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == incircle2d_sign::<RationalModel>(a@, b@, c@, d@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == incircle2d_sign::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let val = incircle2d_compute(a, b, c, d);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    if s == 1i8 {
-        OrientationSign::Positive
-    } else if s == -1i8 {
-        OrientationSign::Negative
-    } else {
-        OrientationSign::Zero
-    }
+    sign_exec(&val)
 }
 
-//  ---------------------------------------------------------------------------
-//  Insphere sign
-//  ---------------------------------------------------------------------------
-
-///  Compute the insphere determinant at runtime.
-fn insphere3d_compute(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
-) -> (out: RuntimeRational)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        e.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out@ == insphere3d::<RationalModel>(a@, b@, c@, d@, e@),
+fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>, e: &RuntimePoint3<R, V>,
+) -> (out: R)
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(), e.wf_spec(),
+    ensures out.wf_spec(), out.rf_view() == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
 {
-    use super::point3::sub3_exec;
-    use verus_linalg::runtime::vec3::RuntimeVec3;
+    use super::point3::{sub3_exec, cross_exec, dot3_exec};
 
-    //  p = a - e, q = b - e, r = c - e, s = d - e
-    let p = sub3_exec(a, e);
-    let q = sub3_exec(b, e);
-    let r = sub3_exec(c, e);
-    let s = sub3_exec(d, e);
+    let (px, py, pz) = sub3_exec(a, e);
+    let (qx, qy, qz) = sub3_exec(b, e);
+    let (rx, ry, rz) = sub3_exec(c, e);
+    let (sx, sy, sz) = sub3_exec(d, e);
 
-    //  lift coords
-    let pw = p.norm_sq_exec();
-    let qw = q.norm_sq_exec();
-    let rw = r.norm_sq_exec();
-    let sw = s.norm_sq_exec();
+    //  lift: w = x² + y² + z²
+    let pw = px.rf_mul(&px).rf_add(&py.rf_mul(&py)).rf_add(&pz.rf_mul(&pz));
+    let qw = qx.rf_mul(&qx).rf_add(&qy.rf_mul(&qy)).rf_add(&qz.rf_mul(&qz));
+    let rw = rx.rf_mul(&rx).rf_add(&ry.rf_mul(&ry)).rf_add(&rz.rf_mul(&rz));
+    let sw = sx.rf_mul(&sx).rf_add(&sy.rf_mul(&sy)).rf_add(&sz.rf_mul(&sz));
 
-    //  triple products
-    let t_qrs = q.triple_exec(&r, &s);
-    let t_prs = p.triple_exec(&r, &s);
-    let t_pqs = p.triple_exec(&q, &s);
-    let t_pqr = p.triple_exec(&q, &r);
+    //  triple products: dot(a, cross(b, c))
+    let (cr_rs_x, cr_rs_y, cr_rs_z) = cross_exec(&rx, &ry, &rz, &sx, &sy, &sz);
+    let t_qrs = dot3_exec(&qx, &qy, &qz, &cr_rs_x, &cr_rs_y, &cr_rs_z);
 
-    //  pw * t_qrs - qw * t_prs + rw * t_pqs - sw * t_pqr
-    pw.mul(&t_qrs).sub(&qw.mul(&t_prs)).add(&rw.mul(&t_pqs)).sub(&sw.mul(&t_pqr))
+    let (cr_rs2_x, cr_rs2_y, cr_rs2_z) = cross_exec(&rx, &ry, &rz, &sx, &sy, &sz);
+    let t_prs = dot3_exec(&px, &py, &pz, &cr_rs2_x, &cr_rs2_y, &cr_rs2_z);
+
+    let (cr_qs_x, cr_qs_y, cr_qs_z) = cross_exec(&qx, &qy, &qz, &sx, &sy, &sz);
+    let t_pqs = dot3_exec(&px, &py, &pz, &cr_qs_x, &cr_qs_y, &cr_qs_z);
+
+    let (cr_qr_x, cr_qr_y, cr_qr_z) = cross_exec(&qx, &qy, &qz, &rx, &ry, &rz);
+    let t_pqr = dot3_exec(&px, &py, &pz, &cr_qr_x, &cr_qr_y, &cr_qr_z);
+
+    pw.rf_mul(&t_qrs).rf_sub(&qw.rf_mul(&t_prs)).rf_add(&rw.rf_mul(&t_pqs)).rf_sub(&sw.rf_mul(&t_pqr))
 }
 
-///  Classify the insphere sign: Positive (inside), Negative (outside), Zero (cospherical).
-pub fn insphere3d_sign_exec(
-    a: &RuntimePoint3, b: &RuntimePoint3,
-    c: &RuntimePoint3, d: &RuntimePoint3, e: &RuntimePoint3,
+pub fn insphere3d_sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint3<R, V>, b: &RuntimePoint3<R, V>,
+    c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>, e: &RuntimePoint3<R, V>,
 ) -> (out: OrientationSign)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        e.wf_spec(),
-    ensures
-        out == insphere3d_sign::<RationalModel>(a@, b@, c@, d@, e@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(), e.wf_spec(),
+    ensures out == insphere3d_sign::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
 {
     let val = insphere3d_compute(a, b, c, d, e);
-    let s = val.signum();
-    proof {
-        lemma_signum_bridge(val@);
-    }
-    if s == 1i8 {
-        OrientationSign::Positive
-    } else if s == -1i8 {
-        OrientationSign::Negative
-    } else {
-        OrientationSign::Zero
-    }
+    sign_exec(&val)
 }
 
 } //  verus!
