@@ -82,7 +82,7 @@ pub fn segment_plane_intersection_point_exec<R: RuntimeOrderedFieldOps<V>, V: Or
 {
     let t = segment_plane_intersection_parameter_exec(d, e, a, b, c);
     let dir = e.sub(d);
-    d.add(&dir.scale(&t))
+    d.add(&dir.scaled(&t))
 }
 
 pub fn project_drop_z_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(

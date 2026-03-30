@@ -69,7 +69,7 @@ pub fn closest_point_on_segment_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Ordered
 {
     let d = b.sub(a);
     let t = closest_parameter_2d_exec(q, a, b);
-    a.add(&d.scale(&t))
+    a.add(&d.scaled(&t))
 }
 
 pub fn squared_distance_point_segment_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -117,7 +117,7 @@ pub fn closest_point_on_segment_3d_exec<R: RuntimeOrderedFieldOps<V>, V: Ordered
 {
     let d = b.sub(a);
     let t = closest_parameter_3d_exec(q, a, b);
-    a.add(&d.scale(&t))
+    a.add(&d.scaled(&t))
 }
 
 pub fn squared_distance_point_segment_3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(

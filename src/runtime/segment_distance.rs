@@ -94,8 +94,8 @@ pub fn line_line_squared_distance_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
 {
     let s = closest_parameter_s_exec(a, b, c, d);
     let t = closest_parameter_t_exec(a, b, c, d);
-    let p1 = a.add(&b.sub(a).scale(&s));
-    let p2 = c.add(&d.sub(c).scale(&t));
+    let p1 = a.add(&b.sub(a).scaled(&s));
+    let p2 = c.add(&d.sub(c).scaled(&t));
     p1.sub(&p2).norm_sq()
 }
 

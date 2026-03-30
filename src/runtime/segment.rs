@@ -182,7 +182,7 @@ pub fn segment_intersection_point_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Order
 {
     let t = segment_intersection_parameter_2d_exec(a, b, c, d);
     let dir = b.sub(a);
-    a.add(&dir.scale(&t))
+    a.add(&dir.scaled(&t))
 }
 
 pub fn segment_intersection_parameter_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -221,7 +221,7 @@ pub fn segment_intersection_point_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Or
 {
     let s = segment_intersection_parameter_cd_2d_exec(a, b, c, d);
     let dir = d.sub(c);
-    c.add(&dir.scale(&s))
+    c.add(&dir.scaled(&s))
 }
 
 } //  verus!
