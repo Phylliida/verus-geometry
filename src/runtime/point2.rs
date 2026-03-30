@@ -1,100 +1,81 @@
-use verus_rational::RuntimeRational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+use crate::point2::Point2;
 #[cfg(verus_keep_ghost)]
-use crate::point2::{Point2, sub2, add_vec2};
+use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
-use verus_linalg::vec2::Vec2;
-
-pub use verus_linalg::runtime::vec2::RuntimeVec2;
+use verus_algebra::traits::runtime::RuntimeRingOps;
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-//  ---------------------------------------------------------------------------
-//  RuntimePoint2
-//  ---------------------------------------------------------------------------
-
-pub struct RuntimePoint2 {
-    pub x: RuntimeRational,
-    pub y: RuntimeRational,
-    pub model: Ghost<Point2<RationalModel>>,
+///  A runtime 2D point, generic over any runtime field.
+pub struct RuntimePoint2<R, V: OrderedField> where R: RuntimeRingOps<V> {
+    pub x: R,
+    pub y: R,
+    pub model: Ghost<Point2<V>>,
 }
 
-impl View for RuntimePoint2 {
-    type V = Point2<RationalModel>;
-
-    open spec fn view(&self) -> Point2<RationalModel> {
-        self.model@
-    }
-}
-
-impl RuntimePoint2 {
+impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.x.wf_spec()
         &&& self.y.wf_spec()
-        &&& self.x@ == self@.x
-        &&& self.y@ == self@.y
+        &&& self.x.rf_view() == self.model@.x
+        &&& self.y.rf_view() == self.model@.y
     }
 
-    pub fn new(x: RuntimeRational, y: RuntimeRational) -> (out: Self)
-        requires
-            x.wf_spec(),
-            y.wf_spec(),
+    pub fn new(x: R, y: R) -> (out: Self)
+        requires x.wf_spec(), y.wf_spec(),
         ensures
             out.wf_spec(),
-            out@.x == x@,
-            out@.y == y@,
+            out.model@.x == x.rf_view(),
+            out.model@.y == y.rf_view(),
     {
-        let ghost model = Point2 { x: x@, y: y@ };
+        let ghost model = Point2 { x: x.rf_view(), y: y.rf_view() };
         RuntimePoint2 { x, y, model: Ghost(model) }
     }
 
-    pub fn from_ints(x: i64, y: i64) -> (out: Self)
-        ensures
-            out.wf_spec(),
+    pub fn copy_point(&self) -> (out: Self)
+        requires self.wf_spec(),
+        ensures out.wf_spec(), out.model@ == self.model@,
     {
-        let rx = RuntimeRational::from_int(x);
-        let ry = RuntimeRational::from_int(y);
-        Self::new(rx, ry)
+        let x = self.x.rf_copy();
+        let y = self.y.rf_copy();
+        RuntimePoint2 { x, y, model: Ghost(self.model@) }
     }
 }
 
-//  ---------------------------------------------------------------------------
-//  Exec operations
-//  ---------------------------------------------------------------------------
-
-///  Point subtraction: a - b = vector
-pub fn sub2_exec(a: &RuntimePoint2, b: &RuntimePoint2) -> (out: RuntimeVec2)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
+///  Point subtraction: a - b = (dx, dy).
+pub fn sub2_exec<R: RuntimeRingOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>,
+    b: &RuntimePoint2<R, V>,
+) -> (out: (R, R))
+    requires a.wf_spec(), b.wf_spec(),
     ensures
-        out.wf_spec(),
-        out@ == sub2::<RationalModel>(a@, b@),
+        out.0.wf_spec(), out.1.wf_spec(),
+        out.0.rf_view() == a.model@.x.sub(b.model@.x),
+        out.1.rf_view() == a.model@.y.sub(b.model@.y),
 {
-    let dx = a.x.sub(&b.x);
-    let dy = a.y.sub(&b.y);
-    let ghost model = sub2::<RationalModel>(a@, b@);
-    RuntimeVec2 { x: dx, y: dy, model: Ghost(model) }
+    (a.x.rf_sub(&b.x), a.y.rf_sub(&b.y))
 }
 
-///  Point + vector = point
-pub fn add_vec2_exec(p: &RuntimePoint2, v: &RuntimeVec2) -> (out: RuntimePoint2)
-    requires
-        p.wf_spec(),
-        v.wf_spec(),
+///  Point + (dx, dy) = point.
+pub fn add_vec2_exec<R: RuntimeRingOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    dx: &R,
+    dy: &R,
+) -> (out: RuntimePoint2<R, V>)
+    requires p.wf_spec(), dx.wf_spec(), dy.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == add_vec2::<RationalModel>(p@, v@),
+        out.model@.x == p.model@.x.add(dx.rf_view()),
+        out.model@.y == p.model@.y.add(dy.rf_view()),
 {
-    let rx = p.x.add(&v.x);
-    let ry = p.y.add(&v.y);
-    let ghost model = add_vec2::<RationalModel>(p@, v@);
+    let rx = p.x.rf_add(dx);
+    let ry = p.y.rf_add(dy);
+    let ghost model = Point2 { x: p.model@.x.add(dx.rf_view()), y: p.model@.y.add(dy.rf_view()) };
     RuntimePoint2 { x: rx, y: ry, model: Ghost(model) }
 }
 
