@@ -7,11 +7,15 @@ use crate::point3::Point3;
 use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::runtime::RuntimeRingOps;
+#[cfg(verus_keep_ghost)]
+use verus_linalg::vec3::Vec3;
+#[cfg(verus_keep_ghost)]
+use verus_linalg::vec3::ops::{cross, dot};
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-///  A runtime 3D point, generic over any runtime field.
+///  A runtime 3D point/vector, generic over any runtime field.
 pub struct RuntimePoint3<R, V: OrderedField> where R: RuntimeRingOps<V> {
     pub x: R,
     pub y: R,
@@ -50,84 +54,96 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint3<R, V> {
         let z = self.z.copy();
         RuntimePoint3 { x, y, z, model: Ghost(self.model@) }
     }
-}
 
-///  Point subtraction: a - b = (dx, dy, dz).
-pub fn sub3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
-    a: &RuntimePoint3<R, V>,
-    b: &RuntimePoint3<R, V>,
-) -> (out: (R, R, R))
-    requires a.wf_spec(), b.wf_spec(),
-    ensures
-        out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.model() == a.model@.x.sub(b.model@.x),
-        out.1.model() == a.model@.y.sub(b.model@.y),
-        out.2.model() == a.model@.z.sub(b.model@.z),
-{
-    (a.x.sub(&b.x), a.y.sub(&b.y), a.z.sub(&b.z))
-}
+    ///  Component-wise subtraction: self - other.
+    pub fn sub(&self, other: &Self) -> (out: Self)
+        requires self.wf_spec(), other.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model@.x == self.model@.x.sub(other.model@.x),
+            out.model@.y == self.model@.y.sub(other.model@.y),
+            out.model@.z == self.model@.z.sub(other.model@.z),
+    {
+        RuntimePoint3::new(
+            self.x.sub(&other.x),
+            self.y.sub(&other.y),
+            self.z.sub(&other.z),
+        )
+    }
 
-///  Point + (dx, dy, dz) = point.
-pub fn add_vec3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
-    p: &RuntimePoint3<R, V>,
-    dx: &R, dy: &R, dz: &R,
-) -> (out: RuntimePoint3<R, V>)
-    requires p.wf_spec(), dx.wf_spec(), dy.wf_spec(), dz.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out.model@.x == p.model@.x.add(dx.model()),
-        out.model@.y == p.model@.y.add(dy.model()),
-        out.model@.z == p.model@.z.add(dz.model()),
-{
-    let rx = p.x.add(dx);
-    let ry = p.y.add(dy);
-    let rz = p.z.add(dz);
-    let ghost model = Point3 {
-        x: p.model@.x.add(dx.model()),
-        y: p.model@.y.add(dy.model()),
-        z: p.model@.z.add(dz.model()),
-    };
-    RuntimePoint3 { x: rx, y: ry, z: rz, model: Ghost(model) }
-}
+    ///  Component-wise addition: self + other.
+    pub fn add(&self, other: &Self) -> (out: Self)
+        requires self.wf_spec(), other.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model@.x == self.model@.x.add(other.model@.x),
+            out.model@.y == self.model@.y.add(other.model@.y),
+            out.model@.z == self.model@.z.add(other.model@.z),
+    {
+        RuntimePoint3::new(
+            self.x.add(&other.x),
+            self.y.add(&other.y),
+            self.z.add(&other.z),
+        )
+    }
 
-///  Cross product: (u × v) = (uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx).
-pub fn cross_exec<R: RuntimeRingOps<V>, V: OrderedField>(
-    ux: &R, uy: &R, uz: &R,
-    vx: &R, vy: &R, vz: &R,
-) -> (out: (R, R, R))
-    requires
-        ux.wf_spec(), uy.wf_spec(), uz.wf_spec(),
-        vx.wf_spec(), vy.wf_spec(), vz.wf_spec(),
-    ensures
-        out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.model() == uy.model().mul(vz.model()).sub(uz.model().mul(vy.model())),
-        out.1.model() == uz.model().mul(vx.model()).sub(ux.model().mul(vz.model())),
-        out.2.model() == ux.model().mul(vy.model()).sub(uy.model().mul(vx.model())),
-{
-    let a = uy.mul(vz).sub(&uz.mul(vy));
-    let b = uz.mul(vx).sub(&ux.mul(vz));
-    let c = ux.mul(vy).sub(&uy.mul(vx));
-    (a, b, c)
-}
+    ///  Scalar multiply: t * self.
+    pub fn scale(&self, t: &R) -> (out: Self)
+        requires self.wf_spec(), t.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model@.x == t.model().mul(self.model@.x),
+            out.model@.y == t.model().mul(self.model@.y),
+            out.model@.z == t.model().mul(self.model@.z),
+    {
+        RuntimePoint3::new(
+            t.mul(&self.x),
+            t.mul(&self.y),
+            t.mul(&self.z),
+        )
+    }
 
-///  Dot product: u · v = ux*vx + uy*vy + uz*vz.
-pub fn dot3_exec<R: RuntimeRingOps<V>, V: OrderedField>(
-    ux: &R, uy: &R, uz: &R,
-    vx: &R, vy: &R, vz: &R,
-) -> (out: R)
-    requires
-        ux.wf_spec(), uy.wf_spec(), uz.wf_spec(),
-        vx.wf_spec(), vy.wf_spec(), vz.wf_spec(),
-    ensures
-        out.wf_spec(),
-        out.model() == ux.model().mul(vx.model())
-            .add(uy.model().mul(vy.model()))
-            .add(uz.model().mul(vz.model())),
-{
-    let a = ux.mul(vx);
-    let b = uy.mul(vy);
-    let c = uz.mul(vz);
-    a.add(&b).add(&c)
+    ///  Cross product: self × other.
+    pub fn cross(&self, other: &Self) -> (out: Self)
+        requires self.wf_spec(), other.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model@.x == self.model@.y.mul(other.model@.z).sub(self.model@.z.mul(other.model@.y)),
+            out.model@.y == self.model@.z.mul(other.model@.x).sub(self.model@.x.mul(other.model@.z)),
+            out.model@.z == self.model@.x.mul(other.model@.y).sub(self.model@.y.mul(other.model@.x)),
+    {
+        RuntimePoint3::new(
+            self.y.mul(&other.z).sub(&self.z.mul(&other.y)),
+            self.z.mul(&other.x).sub(&self.x.mul(&other.z)),
+            self.x.mul(&other.y).sub(&self.y.mul(&other.x)),
+        )
+    }
+
+    ///  Dot product: self · other.
+    pub fn dot(&self, other: &Self) -> (out: R)
+        requires self.wf_spec(), other.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model() == self.model@.x.mul(other.model@.x)
+                .add(self.model@.y.mul(other.model@.y))
+                .add(self.model@.z.mul(other.model@.z)),
+    {
+        self.x.mul(&other.x)
+            .add(&self.y.mul(&other.y))
+            .add(&self.z.mul(&other.z))
+    }
+
+    ///  Squared norm: self · self.
+    pub fn norm_sq(&self) -> (out: R)
+        requires self.wf_spec(),
+        ensures
+            out.wf_spec(),
+            out.model() == self.model@.x.mul(self.model@.x)
+                .add(self.model@.y.mul(self.model@.y))
+                .add(self.model@.z.mul(self.model@.z)),
+    {
+        self.dot(self)
+    }
 }
 
 } //  verus!

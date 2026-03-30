@@ -1,12 +1,15 @@
 use verus_rational::RuntimeRational;
 
 #[cfg(verus_keep_ghost)]
+use verus_rational::rational::Rational;
+
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+
 #[cfg(verus_keep_ghost)]
 use super::point3::RuntimePoint3;
 #[cfg(verus_keep_ghost)]
@@ -26,15 +29,15 @@ verus! {
 ///  Tests whether ray (origin + t*dir, t ≥ 0) hits triangle (v0, v1, v2).
 ///  Uses sign comparisons to avoid division.
 pub fn ray_hits_triangle_nodiv_exec(
-    origin: &RuntimePoint3, dir: &RuntimeVec3,
-    v0: &RuntimePoint3, v1: &RuntimePoint3, v2: &RuntimePoint3,
+    origin: &RuntimePoint3<RuntimeRational, Rational>, dir: &RuntimeVec3,
+    v0: &RuntimePoint3<RuntimeRational, Rational>, v1: &RuntimePoint3<RuntimeRational, Rational>, v2: &RuntimePoint3<RuntimeRational, Rational>,
 ) -> (out: bool)
     requires
         origin.wf_spec(), dir.wf_spec(),
         v0.wf_spec(), v1.wf_spec(), v2.wf_spec(),
     ensures
-        out == ray_hits_triangle_nodiv::<RationalModel>(
-            origin@, dir@, v0@, v1@, v2@,
+        out == ray_hits_triangle_nodiv::<Rational>(
+            origin.model@, dir.model@, v0.model@, v1.model@, v2.model@,
         ),
 {
     //  Edge vectors

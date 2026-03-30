@@ -1,12 +1,15 @@
 use verus_rational::RuntimeRational;
 
 #[cfg(verus_keep_ghost)]
+use verus_rational::rational::Rational;
+
+#[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+
 #[cfg(verus_keep_ghost)]
 use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
@@ -30,7 +33,7 @@ fn axis_parallel_miss_exec(
         origin_c.wf_spec(), dir_c.wf_spec(),
         min_c.wf_spec(), max_c.wf_spec(),
     ensures
-        out == axis_parallel_miss::<RationalModel>(origin_c@, dir_c@, min_c@, max_c@),
+        out == axis_parallel_miss::<Rational>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = RuntimeRational::from_int(0);
     let dir_is_zero = dir_c.eq(&zero);
@@ -49,10 +52,10 @@ fn slab_t_near_exec(
     requires
         origin_c.wf_spec(), dir_c.wf_spec(),
         min_c.wf_spec(), max_c.wf_spec(),
-        !dir_c@.eqv_spec(RationalModel::from_int_spec(0)),
+        !dir_c@.eqv_spec(Rational::from_int_spec(0)),
     ensures
         out.wf_spec(),
-        out@ == slab_t_near::<RationalModel>(origin_c@, dir_c@, min_c@, max_c@),
+        out.model@ == slab_t_near::<Rational>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = RuntimeRational::from_int(0);
     if zero.lt(dir_c) {
@@ -70,10 +73,10 @@ fn slab_t_far_exec(
     requires
         origin_c.wf_spec(), dir_c.wf_spec(),
         min_c.wf_spec(), max_c.wf_spec(),
-        !dir_c@.eqv_spec(RationalModel::from_int_spec(0)),
+        !dir_c@.eqv_spec(Rational::from_int_spec(0)),
     ensures
         out.wf_spec(),
-        out@ == slab_t_far::<RationalModel>(origin_c@, dir_c@, min_c@, max_c@),
+        out.model@ == slab_t_far::<Rational>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = RuntimeRational::from_int(0);
     if zero.lt(dir_c) {
@@ -89,18 +92,18 @@ fn slab_t_far_exec(
 
 ///  Compute t_enter = max(0, t_near for non-parallel axes) at runtime (3D).
 fn slab_t_enter_3d_exec(
-    origin: &RuntimePoint3, dir: &RuntimePoint3,
-    aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
+    origin: &RuntimePoint3<RuntimeRational, Rational>, dir: &RuntimePoint3<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint3<RuntimeRational, Rational>, aabb_max: &RuntimePoint3<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == slab_t_enter_3d::<RationalModel>(
-            origin@,
-            verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
-            aabb_min@, aabb_max@,
+        out.model@ == slab_t_enter_3d::<Rational>(
+            origin.model@,
+            verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     let zero = RuntimeRational::from_int(0);
@@ -122,18 +125,18 @@ fn slab_t_enter_3d_exec(
 
 ///  Compute t_exit = min(t_far for non-parallel axes) at runtime (3D).
 fn slab_t_exit_3d_exec(
-    origin: &RuntimePoint3, dir: &RuntimePoint3,
-    aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
+    origin: &RuntimePoint3<RuntimeRational, Rational>, dir: &RuntimePoint3<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint3<RuntimeRational, Rational>, aabb_max: &RuntimePoint3<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == slab_t_exit_3d::<RationalModel>(
-            origin@,
-            verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
-            aabb_min@, aabb_max@,
+        out.model@ == slab_t_exit_3d::<Rational>(
+            origin.model@,
+            verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     let zero = RuntimeRational::from_int(0);
@@ -177,17 +180,17 @@ fn slab_t_exit_3d_exec(
 
 ///  Ray-AABB intersection test (3D) at runtime.
 pub fn ray_hits_aabb3_exec(
-    origin: &RuntimePoint3, dir: &RuntimePoint3,
-    aabb_min: &RuntimePoint3, aabb_max: &RuntimePoint3,
+    origin: &RuntimePoint3<RuntimeRational, Rational>, dir: &RuntimePoint3<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint3<RuntimeRational, Rational>, aabb_max: &RuntimePoint3<RuntimeRational, Rational>,
 ) -> (out: bool)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
-        out == ray_hits_aabb3::<RationalModel>(
-            origin@,
-            verus_linalg::vec3::Vec3 { x: dir@.x, y: dir@.y, z: dir@.z },
-            aabb_min@, aabb_max@,
+        out == ray_hits_aabb3::<Rational>(
+            origin.model@,
+            verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     if axis_parallel_miss_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x) {
@@ -211,18 +214,18 @@ pub fn ray_hits_aabb3_exec(
 
 ///  Compute t_enter = max(0, t_near for non-parallel axes) at runtime (2D).
 fn slab_t_enter_2d_exec(
-    origin: &RuntimePoint2, dir: &RuntimePoint2,
-    aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
+    origin: &RuntimePoint2<RuntimeRational, Rational>, dir: &RuntimePoint2<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint2<RuntimeRational, Rational>, aabb_max: &RuntimePoint2<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == slab_t_enter_2d::<RationalModel>(
-            origin@,
-            verus_linalg::vec2::Vec2 { x: dir@.x, y: dir@.y },
-            aabb_min@, aabb_max@,
+        out.model@ == slab_t_enter_2d::<Rational>(
+            origin.model@,
+            verus_linalg::vec2::Vec2 { x: dir.model@.x, y: dir.model@.y },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     let zero = RuntimeRational::from_int(0);
@@ -240,18 +243,18 @@ fn slab_t_enter_2d_exec(
 
 ///  Compute t_exit = min(t_far for non-parallel axes) at runtime (2D).
 fn slab_t_exit_2d_exec(
-    origin: &RuntimePoint2, dir: &RuntimePoint2,
-    aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
+    origin: &RuntimePoint2<RuntimeRational, Rational>, dir: &RuntimePoint2<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint2<RuntimeRational, Rational>, aabb_max: &RuntimePoint2<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == slab_t_exit_2d::<RationalModel>(
-            origin@,
-            verus_linalg::vec2::Vec2 { x: dir@.x, y: dir@.y },
-            aabb_min@, aabb_max@,
+        out.model@ == slab_t_exit_2d::<Rational>(
+            origin.model@,
+            verus_linalg::vec2::Vec2 { x: dir.model@.x, y: dir.model@.y },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     let zero = RuntimeRational::from_int(0);
@@ -277,17 +280,17 @@ fn slab_t_exit_2d_exec(
 
 ///  Ray-AABB intersection test (2D) at runtime.
 pub fn ray_hits_aabb2_exec(
-    origin: &RuntimePoint2, dir: &RuntimePoint2,
-    aabb_min: &RuntimePoint2, aabb_max: &RuntimePoint2,
+    origin: &RuntimePoint2<RuntimeRational, Rational>, dir: &RuntimePoint2<RuntimeRational, Rational>,
+    aabb_min: &RuntimePoint2<RuntimeRational, Rational>, aabb_max: &RuntimePoint2<RuntimeRational, Rational>,
 ) -> (out: bool)
     requires
         origin.wf_spec(), dir.wf_spec(),
         aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures
-        out == ray_hits_aabb2::<RationalModel>(
-            origin@,
-            verus_linalg::vec2::Vec2 { x: dir@.x, y: dir@.y },
-            aabb_min@, aabb_max@,
+        out == ray_hits_aabb2::<Rational>(
+            origin.model@,
+            verus_linalg::vec2::Vec2 { x: dir.model@.x, y: dir.model@.y },
+            aabb_min.model@, aabb_max.model@,
         ),
 {
     if axis_parallel_miss_exec(&origin.x, &dir.x, &aabb_min.x, &aabb_max.x) {

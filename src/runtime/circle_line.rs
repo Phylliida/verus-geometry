@@ -1,11 +1,14 @@
 use verus_rational::RuntimeRational;
+
+#[cfg(verus_keep_ghost)]
+use verus_rational::rational::Rational;
 use verus_quadratic_extension::runtime::RuntimeQExtRat;
 
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+
 #[cfg(verus_keep_ghost)]
 use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
@@ -31,12 +34,12 @@ use crate::point2::Point2;
 verus! {
 
 ///  Compute the quadratic coefficient A = a² + b².
-pub fn cl_quad_a_exec(line: &RuntimeLine2) -> (out: RuntimeRational)
+pub fn cl_quad_a_exec(line: &RuntimeLine2<RuntimeRational, Rational>) -> (out: RuntimeRational)
     requires
         line.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == cl_quad_a::<RationalModel>(line@),
+        out.model@ == cl_quad_a::<Rational>(line.model@),
 {
     let a2 = line.a.mul(&line.a);
     let b2 = line.b.mul(&line.b);
@@ -45,15 +48,15 @@ pub fn cl_quad_a_exec(line: &RuntimeLine2) -> (out: RuntimeRational)
 
 ///  Compute the signed distance numerator: a*cx + b*cy + c.
 pub fn cl_signed_dist_num_exec(
-    circle: &RuntimeCircle2,
-    line: &RuntimeLine2,
+    circle: &RuntimeCircle2<RuntimeRational, Rational>,
+    line: &RuntimeLine2<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         circle.wf_spec(),
         line.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == cl_signed_dist_num::<RationalModel>(circle@, line@),
+        out.model@ == cl_signed_dist_num::<Rational>(circle.model@, line.model@),
 {
     let acx = line.a.mul(&circle.center.x);
     let bcy = line.b.mul(&circle.center.y);
@@ -63,15 +66,15 @@ pub fn cl_signed_dist_num_exec(
 
 ///  Compute the circle-line discriminant: A * r² - h².
 pub fn cl_discriminant_exec(
-    circle: &RuntimeCircle2,
-    line: &RuntimeLine2,
+    circle: &RuntimeCircle2<RuntimeRational, Rational>,
+    line: &RuntimeLine2<RuntimeRational, Rational>,
 ) -> (out: RuntimeRational)
     requires
         circle.wf_spec(),
         line.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == cl_discriminant::<RationalModel>(circle@, line@),
+        out.model@ == cl_discriminant::<Rational>(circle.model@, line.model@),
 {
     let a_coef = cl_quad_a_exec(line);
     let h = cl_signed_dist_num_exec(circle, line);
@@ -81,18 +84,18 @@ pub fn cl_discriminant_exec(
 }
 
 ///  Compute the x-coordinate of a circle-line intersection.
-pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
-    circle: &RuntimeCircle2,
-    line: &RuntimeLine2,
+pub fn cl_intersection_x_exec<R: PositiveRadicand<Rational>>(
+    circle: &RuntimeCircle2<RuntimeRational, Rational>,
+    line: &RuntimeLine2<RuntimeRational, Rational>,
     plus: bool,
 ) -> (out: RuntimeQExtRat<R>)
     requires
         circle.wf_spec(),
         line.wf_spec(),
-        !cl_quad_a::<RationalModel>(line@).eqv(RationalModel::from_int_spec(0)),
+        !cl_quad_a::<Rational>(line.model@).eqv(Rational::from_int_spec(0)),
     ensures
         out.wf_spec(),
-        out@ == cl_intersection_x::<RationalModel, R>(circle@, line@, plus),
+        out.model@ == cl_intersection_x::<Rational, R>(circle.model@, line.model@, plus),
 {
     let a_coef = cl_quad_a_exec(line);
     let h = cl_signed_dist_num_exec(circle, line);
@@ -114,18 +117,18 @@ pub fn cl_intersection_x_exec<R: PositiveRadicand<RationalModel>>(
 }
 
 ///  Compute the y-coordinate of a circle-line intersection.
-pub fn cl_intersection_y_exec<R: PositiveRadicand<RationalModel>>(
-    circle: &RuntimeCircle2,
-    line: &RuntimeLine2,
+pub fn cl_intersection_y_exec<R: PositiveRadicand<Rational>>(
+    circle: &RuntimeCircle2<RuntimeRational, Rational>,
+    line: &RuntimeLine2<RuntimeRational, Rational>,
     plus: bool,
 ) -> (out: RuntimeQExtRat<R>)
     requires
         circle.wf_spec(),
         line.wf_spec(),
-        !cl_quad_a::<RationalModel>(line@).eqv(RationalModel::from_int_spec(0)),
+        !cl_quad_a::<Rational>(line.model@).eqv(Rational::from_int_spec(0)),
     ensures
         out.wf_spec(),
-        out@ == cl_intersection_y::<RationalModel, R>(circle@, line@, plus),
+        out.model@ == cl_intersection_y::<Rational, R>(circle.model@, line.model@, plus),
 {
     let a_coef = cl_quad_a_exec(line);
     let h = cl_signed_dist_num_exec(circle, line);

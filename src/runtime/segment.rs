@@ -8,7 +8,7 @@ use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::field::OrderedField;
 #[cfg(verus_keep_ghost)]
-use super::point2::{RuntimePoint2, sub2_exec, add_vec2_exec};
+use super::point2::RuntimePoint2;
 #[cfg(verus_keep_ghost)]
 use super::orient::orient2d_exec;
 #[cfg(verus_keep_ghost)]
@@ -181,10 +181,8 @@ pub fn segment_intersection_point_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Order
         out.model@ == segment_intersection_point_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let t = segment_intersection_parameter_2d_exec(a, b, c, d);
-    let (dx, dy) = sub2_exec(b, a);
-    let tx = t.mul(&dx);
-    let ty = t.mul(&dy);
-    add_vec2_exec(a, &tx, &ty)
+    let dir = b.sub(a);
+    a.add(&dir.scale(&t))
 }
 
 pub fn segment_intersection_parameter_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
@@ -222,10 +220,8 @@ pub fn segment_intersection_point_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: Or
         out.model@ == segment_intersection_point_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let s = segment_intersection_parameter_cd_2d_exec(a, b, c, d);
-    let (dx, dy) = sub2_exec(d, c);
-    let sx = s.mul(&dx);
-    let sy = s.mul(&dy);
-    add_vec2_exec(c, &sx, &sy)
+    let dir = d.sub(c);
+    c.add(&dir.scale(&s))
 }
 
 } //  verus!
