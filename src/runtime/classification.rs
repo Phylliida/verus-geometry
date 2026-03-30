@@ -1,4 +1,3 @@
-use verus_rational::RuntimeRational;
 
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
