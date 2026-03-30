@@ -1,108 +1,86 @@
-use verus_rational::RuntimeRational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
-#[cfg(verus_keep_ghost)]
 use crate::line2::*;
+#[cfg(verus_keep_ghost)]
+use crate::point2::Point2;
+#[cfg(verus_keep_ghost)]
+use super::point2::RuntimePoint2;
+#[cfg(verus_keep_ghost)]
+use verus_algebra::traits::field::OrderedField;
+#[cfg(verus_keep_ghost)]
+use verus_algebra::traits::runtime::RuntimeRingOps;
 
 #[cfg(verus_keep_ghost)]
 verus! {
 
-//  ---------------------------------------------------------------------------
-//  RuntimeLine2
-//  ---------------------------------------------------------------------------
-
-pub struct RuntimeLine2 {
-    pub a: RuntimeRational,
-    pub b: RuntimeRational,
-    pub c: RuntimeRational,
-    pub model: Ghost<Line2<RationalModel>>,
+///  A runtime 2D line (ax + by + c = 0), generic over any runtime field.
+pub struct RuntimeLine2<R, V: OrderedField> where R: RuntimeRingOps<V> {
+    pub a: R,
+    pub b: R,
+    pub c: R,
+    pub model: Ghost<Line2<V>>,
 }
 
-impl View for RuntimeLine2 {
-    type V = Line2<RationalModel>;
-
-    open spec fn view(&self) -> Line2<RationalModel> {
-        self.model@
-    }
-}
-
-impl RuntimeLine2 {
+impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeLine2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.a.wf_spec()
         &&& self.b.wf_spec()
         &&& self.c.wf_spec()
-        &&& self.a@ == self@.a
-        &&& self.b@ == self@.b
-        &&& self.c@ == self@.c
+        &&& self.a.rf_view() == self.model@.a
+        &&& self.b.rf_view() == self.model@.b
+        &&& self.c.rf_view() == self.model@.c
     }
 
-    pub fn new(a: RuntimeRational, b: RuntimeRational, c: RuntimeRational) -> (out: Self)
-        requires
-            a.wf_spec(),
-            b.wf_spec(),
-            c.wf_spec(),
+    pub fn new(a: R, b: R, c: R) -> (out: Self)
+        requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
         ensures
             out.wf_spec(),
-            out@.a == a@,
-            out@.b == b@,
-            out@.c == c@,
+            out.model@.a == a.rf_view(),
+            out.model@.b == b.rf_view(),
+            out.model@.c == c.rf_view(),
     {
-        let ghost model = Line2 { a: a@, b: b@, c: c@ };
+        let ghost model = Line2 { a: a.rf_view(), b: b.rf_view(), c: c.rf_view() };
         RuntimeLine2 { a, b, c, model: Ghost(model) }
     }
 }
 
-//  ---------------------------------------------------------------------------
-//  Exec constructors
-//  ---------------------------------------------------------------------------
-
 ///  Construct a line through two points.
-pub fn line2_from_points_exec(
-    p: &super::point2::RuntimePoint2,
-    q: &super::point2::RuntimePoint2,
-) -> (out: RuntimeLine2)
-    requires
-        p.wf_spec(),
-        q.wf_spec(),
+pub fn line2_from_points_exec<R: RuntimeRingOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    q: &RuntimePoint2<R, V>,
+) -> (out: RuntimeLine2<R, V>)
+    requires p.wf_spec(), q.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == line2_from_points::<RationalModel>(p@, q@),
+        out.model@ == line2_from_points::<V>(p.model@, q.model@),
 {
-    //  a = -(q.y - p.y)
-    let dy = q.y.sub(&p.y);
-    let a = dy.neg();
-    //  b = q.x - p.x
-    let b = q.x.sub(&p.x);
-    //  c = -(a*p.x + b*p.y)
-    let apx = a.mul(&p.x);
-    let bpy = b.mul(&p.y);
-    let s = apx.add(&bpy);
-    let c = s.neg();
-
-    let ghost model = line2_from_points::<RationalModel>(p@, q@);
+    let dy = q.y.rf_sub(&p.y);
+    let a = dy.rf_neg();
+    let b = q.x.rf_sub(&p.x);
+    let apx = a.rf_mul(&p.x);
+    let bpy = b.rf_mul(&p.y);
+    let s = apx.rf_add(&bpy);
+    let c = s.rf_neg();
+    let ghost model = line2_from_points::<V>(p.model@, q.model@);
     RuntimeLine2 { a, b, c, model: Ghost(model) }
 }
 
-///  Evaluate the line equation at a point.
-pub fn line2_eval_exec(
-    line: &RuntimeLine2,
-    p: &super::point2::RuntimePoint2,
-) -> (out: RuntimeRational)
-    requires
-        line.wf_spec(),
-        p.wf_spec(),
+///  Evaluate the line equation at a point: a*px + b*py + c.
+pub fn line2_eval_exec<R: RuntimeRingOps<V>, V: OrderedField>(
+    line: &RuntimeLine2<R, V>,
+    p: &RuntimePoint2<R, V>,
+) -> (out: R)
+    requires line.wf_spec(), p.wf_spec(),
     ensures
         out.wf_spec(),
-        out@ == line2_eval::<RationalModel>(line@, p@),
+        out.rf_view() == line2_eval::<V>(line.model@, p.model@),
 {
-    let apx = line.a.mul(&p.x);
-    let bpy = line.b.mul(&p.y);
-    let s = apx.add(&bpy);
-    s.add(&line.c)
+    let apx = line.a.rf_mul(&p.x);
+    let bpy = line.b.rf_mul(&p.y);
+    let s = apx.rf_add(&bpy);
+    s.rf_add(&line.c)
 }
 
 } //  verus!

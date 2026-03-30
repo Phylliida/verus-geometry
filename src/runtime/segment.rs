@@ -1,14 +1,14 @@
-use verus_rational::RuntimeRational;
-
 #[cfg(verus_keep_ghost)]
 use vstd::prelude::*;
 
 #[cfg(verus_keep_ghost)]
 use verus_algebra::traits::*;
 #[cfg(verus_keep_ghost)]
-use super::RationalModel;
+use verus_algebra::traits::runtime::*;
 #[cfg(verus_keep_ghost)]
-use super::point2::{RuntimePoint2, RuntimeVec2, sub2_exec, add_vec2_exec};
+use verus_algebra::traits::field::OrderedField;
+#[cfg(verus_keep_ghost)]
+use super::point2::{RuntimePoint2, sub2_exec, add_vec2_exec};
 #[cfg(verus_keep_ghost)]
 use super::orient::orient2d_exec;
 #[cfg(verus_keep_ghost)]
@@ -19,15 +19,9 @@ use crate::orientation_sign::*;
 use crate::orient2d::orient2d;
 #[cfg(verus_keep_ghost)]
 use crate::segment_intersection::*;
-#[cfg(verus_keep_ghost)]
-use verus_rational::rational::Rational;
 
 #[cfg(verus_keep_ghost)]
 verus! {
-
-//  ---------------------------------------------------------------------------
-//  OrientationSign exec helpers
-//  ---------------------------------------------------------------------------
 
 pub fn is_zero_sign(s: &OrientationSign) -> (out: bool)
     ensures out == (*s == OrientationSign::Zero),
@@ -49,120 +43,67 @@ pub fn signs_equal(a: &OrientationSign, b: &OrientationSign) -> (out: bool)
     }
 }
 
-//  (scalar_min_exec / scalar_max_exec not needed — direct comparisons used instead)
-
-//  ---------------------------------------------------------------------------
-//  Point-on-segment predicate
-//  ---------------------------------------------------------------------------
-
-pub fn point_on_segment_inclusive_2d_exec(
-    p: &RuntimePoint2, a: &RuntimePoint2, b: &RuntimePoint2,
+pub fn point_on_segment_inclusive_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>, a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
 ) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-    ensures
-        out == point_on_segment_inclusive_2d::<RationalModel>(p@, a@, b@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(),
+    ensures out == point_on_segment_inclusive_2d::<V>(p.model@, a.model@, b.model@),
 {
     let val = orient2d_exec(a, b, p);
-    if !val.is_zero() {
+    let zero = val.rf_zero_like();
+    if !val.rf_eq(&zero) {
         return false;
     }
-    //  Check bounding box using direct comparisons
-    //  scalar_le(scalar_min(a.x, b.x), p.x)
-    let min_x_le_px = if a.x.le(&b.x) { a.x.le(&p.x) } else { b.x.le(&p.x) };
-    let px_le_max_x = if a.x.le(&b.x) { p.x.le(&b.x) } else { p.x.le(&a.x) };
-    let min_y_le_py = if a.y.le(&b.y) { a.y.le(&p.y) } else { b.y.le(&p.y) };
-    let py_le_max_y = if a.y.le(&b.y) { p.y.le(&b.y) } else { p.y.le(&a.y) };
+    let min_x_le_px = if a.x.rf_le(&b.x) { a.x.rf_le(&p.x) } else { b.x.rf_le(&p.x) };
+    let px_le_max_x = if a.x.rf_le(&b.x) { p.x.rf_le(&b.x) } else { p.x.rf_le(&a.x) };
+    let min_y_le_py = if a.y.rf_le(&b.y) { a.y.rf_le(&p.y) } else { b.y.rf_le(&p.y) };
+    let py_le_max_y = if a.y.rf_le(&b.y) { p.y.rf_le(&b.y) } else { p.y.rf_le(&a.y) };
     min_x_le_px && px_le_max_x && min_y_le_py && py_le_max_y
 }
 
-pub fn point_on_both_segments_2d_exec(
-    p: &RuntimePoint2,
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
+pub fn point_on_both_segments_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    p: &RuntimePoint2<R, V>,
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
 ) -> (out: bool)
-    requires
-        p.wf_spec(),
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == point_on_both_segments_2d::<RationalModel>(p@, a@, b@, c@, d@),
+    requires p.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == point_on_both_segments_2d::<V>(p.model@, a.model@, b.model@, c.model@, d.model@),
 {
     point_on_segment_inclusive_2d_exec(p, a, b) && point_on_segment_inclusive_2d_exec(p, c, d)
 }
 
-//  ---------------------------------------------------------------------------
-//  1D interval overlap for collinear case
-//  ---------------------------------------------------------------------------
-
-pub fn collinear_overlap_kind_1d_exec(
-    a1: &RuntimeRational, a2: &RuntimeRational,
-    b1: &RuntimeRational, b2: &RuntimeRational,
+pub fn collinear_overlap_kind_1d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a1: &R, a2: &R, b1: &R, b2: &R,
 ) -> (out: i8)
-    requires
-        a1.wf_spec(),
-        a2.wf_spec(),
-        b1.wf_spec(),
-        b2.wf_spec(),
+    requires a1.wf_spec(), a2.wf_spec(), b1.wf_spec(), b2.wf_spec(),
     ensures
-        (out == -1i8) == (collinear_overlap_kind_1d::<RationalModel>(a1@, a2@, b1@, b2@) < 0),
-        (out == 0i8) == (collinear_overlap_kind_1d::<RationalModel>(a1@, a2@, b1@, b2@) == 0),
-        (out == 1i8) == (collinear_overlap_kind_1d::<RationalModel>(a1@, a2@, b1@, b2@) > 0),
+        (out == -1i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) < 0),
+        (out == 0i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) == 0),
+        (out == 1i8) == (collinear_overlap_kind_1d::<V>(a1.rf_view(), a2.rf_view(), b1.rf_view(), b2.rf_view()) > 0),
 {
-    //  a_lo = min(a1, a2), a_hi = max(a1, a2)
-    let a1_le_a2 = a1.le(a2);
-    //  b_lo = min(b1, b2), b_hi = max(b1, b2)
-    let b1_le_b2 = b1.le(b2);
-    //  lo = max(a_lo, b_lo), hi = min(a_hi, b_hi)
-    //  lo = max(min(a1,a2), min(b1,b2))
-    //  hi = min(max(a1,a2), max(b1,b2))
-
-    //  Instead of materializing min/max RuntimeRationals, compare directly:
-    //  lo = max(a_lo, b_lo): if a_lo ≤ b_lo then b_lo else a_lo
-    //  hi = min(a_hi, b_hi): if a_hi ≤ b_hi then a_hi else b_hi
-    //  We need: if hi < lo → -1, if hi ≡ lo → 0, else 1
-
-    //  Get references to a_lo, a_hi, b_lo, b_hi
+    let a1_le_a2 = a1.rf_le(a2);
+    let b1_le_b2 = b1.rf_le(b2);
     let (a_lo, a_hi) = if a1_le_a2 { (a1, a2) } else { (a2, a1) };
     let (b_lo, b_hi) = if b1_le_b2 { (b1, b2) } else { (b2, b1) };
-
-    //  lo = max(a_lo, b_lo)
-    let a_lo_le_b_lo = a_lo.le(b_lo);
+    let a_lo_le_b_lo = a_lo.rf_le(b_lo);
     let lo = if a_lo_le_b_lo { b_lo } else { a_lo };
-
-    //  hi = min(a_hi, b_hi)
-    let a_hi_le_b_hi = a_hi.le(b_hi);
+    let a_hi_le_b_hi = a_hi.rf_le(b_hi);
     let hi = if a_hi_le_b_hi { a_hi } else { b_hi };
-
-    //  Compare hi vs lo
-    if hi.lt(lo) {
+    if hi.rf_lt(lo) {
         -1i8
-    } else if hi.eq(lo) {
+    } else if hi.rf_eq(lo) {
         0i8
     } else {
         1i8
     }
 }
 
-//  ---------------------------------------------------------------------------
-//  Main classification exec
-//  ---------------------------------------------------------------------------
-
-pub fn segment_intersection_kind_2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
+pub fn segment_intersection_kind_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
 ) -> (out: SegmentIntersection2dKind)
-    requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-    ensures
-        out == segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@),
+    requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+    ensures out == segment_intersection_kind_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o1 = orient2d_sign_exec(a, b, c);
     let o2 = orient2d_sign_exec(a, b, d);
@@ -180,8 +121,7 @@ pub fn segment_intersection_kind_2d_exec(
     let o4z = is_zero_sign(&o4);
 
     if o1z && o2z && o3z && o4z {
-        //  All collinear — check 1D overlap
-        let use_x = !a.x.eq(&b.x) || !c.x.eq(&d.x);
+        let use_x = !a.x.rf_eq(&b.x) || !c.x.rf_eq(&d.x);
         let overlap_kind = if use_x {
             collinear_overlap_kind_1d_exec(&a.x, &b.x, &c.x, &d.x)
         } else {
@@ -205,104 +145,87 @@ pub fn segment_intersection_kind_2d_exec(
     }
 }
 
-//  ---------------------------------------------------------------------------
-//  2D segment intersection parameter & point (Proper case)
-//  ---------------------------------------------------------------------------
-
-///  Intersection parameter t on AB: t = orient2d(c,d,a) / (orient2d(c,d,a) - orient2d(c,d,b))
-pub fn segment_intersection_parameter_2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
-) -> (out: RuntimeRational)
+pub fn segment_intersection_parameter_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
+) -> (out: R)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        segment_intersection_kind_2d::<V>(a.model@, b.model@, c.model@, d.model@)
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out@ == segment_intersection_parameter_2d::<RationalModel>(a@, b@, c@, d@),
+        out.rf_view() == segment_intersection_parameter_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o3 = orient2d_exec(c, d, a);
     let o4 = orient2d_exec(c, d, b);
-    let neg_o4 = o4.neg();
-    let denom = o3.add(&neg_o4);
+    let neg_o4 = o4.rf_neg();
+    let denom = o3.rf_add(&neg_o4);
     proof {
-        lemma_proper_denominator_nonzero_2d::<RationalModel>(a@, b@, c@, d@);
+        lemma_proper_denominator_nonzero_2d::<V>(a.model@, b.model@, c.model@, d.model@);
     }
-    o3.div(&denom)
+    o3.rf_div(&denom)
 }
 
 ///  Intersection point on AB: a + t * (b - a)
-pub fn segment_intersection_point_2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
-) -> (out: RuntimePoint2)
+pub fn segment_intersection_point_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
+) -> (out: RuntimePoint2<R, V>)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        segment_intersection_kind_2d::<V>(a.model@, b.model@, c.model@, d.model@)
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out@ == segment_intersection_point_2d::<RationalModel>(a@, b@, c@, d@),
+        out.model@ == segment_intersection_point_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let t = segment_intersection_parameter_2d_exec(a, b, c, d);
-    let dir = sub2_exec(b, a);
-    let tv = RuntimeVec2::scale_exec(&t, &dir);
-    add_vec2_exec(a, &tv)
+    let (dx, dy) = sub2_exec(b, a);
+    let tx = t.rf_mul(&dx);
+    let ty = t.rf_mul(&dy);
+    add_vec2_exec(a, &tx, &ty)
 }
 
-///  Intersection parameter s on CD: s = orient2d(a,b,c) / (orient2d(a,b,c) - orient2d(a,b,d))
-pub fn segment_intersection_parameter_cd_2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
-) -> (out: RuntimeRational)
+pub fn segment_intersection_parameter_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
+) -> (out: R)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        segment_intersection_kind_2d::<V>(a.model@, b.model@, c.model@, d.model@)
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out@ == segment_intersection_parameter_cd_2d::<RationalModel>(a@, b@, c@, d@),
+        out.rf_view() == segment_intersection_parameter_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o1 = orient2d_exec(a, b, c);
     let o2 = orient2d_exec(a, b, d);
-    let neg_o2 = o2.neg();
-    let denom = o1.add(&neg_o2);
+    let neg_o2 = o2.rf_neg();
+    let denom = o1.rf_add(&neg_o2);
     proof {
-        lemma_proper_cd_denominator_nonzero_2d::<RationalModel>(a@, b@, c@, d@);
+        lemma_proper_cd_denominator_nonzero_2d::<V>(a.model@, b.model@, c.model@, d.model@);
     }
-    o1.div(&denom)
+    o1.rf_div(&denom)
 }
 
-///  Intersection point on CD: c + s * (d - c)
-pub fn segment_intersection_point_cd_2d_exec(
-    a: &RuntimePoint2, b: &RuntimePoint2,
-    c: &RuntimePoint2, d: &RuntimePoint2,
-) -> (out: RuntimePoint2)
+pub fn segment_intersection_point_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
+    a: &RuntimePoint2<R, V>, b: &RuntimePoint2<R, V>,
+    c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
+) -> (out: RuntimePoint2<R, V>)
     requires
-        a.wf_spec(),
-        b.wf_spec(),
-        c.wf_spec(),
-        d.wf_spec(),
-        segment_intersection_kind_2d::<RationalModel>(a@, b@, c@, d@)
+        a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
+        segment_intersection_kind_2d::<V>(a.model@, b.model@, c.model@, d.model@)
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out@ == segment_intersection_point_cd_2d::<RationalModel>(a@, b@, c@, d@),
+        out.model@ == segment_intersection_point_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let s = segment_intersection_parameter_cd_2d_exec(a, b, c, d);
-    let dir = sub2_exec(d, c);
-    let sv = RuntimeVec2::scale_exec(&s, &dir);
-    add_vec2_exec(c, &sv)
+    let (dx, dy) = sub2_exec(d, c);
+    let sx = s.rf_mul(&dx);
+    let sy = s.rf_mul(&dy);
+    add_vec2_exec(c, &sx, &sy)
 }
 
 } //  verus!
