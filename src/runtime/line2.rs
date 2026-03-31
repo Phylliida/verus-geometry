@@ -28,20 +28,20 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeLine2<R, V> {
         &&& self.a.wf_spec()
         &&& self.b.wf_spec()
         &&& self.c.wf_spec()
-        &&& self.a.model() == self.model@.a
-        &&& self.b.model() == self.model@.b
-        &&& self.c.model() == self.model@.c
+        &&& self.a@ == self.model@.a
+        &&& self.b@ == self.model@.b
+        &&& self.c@ == self.model@.c
     }
 
     pub fn new(a: R, b: R, c: R) -> (out: Self)
         requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.a == a.model(),
-            out.model@.b == b.model(),
-            out.model@.c == c.model(),
+            out.model@.a == a@,
+            out.model@.b == b@,
+            out.model@.c == c@,
     {
-        let ghost model = Line2 { a: a.model(), b: b.model(), c: c.model() };
+        let ghost model = Line2 { a: a@, b: b@, c: c@ };
         RuntimeLine2 { a, b, c, model: Ghost(model) }
     }
 }
@@ -75,7 +75,7 @@ pub fn line2_eval_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires line.wf_spec(), p.wf_spec(),
     ensures
         out.wf_spec(),
-        out.model() == line2_eval::<V>(line.model@, p.model@),
+        out@ == line2_eval::<V>(line.model@, p.model@),
 {
     let apx = line.a.mul(&p.x);
     let bpy = line.b.mul(&p.y);

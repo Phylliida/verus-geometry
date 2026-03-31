@@ -59,7 +59,7 @@ pub fn winding_number_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         polygon.vertices@.len() >= 3,
         polygon.vertices@.len() < 0x7FFF_FFFF_FFFF_FFFF,
     ensures
-        out as int == winding_number::<V>(q.model@, polygon.model()),
+        out as int == winding_number::<V>(q.model@, polygon@),
 {
     let n = polygon.len();
     let mut wn: i64 = 0;
@@ -73,7 +73,7 @@ pub fn winding_number_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
             n < 0x7FFF_FFFF_FFFF_FFFF,
             q.wf_spec(),
             polygon.wf_spec(),
-            wn as int == winding_number_prefix::<V>(q.model@, polygon.model(), i as int),
+            wn as int == winding_number_prefix::<V>(q.model@, polygon@, i as int),
             -(i as i64) <= wn <= (i as i64),
         decreases n - i,
     {
@@ -103,7 +103,7 @@ pub fn point_in_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         polygon.vertices@.len() >= 3,
         polygon.vertices@.len() < 0x7FFF_FFFF_FFFF_FFFF,
     ensures
-        out == point_in_polygon::<V>(q.model@, polygon.model()),
+        out == point_in_polygon::<V>(q.model@, polygon@),
 {
     let wn = winding_number_exec(q, polygon);
     wn != 0

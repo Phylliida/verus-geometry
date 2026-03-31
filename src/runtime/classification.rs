@@ -46,7 +46,7 @@ pub fn sign_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: OrientationSign)
     requires val.wf_spec(),
     ensures
-        out == scalar_sign::<V>(val.model()),
+        out == scalar_sign::<V>(val@),
 {
     let zero = val.zero_like();
     if zero.lt(val) {
@@ -255,7 +255,7 @@ fn incircle2d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     c: &RuntimePoint2<R, V>, d: &RuntimePoint2<R, V>,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
-    ensures out.wf_spec(), out.model() == incircle2d::<V>(a.model@, b.model@, c.model@, d.model@),
+    ensures out.wf_spec(), out@ == incircle2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let px = a.x.sub(&d.x);
     let py = a.y.sub(&d.y);
@@ -291,7 +291,7 @@ fn insphere3d_compute<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>, e: &RuntimePoint3<R, V>,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(), e.wf_spec(),
-    ensures out.wf_spec(), out.model() == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
+    ensures out.wf_spec(), out@ == insphere3d::<V>(a.model@, b.model@, c.model@, d.model@, e.model@),
 {
     let p = a.sub(e);
     let q = b.sub(e);

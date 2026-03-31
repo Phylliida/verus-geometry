@@ -21,7 +21,7 @@ fn axis_parallel_miss_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     origin_c: &R, dir_c: &R, min_c: &R, max_c: &R,
 ) -> (out: bool)
     requires origin_c.wf_spec(), dir_c.wf_spec(), min_c.wf_spec(), max_c.wf_spec(),
-    ensures out == axis_parallel_miss::<V>(origin_c.model(), dir_c.model(), min_c.model(), max_c.model()),
+    ensures out == axis_parallel_miss::<V>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = dir_c.zero_like();
     if dir_c.eq(&zero) {
@@ -36,8 +36,8 @@ fn slab_t_near_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires
         origin_c.wf_spec(), dir_c.wf_spec(), min_c.wf_spec(), max_c.wf_spec(),
-        !dir_c.model().eqv(V::zero()),
-    ensures out.wf_spec(), out.model() == slab_t_near::<V>(origin_c.model(), dir_c.model(), min_c.model(), max_c.model()),
+        !dir_c@.eqv(V::zero()),
+    ensures out.wf_spec(), out@ == slab_t_near::<V>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = dir_c.zero_like();
     if zero.lt(dir_c) {
@@ -52,8 +52,8 @@ fn slab_t_far_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires
         origin_c.wf_spec(), dir_c.wf_spec(), min_c.wf_spec(), max_c.wf_spec(),
-        !dir_c.model().eqv(V::zero()),
-    ensures out.wf_spec(), out.model() == slab_t_far::<V>(origin_c.model(), dir_c.model(), min_c.model(), max_c.model()),
+        !dir_c@.eqv(V::zero()),
+    ensures out.wf_spec(), out@ == slab_t_far::<V>(origin_c@, dir_c@, min_c@, max_c@),
 {
     let zero = dir_c.zero_like();
     if zero.lt(dir_c) {
@@ -69,7 +69,7 @@ fn slab_t_enter_3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires origin.wf_spec(), dir.wf_spec(), aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures out.wf_spec(),
-        out.model() == slab_t_enter_3d::<V>(
+        out@ == slab_t_enter_3d::<V>(
             origin.model@,
             verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
             aabb_min.model@, aabb_max.model@),
@@ -99,7 +99,7 @@ fn slab_t_exit_3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires origin.wf_spec(), dir.wf_spec(), aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures out.wf_spec(),
-        out.model() == slab_t_exit_3d::<V>(
+        out@ == slab_t_exit_3d::<V>(
             origin.model@,
             verus_linalg::vec3::Vec3 { x: dir.model@.x, y: dir.model@.y, z: dir.model@.z },
             aabb_min.model@, aabb_max.model@),
@@ -165,7 +165,7 @@ fn slab_t_enter_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires origin.wf_spec(), dir.wf_spec(), aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures out.wf_spec(),
-        out.model() == slab_t_enter_2d::<V>(
+        out@ == slab_t_enter_2d::<V>(
             origin.model@,
             verus_linalg::vec2::Vec2 { x: dir.model@.x, y: dir.model@.y },
             aabb_min.model@, aabb_max.model@),
@@ -190,7 +190,7 @@ fn slab_t_exit_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
 ) -> (out: R)
     requires origin.wf_spec(), dir.wf_spec(), aabb_min.wf_spec(), aabb_max.wf_spec(),
     ensures out.wf_spec(),
-        out.model() == slab_t_exit_2d::<V>(
+        out@ == slab_t_exit_2d::<V>(
             origin.model@,
             verus_linalg::vec2::Vec2 { x: dir.model@.x, y: dir.model@.y },
             aabb_min.model@, aabb_max.model@),

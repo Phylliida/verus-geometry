@@ -26,7 +26,7 @@ pub fn orient2d_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
     ensures
         out.wf_spec(),
-        out.model() == orient2d::<V>(a.model@, b.model@, c.model@),
+        out@ == orient2d::<V>(a.model@, b.model@, c.model@),
 {
     let ba = b.sub(a);
     let ca = c.sub(a);
@@ -44,7 +44,7 @@ pub fn orient3d_exec<R: RuntimeRingOps<V>, V: OrderedField>(
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
     ensures
         out.wf_spec(),
-        out.model() == orient3d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == orient3d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let ba = b.sub(a);
     let ca = c.sub(a);

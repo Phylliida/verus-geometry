@@ -29,7 +29,7 @@ fn clamp01_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     t: &R,
 ) -> (out: R)
     requires t.wf_spec(),
-    ensures out.wf_spec(), out.model() == clamp01::<V>(t.model()),
+    ensures out.wf_spec(), out@ == clamp01::<V>(t@),
 {
     let zero = t.zero_like();
     let one = t.one_like();
@@ -48,7 +48,7 @@ pub fn closest_parameter_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         !norm_sq2::<V>(sub2::<V>(b.model@, a.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == closest_parameter_2d::<V>(q.model@, a.model@, b.model@),
+        out@ == closest_parameter_2d::<V>(q.model@, a.model@, b.model@),
 {
     let d = b.sub(a);
     let w = q.sub(a);
@@ -80,7 +80,7 @@ pub fn squared_distance_point_segment_2d_exec<R: RuntimeOrderedFieldOps<V>, V: O
         !norm_sq2::<V>(sub2::<V>(b.model@, a.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == squared_distance_point_segment_2d::<V>(q.model@, a.model@, b.model@),
+        out@ == squared_distance_point_segment_2d::<V>(q.model@, a.model@, b.model@),
 {
     let cp = closest_point_on_segment_2d_exec(q, a, b);
     cp.sub(q).norm_sq()
@@ -96,7 +96,7 @@ pub fn closest_parameter_3d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         !norm_sq3::<V>(sub3::<V>(b.model@, a.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == closest_parameter_3d::<V>(q.model@, a.model@, b.model@),
+        out@ == closest_parameter_3d::<V>(q.model@, a.model@, b.model@),
 {
     let d = b.sub(a);
     let w = q.sub(a);
@@ -128,7 +128,7 @@ pub fn squared_distance_point_segment_3d_exec<R: RuntimeOrderedFieldOps<V>, V: O
         !norm_sq3::<V>(sub3::<V>(b.model@, a.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == squared_distance_point_segment_3d::<V>(q.model@, a.model@, b.model@),
+        out@ == squared_distance_point_segment_3d::<V>(q.model@, a.model@, b.model@),
 {
     let cp = closest_point_on_segment_3d_exec(q, a, b);
     cp.sub(q).norm_sq()
