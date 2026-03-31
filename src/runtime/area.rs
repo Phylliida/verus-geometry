@@ -21,7 +21,7 @@ fn cross_origin_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     p: &RuntimePoint2<R, V>, q: &RuntimePoint2<R, V>,
 ) -> (out: R)
     requires p.wf_spec(), q.wf_spec(),
-    ensures out.wf_spec(), out.model() == cross_origin::<V>(p.model@, q.model@),
+    ensures out.wf_spec(), out@ == cross_origin::<V>(p.model@, q.model@),
 {
     let a = p.x.mul(&q.y);
     let b = p.y.mul(&q.x);
@@ -36,7 +36,7 @@ pub fn signed_area_2x_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         polygon.vertices@.len() >= 3,
     ensures
         out.wf_spec(),
-        out.model() == signed_area_2x::<V>(polygon.model()),
+        out@ == signed_area_2x::<V>(polygon@),
 {
     let n = polygon.len();
     let first = polygon.get(0);
@@ -44,8 +44,8 @@ pub fn signed_area_2x_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     let mut i: usize = 0;
 
     proof {
-        assert(acc.model() == V::zero());
-        assert(signed_area_2x_prefix::<V>(polygon.model(), 0) == V::zero());
+        assert(acc@ == V::zero());
+        assert(signed_area_2x_prefix::<V>(polygon@, 0) == V::zero());
     }
 
     while i < n
@@ -55,7 +55,7 @@ pub fn signed_area_2x_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
             n >= 3,
             polygon.wf_spec(),
             acc.wf_spec(),
-            acc.model() == signed_area_2x_prefix::<V>(polygon.model(), i as int),
+            acc@ == signed_area_2x_prefix::<V>(polygon@, i as int),
         decreases n - i,
     {
         let j = if i + 1 < n { i + 1 } else { 0usize };
@@ -70,8 +70,8 @@ pub fn signed_area_2x_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         acc = acc.add(&term);
 
         proof {
-            assert(acc.model() == signed_area_2x_prefix::<V>(
-                polygon.model(), (i + 1) as int));
+            assert(acc@ == signed_area_2x_prefix::<V>(
+                polygon@, (i + 1) as int));
         }
 
         i = i + 1;

@@ -23,11 +23,11 @@ pub fn gram_entries_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     ensures ({
         let (uu, vv, uv, uw, vw) = out;
         let (suu, svv, suv, suw, svw) = gram_entries::<V>(a.model@, b.model@, c.model@, d.model@);
-        &&& uu.wf_spec() && uu.model() == suu
-        &&& vv.wf_spec() && vv.model() == svv
-        &&& uv.wf_spec() && uv.model() == suv
-        &&& uw.wf_spec() && uw.model() == suw
-        &&& vw.wf_spec() && vw.model() == svw
+        &&& uu.wf_spec() && uu@ == suu
+        &&& vv.wf_spec() && vv@ == svv
+        &&& uv.wf_spec() && uv@ == suv
+        &&& uw.wf_spec() && uw@ == suw
+        &&& vw.wf_spec() && vw@ == svw
     }),
 {
     let u = b.sub(a);
@@ -41,7 +41,7 @@ pub fn gram_determinant_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     c: &RuntimePoint3<R, V>, d: &RuntimePoint3<R, V>,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(), d.wf_spec(),
-    ensures out.wf_spec(), out.model() == gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@),
+    ensures out.wf_spec(), out@ == gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, _, _) = gram_entries_exec(a, b, c, d);
     uu.mul(&vv).sub(&uv.mul(&uv))
@@ -56,7 +56,7 @@ pub fn closest_parameter_s_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == closest_parameter_s::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == closest_parameter_s::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, uw, vw) = gram_entries_exec(a, b, c, d);
     let denom = uu.mul(&vv).sub(&uv.mul(&uv));
@@ -73,7 +73,7 @@ pub fn closest_parameter_t_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == closest_parameter_t::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == closest_parameter_t::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let (uu, vv, uv, uw, vw) = gram_entries_exec(a, b, c, d);
     let denom = uu.mul(&vv).sub(&uv.mul(&uv));
@@ -90,7 +90,7 @@ pub fn line_line_squared_distance_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
         !gram_determinant::<V>(a.model@, b.model@, c.model@, d.model@).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == line_line_squared_distance::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == line_line_squared_distance::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let s = closest_parameter_s_exec(a, b, c, d);
     let t = closest_parameter_t_exec(a, b, c, d);

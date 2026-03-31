@@ -21,7 +21,7 @@ pub fn line_det_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     l1: &RuntimeLine2<R, V>, l2: &RuntimeLine2<R, V>,
 ) -> (out: R)
     requires l1.wf_spec(), l2.wf_spec(),
-    ensures out.wf_spec(), out.model() == line_det::<V>(l1.model@, l2.model@),
+    ensures out.wf_spec(), out@ == line_det::<V>(l1.model@, l2.model@),
 {
     let a1b2 = l1.a.mul(&l2.b);
     let b1a2 = l1.b.mul(&l2.a);

@@ -80,7 +80,7 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec<R: RuntimeOrderedFieldOps
         polygon.vertices@.len() >= 3,
     ensures
         out == point_in_convex_polygon_boundary_inclusive::<V>(
-            p.model@, polygon.model(),
+            p.model@, polygon@,
         ),
 {
     let n = polygon.len();
@@ -96,10 +96,10 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec<R: RuntimeOrderedFieldOps
             p.wf_spec(),
             polygon.wf_spec(),
             has_positive == polygon_prefix_has_positive_sign::<V>(
-                p.model@, polygon.model(), i as int,
+                p.model@, polygon@, i as int,
             ),
             has_negative == polygon_prefix_has_negative_sign::<V>(
-                p.model@, polygon.model(), i as int,
+                p.model@, polygon@, i as int,
             ),
         decreases n - i,
     {
@@ -118,31 +118,31 @@ pub fn point_in_convex_polygon_boundary_inclusive_exec<R: RuntimeOrderedFieldOps
             if has_positive {
                 if sp {
                     assert(polygon_edge_orient_sign::<V>(
-                        p.model@, polygon.model(), i as int,
+                        p.model@, polygon@, i as int,
                     ) == OrientationSign::Positive);
                 }
                 assert(polygon_prefix_has_positive_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if has_negative {
                 if sn {
                     assert(polygon_edge_orient_sign::<V>(
-                        p.model@, polygon.model(), i as int,
+                        p.model@, polygon@, i as int,
                     ) == OrientationSign::Negative);
                 }
                 assert(polygon_prefix_has_negative_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_positive {
                 assert(!polygon_prefix_has_positive_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_negative {
                 assert(!polygon_prefix_has_negative_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
         }
@@ -162,7 +162,7 @@ pub fn point_strictly_in_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Or
         polygon.vertices@.len() >= 3,
     ensures
         out == point_strictly_in_convex_polygon::<V>(
-            p.model@, polygon.model(),
+            p.model@, polygon@,
         ),
 {
     let n = polygon.len();
@@ -179,13 +179,13 @@ pub fn point_strictly_in_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Or
             p.wf_spec(),
             polygon.wf_spec(),
             has_positive == polygon_prefix_has_positive_sign::<V>(
-                p.model@, polygon.model(), i as int,
+                p.model@, polygon@, i as int,
             ),
             has_negative == polygon_prefix_has_negative_sign::<V>(
-                p.model@, polygon.model(), i as int,
+                p.model@, polygon@, i as int,
             ),
             has_zero == polygon_prefix_has_zero_sign::<V>(
-                p.model@, polygon.model(), i as int,
+                p.model@, polygon@, i as int,
             ),
         decreases n - i,
     {
@@ -206,46 +206,46 @@ pub fn point_strictly_in_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Or
             if has_positive {
                 if sp {
                     assert(polygon_edge_orient_sign::<V>(
-                        p.model@, polygon.model(), i as int,
+                        p.model@, polygon@, i as int,
                     ) == OrientationSign::Positive);
                 }
                 assert(polygon_prefix_has_positive_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if has_negative {
                 if sn {
                     assert(polygon_edge_orient_sign::<V>(
-                        p.model@, polygon.model(), i as int,
+                        p.model@, polygon@, i as int,
                     ) == OrientationSign::Negative);
                 }
                 assert(polygon_prefix_has_negative_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if has_zero {
                 if sz {
                     assert(polygon_edge_orient_sign::<V>(
-                        p.model@, polygon.model(), i as int,
+                        p.model@, polygon@, i as int,
                     ) == OrientationSign::Zero);
                 }
                 assert(polygon_prefix_has_zero_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_positive {
                 assert(!polygon_prefix_has_positive_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_negative {
                 assert(!polygon_prefix_has_negative_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_zero {
                 assert(!polygon_prefix_has_zero_sign::<V>(
-                    p.model@, polygon.model(), (i + 1) as int,
+                    p.model@, polygon@, (i + 1) as int,
                 ));
             }
         }
@@ -263,7 +263,7 @@ pub fn is_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
         polygon.wf_spec(),
         polygon.vertices@.len() >= 3,
     ensures
-        out == is_convex_polygon::<V>(polygon.model()),
+        out == is_convex_polygon::<V>(polygon@),
 {
     let n = polygon.len();
     let mut i: usize = 0;
@@ -278,8 +278,8 @@ pub fn is_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
                 0 <= ii < i && 0 <= jj < n as int ==> {
                 let next_ii = polygon_next_index(n as int, ii);
                 !orient2d_negative::<V>(
-                    #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                    #[trigger] polygon.model()[jj],
+                    #[trigger] polygon@[ii], polygon@[next_ii],
+                    #[trigger] polygon@[jj],
                 )
             },
         decreases n - i,
@@ -301,13 +301,13 @@ pub fn is_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
                 next_i as int == polygon_next_index(n as int, i as int),
                 vi.wf_spec(),
                 vnext.wf_spec(),
-                vi.model@ == polygon.model()[i as int],
-                vnext.model@ == polygon.model()[next_i as int],
+                vi.model@ == polygon@[i as int],
+                vnext.model@ == polygon@[next_i as int],
                 forall|jj: int| 0 <= jj < j ==> {
                     let next_ii = polygon_next_index(n as int, i as int);
                     !orient2d_negative::<V>(
-                        polygon.model()[i as int], polygon.model()[next_ii],
-                        #[trigger] polygon.model()[jj],
+                        polygon@[i as int], polygon@[next_ii],
+                        #[trigger] polygon@[jj],
                     )
                 },
             decreases n - j,
@@ -322,9 +322,9 @@ pub fn is_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
             if is_negative(&sign) {
                 proof {
                     assert(orient2d_negative::<V>(
-                        polygon.model()[i as int],
-                        polygon.model()[polygon_next_index(n as int, i as int)],
-                        polygon.model()[j as int],
+                        polygon@[i as int],
+                        polygon@[polygon_next_index(n as int, i as int)],
+                        polygon@[j as int],
                     ));
                 }
                 return false;
@@ -337,8 +337,8 @@ pub fn is_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
             assert forall|jj: int| 0 <= jj < n as int implies {
                 let next_ii = polygon_next_index(n as int, i as int);
                 !orient2d_negative::<V>(
-                    #[trigger] polygon.model()[i as int], polygon.model()[next_ii],
-                    #[trigger] polygon.model()[jj],
+                    #[trigger] polygon@[i as int], polygon@[next_ii],
+                    #[trigger] polygon@[jj],
                 )
             } by {}
         }
@@ -356,7 +356,7 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
         polygon.wf_spec(),
         polygon.vertices@.len() >= 3,
     ensures
-        out == is_strictly_convex_polygon::<V>(polygon.model()),
+        out == is_strictly_convex_polygon::<V>(polygon@),
 {
     let n = polygon.len();
     let mut i: usize = 0;
@@ -371,8 +371,8 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
                 0 <= ii < i && 0 <= jj < n as int ==> {
                 let next_ii = polygon_next_index(n as int, ii);
                 !orient2d_negative::<V>(
-                    #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                    #[trigger] polygon.model()[jj],
+                    #[trigger] polygon@[ii], polygon@[next_ii],
+                    #[trigger] polygon@[jj],
                 )
             },
             forall|ii: int, jj: int|
@@ -381,8 +381,8 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
                 ==> {
                 let next_ii = polygon_next_index(n as int, ii);
                 orient2d_positive::<V>(
-                    #[trigger] polygon.model()[ii], polygon.model()[next_ii],
-                    #[trigger] polygon.model()[jj],
+                    #[trigger] polygon@[ii], polygon@[next_ii],
+                    #[trigger] polygon@[jj],
                 )
             },
         decreases n - i,
@@ -404,13 +404,13 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
                 next_i as int == polygon_next_index(n as int, i as int),
                 vi.wf_spec(),
                 vnext.wf_spec(),
-                vi.model@ == polygon.model()[i as int],
-                vnext.model@ == polygon.model()[next_i as int],
+                vi.model@ == polygon@[i as int],
+                vnext.model@ == polygon@[next_i as int],
                 forall|jj: int| 0 <= jj < j ==> {
                     !orient2d_negative::<V>(
-                        polygon.model()[i as int],
-                        polygon.model()[polygon_next_index(n as int, i as int)],
-                        #[trigger] polygon.model()[jj],
+                        polygon@[i as int],
+                        polygon@[polygon_next_index(n as int, i as int)],
+                        #[trigger] polygon@[jj],
                     )
                 },
                 forall|jj: int| 0 <= jj < j
@@ -418,9 +418,9 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
                     && jj != polygon_next_index(n as int, i as int)
                     ==> {
                     orient2d_positive::<V>(
-                        polygon.model()[i as int],
-                        polygon.model()[polygon_next_index(n as int, i as int)],
-                        #[trigger] polygon.model()[jj],
+                        polygon@[i as int],
+                        polygon@[polygon_next_index(n as int, i as int)],
+                        #[trigger] polygon@[jj],
                     )
                 },
             decreases n - j,
@@ -428,9 +428,9 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
             let vj = polygon.get(j);
 
             proof {
-                assert(polygon.model()[i as int] == polygon.vertices@[i as int].model@);
-                assert(polygon.model()[next_i as int] == polygon.vertices@[next_i as int].model@);
-                assert(polygon.model()[j as int] == polygon.vertices@[j as int].model@);
+                assert(polygon@[i as int] == polygon.vertices@[i as int].model@);
+                assert(polygon@[next_i as int] == polygon.vertices@[next_i as int].model@);
+                assert(polygon@[j as int] == polygon.vertices@[j as int].model@);
             }
 
             let sign = orient2d_sign_exec(vi, vnext, vj);
@@ -446,9 +446,9 @@ pub fn is_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedF
             if j != i && j != next_i && !is_positive(&sign) {
                 proof {
                     assert(!orient2d_positive::<V>(
-                        polygon.model()[i as int],
-                        polygon.model()[polygon_next_index(n as int, i as int)],
-                        polygon.model()[j as int],
+                        polygon@[i as int],
+                        polygon@[polygon_next_index(n as int, i as int)],
+                        polygon@[j as int],
                     ));
                 }
                 return false;
@@ -470,7 +470,7 @@ pub fn is_locally_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFi
         polygon.wf_spec(),
         polygon.vertices@.len() >= 3,
     ensures
-        out == is_locally_convex_polygon::<V>(polygon.model()),
+        out == is_locally_convex_polygon::<V>(polygon@),
 {
     let n = polygon.len();
     let mut i: usize = 0;
@@ -485,7 +485,7 @@ pub fn is_locally_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFi
                 let j = polygon_next_index(n as int, k);
                 let m = polygon_next_index(n as int, j);
                 !orient2d_negative::<V>(
-                    #[trigger] polygon.model()[k], polygon.model()[j], polygon.model()[m],
+                    #[trigger] polygon@[k], polygon@[j], polygon@[m],
                 )
             },
         decreases n - i,
@@ -498,9 +498,9 @@ pub fn is_locally_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFi
         let sign = orient2d_sign_exec(vi, vj, vk);
 
         proof {
-            assert(polygon.model()[i as int] == polygon.vertices@[i as int].model@);
-            assert(polygon.model()[j as int] == polygon.vertices@[j as int].model@);
-            assert(polygon.model()[k as int] == polygon.vertices@[k as int].model@);
+            assert(polygon@[i as int] == polygon.vertices@[i as int].model@);
+            assert(polygon@[j as int] == polygon.vertices@[j as int].model@);
+            assert(polygon@[k as int] == polygon.vertices@[k as int].model@);
             lemma_orient2d_sign_matches::<V>(vi.model@, vj.model@, vk.model@);
         }
 
@@ -521,7 +521,7 @@ pub fn is_locally_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: 
         polygon.wf_spec(),
         polygon.vertices@.len() >= 3,
     ensures
-        out == is_locally_strictly_convex_polygon::<V>(polygon.model()),
+        out == is_locally_strictly_convex_polygon::<V>(polygon@),
 {
     let n = polygon.len();
     let mut i: usize = 0;
@@ -536,7 +536,7 @@ pub fn is_locally_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: 
                 let j = polygon_next_index(n as int, k);
                 let m = polygon_next_index(n as int, j);
                 orient2d_positive::<V>(
-                    #[trigger] polygon.model()[k], polygon.model()[j], polygon.model()[m],
+                    #[trigger] polygon@[k], polygon@[j], polygon@[m],
                 )
             },
         decreases n - i,
@@ -549,9 +549,9 @@ pub fn is_locally_strictly_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: 
         let sign = orient2d_sign_exec(vi, vj, vk);
 
         proof {
-            assert(polygon.model()[i as int] == polygon.vertices@[i as int].model@);
-            assert(polygon.model()[j as int] == polygon.vertices@[j as int].model@);
-            assert(polygon.model()[k as int] == polygon.vertices@[k as int].model@);
+            assert(polygon@[i as int] == polygon.vertices@[i as int].model@);
+            assert(polygon@[j as int] == polygon.vertices@[j as int].model@);
+            assert(polygon@[k as int] == polygon.vertices@[k as int].model@);
             lemma_orient2d_sign_matches::<V>(vi.model@, vj.model@, vk.model@);
         }
 

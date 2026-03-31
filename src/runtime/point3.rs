@@ -30,20 +30,20 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint3<R, V> {
         &&& self.x.wf_spec()
         &&& self.y.wf_spec()
         &&& self.z.wf_spec()
-        &&& self.x.model() == self.model@.x
-        &&& self.y.model() == self.model@.y
-        &&& self.z.model() == self.model@.z
+        &&& self.x@ == self.model@.x
+        &&& self.y@ == self.model@.y
+        &&& self.z@ == self.model@.z
     }
 
     pub fn new(x: R, y: R, z: R) -> (out: Self)
         requires x.wf_spec(), y.wf_spec(), z.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.x == x.model(),
-            out.model@.y == y.model(),
-            out.model@.z == z.model(),
+            out.model@.x == x@,
+            out.model@.y == y@,
+            out.model@.z == z@,
     {
-        let ghost model = Point3 { x: x.model(), y: y.model(), z: z.model() };
+        let ghost model = Point3 { x: x@, y: y@, z: z@ };
         RuntimePoint3 { x, y, z, model: Ghost(model) }
     }
 

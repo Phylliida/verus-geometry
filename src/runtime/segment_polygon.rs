@@ -43,7 +43,7 @@ pub fn segment_overlaps_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Ord
         polygon.vertices@.len() >= 3,
     ensures
         out == segment_overlaps_convex_polygon::<V>(
-            seg_start.model@, seg_end.model@, polygon.model(),
+            seg_start.model@, seg_end.model@, polygon@,
         ),
 {
     let start_in = point_in_convex_polygon_boundary_inclusive_exec(seg_start, polygon);
@@ -64,7 +64,7 @@ pub fn segment_overlaps_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Ord
             seg_end.wf_spec(),
             polygon.wf_spec(),
             has_hit == segment_prefix_hits_polygon_edge::<V>(
-                seg_start.model@, seg_end.model@, polygon.model(), i as int,
+                seg_start.model@, seg_end.model@, polygon@, i as int,
             ),
         decreases n - i,
     {
@@ -80,16 +80,16 @@ pub fn segment_overlaps_convex_polygon_exec<R: RuntimeOrderedFieldOps<V>, V: Ord
             if has_hit {
                 if not_disjoint {
                     assert(segment_hits_polygon_edge::<V>(
-                        seg_start.model@, seg_end.model@, polygon.model(), i as int,
+                        seg_start.model@, seg_end.model@, polygon@, i as int,
                     ));
                 }
                 assert(segment_prefix_hits_polygon_edge::<V>(
-                    seg_start.model@, seg_end.model@, polygon.model(), (i + 1) as int,
+                    seg_start.model@, seg_end.model@, polygon@, (i + 1) as int,
                 ));
             }
             if !has_hit {
                 assert(!segment_prefix_hits_polygon_edge::<V>(
-                    seg_start.model@, seg_end.model@, polygon.model(), (i + 1) as int,
+                    seg_start.model@, seg_end.model@, polygon@, (i + 1) as int,
                 ));
             }
         }

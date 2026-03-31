@@ -28,18 +28,18 @@ impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.x.wf_spec()
         &&& self.y.wf_spec()
-        &&& self.x.model() == self.model@.x
-        &&& self.y.model() == self.model@.y
+        &&& self.x@ == self.model@.x
+        &&& self.y@ == self.model@.y
     }
 
     pub fn new(x: R, y: R) -> (out: Self)
         requires x.wf_spec(), y.wf_spec(),
         ensures
             out.wf_spec(),
-            out.model@.x == x.model(),
-            out.model@.y == y.model(),
+            out.model@.x == x@,
+            out.model@.y == y@,
     {
-        let ghost model = Point2 { x: x.model(), y: y.model() };
+        let ghost model = Point2 { x: x@, y: y@ };
         RuntimePoint2 { x, y, model: Ghost(model) }
     }
 

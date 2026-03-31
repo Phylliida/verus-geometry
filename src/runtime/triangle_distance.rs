@@ -52,7 +52,7 @@ fn min_of_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     a: R, b: R,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(),
-    ensures out.wf_spec(), out.model() == min_of::<V>(a.model(), b.model()),
+    ensures out.wf_spec(), out@ == min_of::<V>(a@, b@),
 {
     if a.le(&b) { a } else { b }
 }
@@ -61,7 +61,7 @@ fn min_of_three_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>(
     a: R, b: R, c: R,
 ) -> (out: R)
     requires a.wf_spec(), b.wf_spec(), c.wf_spec(),
-    ensures out.wf_spec(), out.model() == min_of_three::<V>(a.model(), b.model(), c.model()),
+    ensures out.wf_spec(), out@ == min_of_three::<V>(a@, b@, c@),
 {
     min_of_exec(a, min_of_exec(b, c))
 }
@@ -77,7 +77,7 @@ pub fn squared_distance_point_triangle_2d_exec<R: RuntimeOrderedFieldOps<V>, V: 
         !verus_linalg::vec2::ops::norm_sq(sub2::<V>(a.model@, c.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == squared_distance_point_triangle_2d::<V>(q.model@, a.model@, b.model@, c.model@),
+        out@ == squared_distance_point_triangle_2d::<V>(q.model@, a.model@, b.model@, c.model@),
 {
     if point_in_triangle_2d_exec(q, a, b, c) {
         q.x.zero_like()
@@ -100,7 +100,7 @@ pub fn min_edge_squared_distance_3d_exec<R: RuntimeOrderedFieldOps<V>, V: Ordere
         !verus_linalg::vec3::ops::norm_sq(sub3::<V>(a.model@, c.model@)).eqv(V::zero()),
     ensures
         out.wf_spec(),
-        out.model() == min_edge_squared_distance_3d::<V>(q.model@, a.model@, b.model@, c.model@),
+        out@ == min_edge_squared_distance_3d::<V>(q.model@, a.model@, b.model@, c.model@),
 {
     let d_ab = super::closest_point::squared_distance_point_segment_3d_exec(q, a, b);
     let d_bc = super::closest_point::squared_distance_point_segment_3d_exec(q, b, c);

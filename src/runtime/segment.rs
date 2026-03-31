@@ -77,9 +77,9 @@ pub fn collinear_overlap_kind_1d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedFi
 ) -> (out: i8)
     requires a1.wf_spec(), a2.wf_spec(), b1.wf_spec(), b2.wf_spec(),
     ensures
-        (out == -1i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) < 0),
-        (out == 0i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) == 0),
-        (out == 1i8) == (collinear_overlap_kind_1d::<V>(a1.model(), a2.model(), b1.model(), b2.model()) > 0),
+        (out == -1i8) == (collinear_overlap_kind_1d::<V>(a1@, a2@, b1@, b2@) < 0),
+        (out == 0i8) == (collinear_overlap_kind_1d::<V>(a1@, a2@, b1@, b2@) == 0),
+        (out == 1i8) == (collinear_overlap_kind_1d::<V>(a1@, a2@, b1@, b2@) > 0),
 {
     let a1_le_a2 = a1.le(a2);
     let b1_le_b2 = b1.le(b2);
@@ -155,7 +155,7 @@ pub fn segment_intersection_parameter_2d_exec<R: RuntimeOrderedFieldOps<V>, V: O
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out.model() == segment_intersection_parameter_2d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == segment_intersection_parameter_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o3 = orient2d_exec(c, d, a);
     let o4 = orient2d_exec(c, d, b);
@@ -195,7 +195,7 @@ pub fn segment_intersection_parameter_cd_2d_exec<R: RuntimeOrderedFieldOps<V>, V
             == SegmentIntersection2dKind::Proper,
     ensures
         out.wf_spec(),
-        out.model() == segment_intersection_parameter_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
+        out@ == segment_intersection_parameter_cd_2d::<V>(a.model@, b.model@, c.model@, d.model@),
 {
     let o1 = orient2d_exec(a, b, c);
     let o2 = orient2d_exec(a, b, d);

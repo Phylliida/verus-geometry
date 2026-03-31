@@ -57,7 +57,7 @@ pub fn segment_plane_intersection_parameter_exec<R: RuntimeOrderedFieldOps<V>, V
         segment_crosses_plane_strict::<V>(d.model@, e.model@, a.model@, b.model@, c.model@),
     ensures
         out.wf_spec(),
-        out.model() == segment_plane_intersection_parameter::<V>(d.model@, e.model@, a.model@, b.model@, c.model@),
+        out@ == segment_plane_intersection_parameter::<V>(d.model@, e.model@, a.model@, b.model@, c.model@),
 {
     let od = orient3d_exec(a, b, c, d);
     let oe = orient3d_exec(a, b, c, e);
@@ -213,9 +213,9 @@ pub fn barycentric_unnorm_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>
     requires p.wf_spec(), a.wf_spec(), b.wf_spec(), c.wf_spec(),
     ensures
         out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.model() == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).0,
-        out.1.model() == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).1,
-        out.2.model() == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).2,
+        out.0@ == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).0,
+        out.1@ == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).1,
+        out.2@ == barycentric_unnorm_2d::<V>(p.model@, a.model@, b.model@, c.model@).2,
 {
     let u = orient2d_exec(b, c, p);
     let v = orient2d_exec(c, a, p);
@@ -232,9 +232,9 @@ pub fn barycentric_coords_2d_exec<R: RuntimeOrderedFieldOps<V>, V: OrderedField>
         !orient2d::<V>(a.model@, b.model@, c.model@).eqv(V::zero()),
     ensures
         out.0.wf_spec(), out.1.wf_spec(), out.2.wf_spec(),
-        out.0.model() == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).0,
-        out.1.model() == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).1,
-        out.2.model() == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).2,
+        out.0@ == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).0,
+        out.1@ == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).1,
+        out.2@ == barycentric_coords_2d::<V>(p.model@, a.model@, b.model@, c.model@).2,
 {
     let (u, v, w) = barycentric_unnorm_2d_exec(p, a, b, c);
     let area = orient2d_exec(a, b, c);
