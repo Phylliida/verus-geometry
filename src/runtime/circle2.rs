@@ -20,6 +20,14 @@ pub struct RuntimeCircle2<R, V: OrderedField> where R: RuntimeRingOps<V> {
     pub model: Ghost<Circle2<V>>,
 }
 
+impl<R: RuntimeRingOps<V>, V: OrderedField> View for RuntimeCircle2<R, V> {
+    type V = Circle2<V>;
+
+    open spec fn view(&self) -> Circle2<V> {
+        self.model@
+    }
+}
+
 impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeCircle2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.center.wf_spec()

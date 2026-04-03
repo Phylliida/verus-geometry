@@ -24,6 +24,14 @@ pub struct RuntimePoint2<R, V: OrderedField> where R: RuntimeRingOps<V> {
     pub model: Ghost<Point2<V>>,
 }
 
+impl<R: RuntimeRingOps<V>, V: OrderedField> View for RuntimePoint2<R, V> {
+    type V = Point2<V>;
+
+    open spec fn view(&self) -> Point2<V> {
+        self.model@
+    }
+}
+
 impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimePoint2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.x.wf_spec()
