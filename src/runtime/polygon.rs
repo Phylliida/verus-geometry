@@ -27,6 +27,14 @@ pub struct RuntimePolygon2<R, V: OrderedField> where R: RuntimeOrderedFieldOps<V
     pub vertices: Vec<RuntimePoint2<R, V>>,
 }
 
+impl<R: RuntimeOrderedFieldOps<V>, V: OrderedField> View for RuntimePolygon2<R, V> {
+    type V = Seq<Point2<V>>;
+
+    open spec fn view(&self) -> Seq<Point2<V>> {
+        Seq::new(self.vertices@.len(), |i: int| self.vertices@[i].model@)
+    }
+}
+
 impl<R: RuntimeOrderedFieldOps<V>, V: OrderedField> RuntimePolygon2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         forall|i: int| 0 <= i < self.vertices@.len() ==>
