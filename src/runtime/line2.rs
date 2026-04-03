@@ -23,6 +23,14 @@ pub struct RuntimeLine2<R, V: OrderedField> where R: RuntimeRingOps<V> {
     pub model: Ghost<Line2<V>>,
 }
 
+impl<R: RuntimeRingOps<V>, V: OrderedField> View for RuntimeLine2<R, V> {
+    type V = Line2<V>;
+
+    open spec fn view(&self) -> Line2<V> {
+        self.model@
+    }
+}
+
 impl<R: RuntimeRingOps<V>, V: OrderedField> RuntimeLine2<R, V> {
     pub open spec fn wf_spec(&self) -> bool {
         &&& self.a.wf_spec()
